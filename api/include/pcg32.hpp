@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdint.h>
+#include "core.hpp"
 
-namespace sky360 {
+namespace sky360lib {
 	class Pcg32 {
 	public:
 

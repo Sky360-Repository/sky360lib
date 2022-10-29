@@ -5,14 +5,15 @@ add_library(sky360lib_api STATIC)
 target_sources(
     sky360lib_api
         PRIVATE
-            "src/VibeBGS.cpp" "include/VibeBGSUtils.hpp" "src/WeightedMovingVariance.cpp"
+            "bgs/vibe/Vibe.cpp" "bgs/vibe/VibeUtils.hpp" "bgs/WeightedMovingVariance/WeightedMovingVariance.cpp" "include/pcg32.hpp" "include/core.hpp" 
+            "bgs/vibe/Vibe.hpp" "bgs/WeightedMovingVariance/WeightedMovingVariance.hpp" 
         PUBLIC
-            "include/VibeBGS.hpp" "include/WeightedMovingVariance.hpp"
+            "include/profiling.hpp" "bgs/bgs.hpp"
 )
 
 target_include_directories(
     sky360lib_api
         PUBLIC
-            "${CMAKE_SOURCE_DIR}/api/include"
+            "${CMAKE_SOURCE_DIR}/api/include" "${CMAKE_SOURCE_DIR}/api/bgs"
 )
 

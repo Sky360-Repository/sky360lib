@@ -1,13 +1,14 @@
 #pragma once
 
 #include "pcg32.hpp"
+
 #include <iostream>
 
 #include <array>
 #include <memory>
 #include <vector>
 
-namespace sky360 {
+namespace sky360lib::bgs {
     typedef unsigned char uchar;
  
     // Todo: This should NOT update the properties manually

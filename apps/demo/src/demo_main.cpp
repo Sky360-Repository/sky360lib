@@ -4,15 +4,13 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
-//#include "BackgroundSubtractorViBe.hpp"
-#include "VibeBGS.hpp"
-#include "WeightedMovingVariance.hpp"
+#include "bgs.hpp"
 #include "profiling.hpp"
 
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
     bgslibrary::algorithms::WeightedMovingVariance wmv;
-    sky360::VibeBGS vibeBGS;
+    //sky360lib::bgs::Vibe vibeBGS;
 
     if (argc < 2) {
         std::cout << "Need one parameter as camera number" << std::endl;
@@ -49,7 +47,7 @@ int main(int argc, const char** argv) {
     }
 
     cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
-    vibeBGS.initialize(greyFrame, 12);
+    //vibeBGS.initialize(greyFrame, 12);
     std::cout << "initializeParallel" << std::endl;
 
     cv::Mat bgsMask(frame.size(), CV_8UC1);
@@ -66,8 +64,8 @@ int main(int argc, const char** argv) {
         cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
 
         double startTime = getAbsoluteTime();
-        //wmv.process(greyFrame, bgsMask);
-        vibeBGS.apply(greyFrame, bgsMask);
+        wmv.process(greyFrame, bgsMask);
+        //vibeBGS.apply(greyFrame, bgsMask);
         double endTime = getAbsoluteTime();
         totalTime += endTime - startTime;
         ++numFrames;

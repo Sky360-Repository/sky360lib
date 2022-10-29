@@ -1,12 +1,13 @@
 #pragma once
 
-#include "VibeBGSUtils.hpp"
+#include "core.hpp"
+#include "VibeUtils.hpp"
 
 #include <opencv2/core.hpp>
 
-namespace sky360 {
+namespace sky360lib::bgs {
 
-    class VibeBGS {
+    class Vibe {
     public:
         /// defines the default value for BackgroundSubtractorViBe::m_nColorDistThreshold
         static const size_t DEFAULT_COLOR_DIST_THRESHOLD{20};
@@ -19,10 +20,10 @@ namespace sky360 {
         /// defines the default value for the number of parallel threads
         static const size_t DEFAULT_PARALLEL_TASKS{4};
 
-        VibeBGS(size_t nColorDistThreshold = DEFAULT_COLOR_DIST_THRESHOLD,
-                size_t nBGSamples = DEFAULT_NB_BG_SAMPLES,
-                size_t nRequiredBGSamples = DEFAULT_REQUIRED_NB_BG_SAMPLES,
-                size_t learningRate = DEFAULT_LEARNING_RATE);
+        Vibe(size_t nColorDistThreshold = DEFAULT_COLOR_DIST_THRESHOLD,
+             size_t nBGSamples = DEFAULT_NB_BG_SAMPLES,
+             size_t nRequiredBGSamples = DEFAULT_REQUIRED_NB_BG_SAMPLES,
+             size_t learningRate = DEFAULT_LEARNING_RATE);
 
         void initialize(const cv::Mat& oInitImg, int _numProcesses = DEFAULT_PARALLEL_TASKS);
 
