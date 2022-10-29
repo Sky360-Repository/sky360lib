@@ -101,20 +101,6 @@ void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
             if (L2dist3Squared(pixData, bg) < _params.NColorDistThresholdSquared) {
                 ++nGoodSamplesCount;
                 if (nGoodSamplesCount >= _params.NRequiredBGSamples) {
-                    // if ((Pcg32::fast() % m_learningRate) == 0) {
-                    if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
-                        uchar* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
-                        bgImgPixData[0] = pixData[0];
-                        bgImgPixData[1] = pixData[1];
-                        bgImgPixData[2] = pixData[2];
-                    }
-                    if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
-                        const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32) * 3};
-                        uchar* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
-                        xyRandData[0] = pixData[0];
-                        xyRandData[1] = pixData[1];
-                        xyRandData[2] = pixData[2];
-                    }
                     break;
                 }
             }
@@ -122,7 +108,21 @@ void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
         }
         if (nGoodSamplesCount < _params.NRequiredBGSamples) {
             _fgmask.data[pixOffset] = UCHAR_MAX;
-        } 
+        } else {
+            if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
+                uchar* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
+                bgImgPixData[0] = pixData[0];
+                bgImgPixData[1] = pixData[1];
+                bgImgPixData[2] = pixData[2];
+            }
+            if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
+                const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32) * 3};
+                uchar* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
+                xyRandData[0] = pixData[0];
+                xyRandData[1] = pixData[1];
+                xyRandData[2] = pixData[2];
+            }
+        }
     }
 }
 
@@ -143,15 +143,6 @@ void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
             if (L1dist(pixData, bg) < _params.NColorDistThreshold) {
                 ++nGoodSamplesCount;
                 if (nGoodSamplesCount >= _params.NRequiredBGSamples) {
-                    if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
-                        uchar* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
-                        bgImgPixData[0] = pixData[0];
-                    }
-                    if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
-                        const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32)};
-                        uchar* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
-                        xyRandData[0] = pixData[0];
-                    }
                     break;
                 }
             }
@@ -159,27 +150,21 @@ void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
         }
         if (nGoodSamplesCount < _params.NRequiredBGSamples) {
             _fgmask.data[pixOffset] = UCHAR_MAX;
+        } else {
+            if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
+                uchar* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
+                bgImgPixData[0] = pixData[0];
+            }
+            if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
+                const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32)};
+                uchar* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
+                xyRandData[0] = pixData[0];
+            }
         }
-        // else {
-        //     // if ((Pcg32::fast() % m_learningRate) == 0) {
-        //     if ((Pcg32::fast() & _params.ANDlearningRate) == 0) {
-        //         uchar* const bgImgPixData{&bgImg[Pcg32::fast() & _params.ANDlearningRate]->data[colorPixOffset]};
-        //         bgImgPixData[0] = pixData[0];
-        //         bgImgPixData[1] = pixData[1];
-        //         bgImgPixData[2] = pixData[2];
-        //     }
-        //     if ((Pcg32::fast() & _params.ANDlearningRate) == 0) {
-        //         int neighData{getNeighborPosition_3x3(pixOffset, image.size)};
-        //         uchar* const xyRandData{&bgImg[Pcg32::fast() & _params.ANDlearningRate]->data[neighData * 3]};
-        //         xyRandData[0] = pixData[0];
-        //         xyRandData[1] = pixData[1];
-        //         xyRandData[2] = pixData[2];
-        //     }
-        // }
     }
 }
 
-void Vibe::getBackgroundImage(cv::Mat& backgroundImage) const {
+void Vibe::getBackgroundImage(cv::Mat& backgroundImage) {
     cv::Mat oAvgBGImg(m_origImgSize->height, m_origImgSize->width, CV_32FC(m_origImgSize->numBytesPerPixel));
 
     for(size_t t{0}; t < m_numProcessesParallel; ++t) {

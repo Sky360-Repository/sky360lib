@@ -40,25 +40,20 @@ namespace sky360lib::bgs {
     };
 
     struct Img {
-        Img(uchar* _data, const ImgSize& _imgSize, bool _allocated = false)
+        Img(uchar* _data, const ImgSize& _imgSize, std::unique_ptr<uchar[]> _dataPtr = nullptr)
             : data{_data},
             size{_imgSize},
-            allocated{_allocated} {
-        }
-
-        ~Img() {
-            if (allocated) {
-                delete[] data;
-            }
+            dataPtr{std::move(_dataPtr)} {
         }
         
         static std::unique_ptr<Img> create(const ImgSize& _imgSize, bool _clear = false) {
-            auto data = new uchar[_imgSize.size];
+            //auto data = new uchar[_imgSize.size];
+            auto data = std::make_unique_for_overwrite<uchar[]>(_imgSize.size);
             if (_clear) {
-                memset(data, 0, _imgSize.size);
+                memset(data.get(), 0, _imgSize.size);
             }
 
-            return std::make_unique<Img>(data, _imgSize, true);
+            return std::make_unique<Img>(data.get(), _imgSize, std::move(data));
         }
 
         inline void clear() {
@@ -67,7 +62,8 @@ namespace sky360lib::bgs {
 
         const ImgSize size;
         uchar* const data;
-        const bool allocated;
+
+        std::unique_ptr<uchar[]> dataPtr;
     };
 
     static inline size_t L2dist3Squared(const uchar* const a, const uchar* const b) {

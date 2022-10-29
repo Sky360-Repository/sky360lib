@@ -5,7 +5,7 @@
 #include <execution>
 #include <iostream>
 
-using namespace bgslibrary::algorithms;
+using namespace sky360lib::bgs;
 
 WeightedMovingVariance::WeightedMovingVariance(bool _enableWeight,
                                     bool _enableThreshold,

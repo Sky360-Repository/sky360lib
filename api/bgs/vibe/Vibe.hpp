@@ -9,13 +9,13 @@ namespace sky360lib::bgs {
 
     class Vibe {
     public:
-        /// defines the default value for BackgroundSubtractorViBe::m_nColorDistThreshold
-        static const size_t DEFAULT_COLOR_DIST_THRESHOLD{20};
-        /// defines the default value for BackgroundSubtractorViBe::m_nBGSamples
-        static const size_t DEFAULT_NB_BG_SAMPLES{16};
-        /// defines the default value for BackgroundSubtractorViBe::m_nRequiredBGSamples
+        /// defines the default value for ColorDistThreshold
+        static const size_t DEFAULT_COLOR_DIST_THRESHOLD{15};
+        /// defines the default value for BGSamples
+        static const size_t DEFAULT_NB_BG_SAMPLES{8};
+        /// defines the default value for RequiredBGSamples
         static const size_t DEFAULT_REQUIRED_NB_BG_SAMPLES{2};
-        /// defines the default value for the learning rate passed to BackgroundSubtractorViBe::apply (the 'subsampling' factor in the original ViBe paper)
+        /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
         static const size_t DEFAULT_LEARNING_RATE{8};
         /// defines the default value for the number of parallel threads
         static const size_t DEFAULT_PARALLEL_TASKS{4};
@@ -29,7 +29,7 @@ namespace sky360lib::bgs {
 
         void apply(const cv::Mat& _image, cv::Mat& _fgmask);
 
-        void getBackgroundImage(cv::Mat& backgroundImage) const;
+        void getBackgroundImage(cv::Mat& backgroundImage);
 
     private:
         Params m_params;

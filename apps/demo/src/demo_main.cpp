@@ -7,10 +7,12 @@
 #include "bgs.hpp"
 #include "profiling.hpp"
 
+using namespace sky360lib::bgs;
+
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
-    bgslibrary::algorithms::WeightedMovingVariance wmv;
-    //sky360lib::bgs::Vibe vibeBGS;
+    WeightedMovingVariance wmv;
+    Vibe vibeBGS;
 
     if (argc < 2) {
         std::cout << "Need one parameter as camera number" << std::endl;
@@ -21,7 +23,8 @@ int main(int argc, const char** argv) {
 
     int camNum = std::stoi(argv[1]);
     //cap.open(camNum);
-    cap.open("E:\\source\\sky360\\embedded-bgsub\\Dahua-20220901-184734.mp4");
+    //cap.open("E:\\source\\sky360\\embedded-bgsub\\Dahua-20220901-184734.mp4");
+    cap.open("E:\\source\\sky360\\dataset\\plane_flying_past2.mkv");
     if (!cap.isOpened())
     {
         std::cout << "***Could not initialize capturing...***\n";
@@ -46,7 +49,7 @@ int main(int argc, const char** argv) {
         return -1;
     }
 
-    cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
+    //cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
     //vibeBGS.initialize(greyFrame, 12);
     std::cout << "initializeParallel" << std::endl;
 
