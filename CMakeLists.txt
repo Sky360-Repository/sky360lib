@@ -92,3 +92,27 @@ endif ()
 
 add_subdirectory(api)
 add_subdirectory(apps)
+
+file(GLOB_RECURSE bgs_python_src wrapper/python/*.cpp)
+file(GLOB_RECURSE bgs_python_inc wrapper/python/*.h)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/modules/pybind11/include)
+#include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${PYTHON_INCLUDE_DIRS})
+
+
+#set(PYBIND11_LTO_CXX_FLAGS "")
+#set(BGS_PYTHON_VERSION 3)
+##set(PYBIND11_PYTHON_VERSION 2.7 3.5 3.6)
+#set(PYBIND11_PYTHON_VERSION ${BGS_PYTHON_VERSION})
+##find_package(pybind11 REQUIRED)
+#add_subdirectory(modules/pybind11)
+
+#pybind11_add_module(bgs_python ${bgs_python_src} ${bgs_python_inc})
+
+#target_link_libraries(bgs_python PRIVATE bgslibrary_core ${OpenCV_LIBS} ${PYTHON_LIBRARY} pybind11::module)
+#set_target_properties(bgs_python PROPERTIES SUFFIX "${PYTHON_MODULE_EXTENSION}")
+#target_compile_definitions(bgs_python PRIVATE BGS_PYTHON_SUPPORT=1)
+
+## Set the output library name to bgslibrary because that's what setup.py and distutils expects.
+#set_property(TARGET bgs_python PROPERTY OUTPUT_NAME "pysky360lib")
