@@ -49,11 +49,12 @@ int main(int argc, const char** argv) {
         return -1;
     }
 
-    //cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
-    //vibeBGS.initialize(greyFrame, 12);
-    std::cout << "initializeParallel" << std::endl;
-
     cv::Mat bgsMask(frame.size(), CV_8UC1);
+
+    // Applying first time for initialization of algo
+    cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
+    //vibeBGS.apply(greyFrame, bgsMask);
+    wmv.apply(greyFrame, bgsMask);
 
     cv::imshow("BGS Demo", frame);
 
@@ -67,7 +68,7 @@ int main(int argc, const char** argv) {
         cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
 
         double startTime = getAbsoluteTime();
-        wmv.process(greyFrame, bgsMask);
+        wmv.apply(greyFrame, bgsMask);
         //vibeBGS.apply(greyFrame, bgsMask);
         double endTime = getAbsoluteTime();
         totalTime += endTime - startTime;
@@ -76,6 +77,8 @@ int main(int argc, const char** argv) {
 
         if (numFrames % 100 == 0) {
             std::cout << "Framerate: " << (numFrames / totalTime) << " fps" << std::endl;
+            totalTime = 0;
+            numFrames = 0;
         }
         cv::imshow("BGS Demo", bgsMask);
         cv::imshow("Live Video", frame);

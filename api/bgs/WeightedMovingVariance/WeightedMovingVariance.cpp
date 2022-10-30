@@ -9,9 +9,10 @@ using namespace sky360lib::bgs;
 
 WeightedMovingVariance::WeightedMovingVariance(bool _enableWeight,
                                     bool _enableThreshold,
-                                    int _threshold) 
-    : m_params(_enableWeight, _enableThreshold, _threshold),
-    m_numProcessesParallel(12)
+                                    int _threshold,
+                                    size_t _numProcessesParallel) 
+    : CoreBgs(_numProcessesParallel)
+    , m_params(_enableWeight, _enableThreshold, _threshold)
 {
     imgInputPrevParallel.resize(m_numProcessesParallel);
 
@@ -22,35 +23,36 @@ WeightedMovingVariance::WeightedMovingVariance(bool _enableWeight,
     }
 }
 
-WeightedMovingVariance::~WeightedMovingVariance()
-{
+WeightedMovingVariance::~WeightedMovingVariance() {
 }
 
-void WeightedMovingVariance::process(const cv::Mat &_imgInput, cv::Mat &_imgOutput)
-{
+void WeightedMovingVariance::getBackgroundImage(cv::Mat& _bgImage) {
+}
+
+void WeightedMovingVariance::initialize(const cv::Mat& _image) {
+}
+
+void WeightedMovingVariance::process(const cv::Mat &_imgInput, cv::Mat &_imgOutput, int _numProcess) {
     if (_imgOutput.empty()) {
         _imgOutput.create(_imgInput.size(), CV_8UC1);
     }
-    if (m_numProcessesParallel > 1) 
-        processParallel(_imgInput, _imgOutput);
-    else
-        process(_imgInput, _imgOutput, imgInputPrevParallel[0], m_params);
+    process(_imgInput, _imgOutput, imgInputPrevParallel[_numProcess], m_params);
 }
 
-void WeightedMovingVariance::processParallel(const cv::Mat &_imgInput, cv::Mat &_imgOutput) {
-    std::for_each(
-        std::execution::par,
-        m_processSeq.begin(),
-        m_processSeq.end(),
-        [&](int np)
-        {
-            const int height{_imgInput.size().height / m_numProcessesParallel};
-            const int pixelPos{np * _imgInput.size().width * height};
-            cv::Mat imgSplit(height, _imgInput.size().width, _imgInput.type(), _imgInput.data + (pixelPos * _imgInput.channels()));
-            cv::Mat maskPartial(height, _imgInput.size().width, _imgOutput.type(), _imgOutput.data + pixelPos);
-            process(imgSplit, maskPartial, imgInputPrevParallel[np], m_params);
-        });
-}
+// void WeightedMovingVariance::processParallel(const cv::Mat &_imgInput, cv::Mat &_imgOutput) {
+//     std::for_each(
+//         std::execution::par,
+//         m_processSeq.begin(),
+//         m_processSeq.end(),
+//         [&](int np)
+//         {
+//             const int height{_imgInput.size().height / m_numProcessesParallel};
+//             const int pixelPos{np * _imgInput.size().width * height};
+//             cv::Mat imgSplit(height, _imgInput.size().width, _imgInput.type(), _imgInput.data + (pixelPos * _imgInput.channels()));
+//             cv::Mat maskPartial(height, _imgInput.size().width, _imgOutput.type(), _imgOutput.data + pixelPos);
+//             process(imgSplit, maskPartial, imgInputPrevParallel[np], m_params);
+//         });
+// }
 
 void WeightedMovingVariance::process(const cv::Mat &_inImage, 
                                     cv::Mat &_outImg, 

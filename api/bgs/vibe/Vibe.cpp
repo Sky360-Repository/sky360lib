@@ -8,23 +8,20 @@ using namespace sky360lib::bgs;
 Vibe::Vibe(size_t _nColorDistThreshold,
             size_t _nBGSamples,
             size_t _nRequiredBGSamples,
-            size_t _learningRate)
-    : m_params(_nColorDistThreshold, _nBGSamples, _nRequiredBGSamples, _learningRate)
+            size_t _learningRate,
+            size_t _numProcessesParallel)
+    : CoreBgs(_numProcessesParallel)
+    , m_params(_nColorDistThreshold, _nBGSamples, _nRequiredBGSamples, _learningRate)
 {}
 
-void Vibe::initialize(const cv::Mat& _initImg, int _numProcesses) {
-    m_numProcessesParallel = _numProcesses;
-
-    std::vector<std::unique_ptr<Img>> imgSplit(_numProcesses);
+void Vibe::initialize(const cv::Mat& _initImg) {
+    std::vector<std::unique_ptr<Img>> imgSplit(m_numProcessesParallel);
     m_origImgSize = ImgSize::create(_initImg.size().width, _initImg.size().height, _initImg.channels());
     Img frameImg(_initImg.data, *m_origImgSize);
-    splitImg(frameImg, imgSplit, _numProcesses);
+    splitImg(frameImg, imgSplit, m_numProcessesParallel);
 
-    m_processSeq.resize(_numProcesses);
-    m_bgImgSamples.resize(_numProcesses);
-
-    for (int i{0}; i < _numProcesses; ++i) {
-        m_processSeq[i] = i;
+    m_bgImgSamples.resize(m_numProcessesParallel);
+    for (int i{0}; i < m_numProcessesParallel; ++i) {
         initialize(*imgSplit[i], m_bgImgSamples[i]);
     }
 }
@@ -50,41 +47,16 @@ void Vibe::initialize(const Img& _initImg, std::vector<std::unique_ptr<Img>>& _b
     }
 }
 
-void Vibe::apply(const cv::Mat& _image, cv::Mat& _fgmask) {
-    if (_fgmask.empty()) {
-        _fgmask.create(_image.size(), CV_8UC1);
-    }
-    Img applyImg(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels()));
-    Img maskImg(_fgmask.data, ImgSize(_fgmask.size().width, _fgmask.size().height, 1));
-    if (m_numProcessesParallel == 1) {
-        if (_image.channels() > 1)
-            apply3(applyImg, m_bgImgSamples[0], maskImg, m_params);
-        else
-            apply1(applyImg, m_bgImgSamples[0], maskImg, m_params);
-    } else {
-        applyParallel(applyImg, maskImg);
-    }
+void Vibe::process(const cv::Mat& _image, cv::Mat& _fgmask, int _numProcess) {
+    Img imgSplit(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels()));
+    Img maskPartial(_fgmask.data, ImgSize(_image.size().width, _image.size().height, _fgmask.channels()));
+    if (imgSplit.size.numBytesPerPixel > 1)
+        apply3(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params);
+    else
+        apply1(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params);
 }
 
-void Vibe::applyParallel(const Img& _image, Img& _fgmask) {
-    std::for_each(
-        std::execution::par,
-        m_processSeq.begin(),
-        m_processSeq.end(),
-        [&](int np)
-        {
-            Img imgSplit(_image.data + (m_bgImgSamples[np][0]->size.originalPixelPos * m_bgImgSamples[np][0]->size.numBytesPerPixel), 
-                        ImgSize(m_bgImgSamples[np][0]->size.width, m_bgImgSamples[np][0]->size.height, _image.size.numBytesPerPixel));
-            Img maskPartial(_fgmask.data + m_bgImgSamples[np][0]->size.originalPixelPos, 
-                        ImgSize(imgSplit.size.width, imgSplit.size.height, 1));
-            if (_image.size.numBytesPerPixel > 1)
-                apply3(imgSplit, m_bgImgSamples[np], maskPartial, m_params);
-            else
-                apply1(imgSplit, m_bgImgSamples[np], maskPartial, m_params);
-        });
-}
-
-void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, Img& _fgmask, const Params& _params) {
+void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, Img& _fgmask, const VibeParams& _params) {
     Pcg32 pcg32;
     _fgmask.clear();
 
@@ -126,7 +98,7 @@ void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
     }
 }
 
-void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, Img& _fgmask, const Params& _params) {
+void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, Img& _fgmask, const VibeParams& _params) {
     Pcg32 pcg32;
     _fgmask.clear();
 

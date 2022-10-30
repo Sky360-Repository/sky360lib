@@ -1,13 +1,12 @@
 #pragma once
 
-#include "core.hpp"
+#include "CoreBgs.hpp"
 #include "VibeUtils.hpp"
-
-#include <opencv2/core.hpp>
 
 namespace sky360lib::bgs {
 
-    class Vibe {
+    class Vibe
+        : public CoreBgs {
     public:
         /// defines the default value for ColorDistThreshold
         static const size_t DEFAULT_COLOR_DIST_THRESHOLD{15};
@@ -18,33 +17,27 @@ namespace sky360lib::bgs {
         /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
         static const size_t DEFAULT_LEARNING_RATE{8};
         /// defines the default value for the number of parallel threads
-        static const size_t DEFAULT_PARALLEL_TASKS{4};
+        static const size_t DEFAULT_PARALLEL_TASKS{12};
 
         Vibe(size_t nColorDistThreshold = DEFAULT_COLOR_DIST_THRESHOLD,
              size_t nBGSamples = DEFAULT_NB_BG_SAMPLES,
              size_t nRequiredBGSamples = DEFAULT_REQUIRED_NB_BG_SAMPLES,
-             size_t learningRate = DEFAULT_LEARNING_RATE);
+             size_t learningRate = DEFAULT_LEARNING_RATE,
+             size_t _numProcessesParallel = DEFAULT_PARALLEL_TASKS);
 
-        void initialize(const cv::Mat& oInitImg, int _numProcesses = DEFAULT_PARALLEL_TASKS);
-
-        void apply(const cv::Mat& _image, cv::Mat& _fgmask);
-
-        void getBackgroundImage(cv::Mat& backgroundImage);
+        void getBackgroundImage(cv::Mat& _bgImage);
 
     private:
-        Params m_params;
+        void initialize(const cv::Mat& oInitImg);
+        void process(const cv::Mat& _image, cv::Mat& _fgmask, int _numProcess);
 
-        int m_numProcessesParallel;
-        std::vector<int> m_processSeq;
-
+        VibeParams m_params;
         std::unique_ptr<ImgSize> m_origImgSize;
-
         std::vector<std::vector<std::unique_ptr<Img>>> m_bgImgSamples;
 
         void initialize(const Img& _initImg, std::vector<std::unique_ptr<Img>>& _bgImgSamples);
-        void applyParallel(const Img& _image, Img& _fgmask);
 
-        static void apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImgSamples, Img& _fgmask, const Params& _params);
-        static void apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImgSamples, Img& _fgmask, const Params& _params);
+        static void apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImgSamples, Img& _fgmask, const VibeParams& _params);
+        static void apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImgSamples, Img& _fgmask, const VibeParams& _params);
     };
 }

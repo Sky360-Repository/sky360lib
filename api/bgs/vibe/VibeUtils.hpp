@@ -11,34 +11,6 @@
 namespace sky360lib::bgs {
     typedef unsigned char uchar;
  
-    // Todo: This should NOT update the properties manually
-    struct ImgSize {
-        ImgSize(const ImgSize& _imgSize)
-            : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numBytesPerPixel, _imgSize.originalPixelPos) {
-        }
-
-        ImgSize(int _width, int _height, int _numBytesPerPixel, size_t _originalPixelPos = 0) 
-            : width(_width), 
-            height(_height),
-            numBytesPerPixel(_numBytesPerPixel),
-            numPixels(_width * _height),
-            size(_width * _height * _numBytesPerPixel),
-            originalPixelPos{_originalPixelPos}
-        {}
-
-        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numBytesPerPixel, size_t _originalPixelPos = 0) {
-            return std::make_unique<ImgSize>(_width, _height, _numBytesPerPixel, _originalPixelPos);
-        }
-
-        const int width;
-        const int height;
-        const int numBytesPerPixel;
-        const int numPixels;
-        const size_t size;
-
-        const size_t originalPixelPos;
-    };
-
     struct Img {
         Img(uchar* _data, const ImgSize& _imgSize, std::unique_ptr<uchar[]> _dataPtr = nullptr)
             : data{_data},
@@ -158,8 +130,8 @@ namespace sky360lib::bgs {
 	    }
     }
 
-    struct Params {
-            Params(size_t nColorDistThreshold,
+    struct VibeParams {
+            VibeParams(size_t nColorDistThreshold,
                 size_t nBGSamples,
                 size_t nRequiredBGSamples,
                 size_t learningRate) 
