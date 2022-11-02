@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreBgs.hpp"
+#include "WeightedMovingVarianceUtils.hpp"
 
 #include <opencv2/opencv.hpp>
 
@@ -9,32 +10,6 @@
 
 namespace sky360lib::bgs
 {
-    struct WeightedMovingVarianceParams
-    {
-        WeightedMovingVarianceParams(bool _enableWeight,
-                                     bool _enableThreshold,
-                                     float _threshold,
-                                     float _weight1,
-                                     float _weight2,
-                                     float _weight3)
-            : enableWeight(_enableWeight),
-              enableThreshold(_enableThreshold),
-              threshold(_threshold),
-              weight1(_weight1),
-              weight2(_weight2),
-              weight3(_weight3)
-        {
-        }
-
-        const bool enableWeight;
-        const bool enableThreshold;
-        const float threshold;
-
-        const float weight1;
-        const float weight2;
-        const float weight3;
-    };
-
     class WeightedMovingVariance
         : public CoreBgs
     {
@@ -68,16 +43,18 @@ namespace sky360lib::bgs
                             std::array<std::unique_ptr<cv::Mat>, 2> &img_input_prev,
                             const WeightedMovingVarianceParams &_params);
         static void weightedVarianceMono(
-            const cv::Mat &_img1,
-            const cv::Mat &_img2,
-            const cv::Mat &_img3,
-            cv::Mat &_outImg,
+            const uchar *const img1,
+            const uchar *const img2,
+            const uchar *const img3,
+            uchar *const outImg,
+            const size_t totalPixels,
             const WeightedMovingVarianceParams &_params);
         static void weightedVarianceColor(
-            const cv::Mat &_img1,
-            const cv::Mat &_img2,
-            const cv::Mat &_img3,
-            cv::Mat &_outImg,
+            const uchar *const img1,
+            const uchar *const img2,
+            const uchar *const img3,
+            uchar *const outImg,
+            const size_t totalPixels,
             const WeightedMovingVarianceParams &_params);
     };
 }

@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
+# execute_process(
+#    COMMAND ${CMAKE_COMMAND} -E environment
+# )
+
 list(APPEND CMAKE_MODULE_PATH
     "${CMAKE_SOURCE_DIR}/cmake/"
     "${CMAKE_SOURCE_DIR}/cmake/Modules/"
@@ -11,13 +15,20 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     )
 endif ()
 
+include(CheckLanguage)
 include(FrameworkUtils)
 include(CheckFunctionExists)
 
-project(sky360lib CXX)
+project(sky360lib CUDA CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+check_language(CUDA)
+if(NOT DEFINED CMAKE_CUDA_STANDARD)
+    set(CMAKE_CUDA_STANDARD 20)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+endif()
 
 include(GNUInstallDirs)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
@@ -93,12 +104,13 @@ endif ()
 add_subdirectory(api)
 add_subdirectory(apps)
 
-file(GLOB_RECURSE bgs_python_src wrapper/python/*.cpp)
-file(GLOB_RECURSE bgs_python_inc wrapper/python/*.h)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/modules/pybind11/include)
-#include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${PYTHON_INCLUDE_DIRS})
+#file(GLOB_RECURSE bgs_python_src wrapper/python/*.cpp)
+#file(GLOB_RECURSE bgs_python_inc wrapper/python/*.h)
+
+#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/modules/pybind11/include)
+##include_directories(${Boost_INCLUDE_DIRS})
+#include_directories(${PYTHON_INCLUDE_DIRS})
 
 
 #set(PYBIND11_LTO_CXX_FLAGS "")

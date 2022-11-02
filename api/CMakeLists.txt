@@ -1,4 +1,6 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories($ENV{CUDA_PATH}/include)
+message(STATUS "CUDA_PATH = $ENV{CUDA_PATH}/include")
 
 add_library(sky360lib_api STATIC)
 
@@ -9,8 +11,11 @@ target_sources(
             "bgs/CoreBgs.hpp" "bgs/CoreBgs.cpp"
             "bgs/vibe/Vibe.cpp" "bgs/vibe/Vibe.hpp"
             "bgs/vibe/VibeUtils.hpp" 
+            "bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp"
             "bgs/WeightedMovingVariance/WeightedMovingVariance.cpp" 
             "bgs/WeightedMovingVariance/WeightedMovingVariance.hpp"
+            "bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.cpp" 
+            "bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.hpp"
         PUBLIC
             "include/profiling.hpp" "bgs/bgs.hpp"
 )
@@ -21,3 +26,12 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/api/include" "${CMAKE_SOURCE_DIR}/api/bgs"
 )
 
+set_target_properties(sky360lib_api
+                       PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+# set_property(TARGET sky360lib_api 
+#             PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+target_link_libraries(sky360lib_api PRIVATE cudart_static)
+
+# TARGET_LINK_LIBRARIES(sky360lib_api ${CUDA_LIBRARIES})
+# MESSAGE(STATUS "CUDA_LIBS = ${CUDA_LIBRARIES}")
