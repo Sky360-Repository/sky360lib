@@ -43,17 +43,17 @@ namespace sky360lib::bgs
                             std::array<std::unique_ptr<cv::Mat>, 2> &img_input_prev,
                             const WeightedMovingVarianceParams &_params);
         static void weightedVarianceMono(
-            const uchar *const img1,
-            const uchar *const img2,
-            const uchar *const img3,
-            uchar *const outImg,
+            const uint8_t *const img1,
+            const uint8_t *const img2,
+            const uint8_t *const img3,
+            uint8_t *const outImg,
             const size_t totalPixels,
             const WeightedMovingVarianceParams &_params);
         static void weightedVarianceColor(
-            const uchar *const img1,
-            const uchar *const img2,
-            const uchar *const img3,
-            uchar *const outImg,
+            const uint8_t *const img1,
+            const uint8_t *const img2,
+            const uint8_t *const img3,
+            uint8_t *const outImg,
             const size_t totalPixels,
             const WeightedMovingVarianceParams &_params);
     };

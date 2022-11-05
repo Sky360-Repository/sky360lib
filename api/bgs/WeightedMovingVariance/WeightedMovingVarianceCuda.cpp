@@ -4,11 +4,25 @@
 #include <opencv2/imgproc/types_c.h>
 #include <execution>
 #include <iostream>
-
 #include <cuda_runtime.h>
-#include <device_launch_parameters.h>
 
 using namespace sky360lib::bgs;
+
+// extern "C" void weightedVarianceMonoCuda(
+//         const uint8_t* const img1,
+//         const uint8_t* const img2,
+//         const uint8_t* const img3,
+//         uint8_t* const outImg,
+//         const size_t numPixels,
+//         const WeightedMovingVarianceParams &_params);
+extern "C" void weightedVarianceMonoCuda(
+    const uint8_t* const img1,
+    const uint8_t* const img2,
+    const uint8_t* const img3,
+    uint8_t* const outImg,
+    int width,
+    int height,
+    const WeightedMovingVarianceParams &_params);
 
 WeightedMovingVarianceCuda::WeightedMovingVarianceCuda(bool _enableWeight,
                                                        bool _enableThreshold,
@@ -57,14 +71,14 @@ void WeightedMovingVarianceCuda::initialize(const cv::Mat &_image)
     clearCuda();
 
     const size_t size = _image.size().area() * _image.channels();
-    m_pImgOutputCuda = (uchar *)malloc(_image.size().area());
-    m_pImgMemCuda[0] = (uchar*)malloc(size);
-    m_pImgMemCuda[1] = (uchar*)malloc(size);
-    m_pImgMemCuda[2] = (uchar*)malloc(size);
-    // cudaMalloc((void **)&m_pImgOutputCuda, _image.size().area());
-    // cudaMalloc((void **)&m_pImgMemCuda[0], size);
-    // cudaMalloc((void **)&m_pImgMemCuda[1], size);
-    // cudaMalloc((void **)&m_pImgMemCuda[2], size);
+    // m_pImgOutputCuda = (uint8_t *)malloc(_image.size().area());
+    // m_pImgMemCuda[0] = (uint8_t*)malloc(size);
+    // m_pImgMemCuda[1] = (uint8_t*)malloc(size);
+    // m_pImgMemCuda[2] = (uint8_t*)malloc(size);
+    cudaMalloc((void **)&m_pImgOutputCuda, _image.size().area());
+    cudaMalloc((void **)&m_pImgMemCuda[0], size);
+    cudaMalloc((void **)&m_pImgMemCuda[1], size);
+    cudaMalloc((void **)&m_pImgMemCuda[2], size);
 
     rollImages();
 }
@@ -79,41 +93,33 @@ void WeightedMovingVarianceCuda::rollImages()
     ++m_currentRollingIdx;
 }
 
-inline void calcWeightedVarianceMono(const uchar *const i1, const uchar *const i2, const uchar *const i3,
-                                     uchar *const o, const WeightedMovingVarianceParams &_params)
+inline void calcWeightedVarianceMono(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+                                     uint8_t *const o, const WeightedMovingVarianceParams &_params)
 {
     const float dI[] = {(float)*i1, (float)*i2, (float)*i3};
     const float mean{(dI[0] * _params.weight1) + (dI[1] * _params.weight2) + (dI[2] * _params.weight3)};
     const float value[] = {dI[0] - mean, dI[1] - mean, dI[2] - mean};
     const float result{std::sqrt(((value[0] * value[0]) * _params.weight1) + ((value[1] * value[1]) * _params.weight2) + ((value[2] * value[2]) * _params.weight3))};
-    *o = _params.enableThreshold ? ((uchar)(result > _params.threshold ? 255.0f : 0.0f))
-                                 : (uchar)result;
+    *o = _params.enableThreshold ? ((uint8_t)(result > _params.threshold ? 255.0f : 0.0f))
+                                 : (uint8_t)result;
 }
 
 void WeightedMovingVarianceCuda::weightedVarianceMono(
-    uchar* const img1,
-    uchar* const img2,
-    uchar* const img3,
-    uchar* outImg,
+    const uint8_t* const img1,
+    const uint8_t* const img2,
+    const uint8_t* const img3,
+    uint8_t* const outImg,
     const size_t numPixels,
     const WeightedMovingVarianceParams &_params)
 {
-    uchar *dataI1{img1};
-    uchar *dataI2{img2};
-    uchar *dataI3{img3};
-    uchar *dataOut{outImg};
     for (size_t i{0}; i < numPixels; ++i)
     {
-        calcWeightedVarianceMono(dataI1, dataI2, dataI3, dataOut, _params);
-        ++dataOut;
-        ++dataI1;
-        ++dataI2;
-        ++dataI3;
+        calcWeightedVarianceMono(img1 + i, img2 + i, img3 + i, outImg + i, _params);
     }
 }
 
-inline void calcWeightedVarianceColor(const uchar *const i1, const uchar *const i2, const uchar *const i3,
-                                      uchar *const o, const WeightedMovingVarianceParams &_params)
+inline void calcWeightedVarianceColor(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+                                      uint8_t *const o, const WeightedMovingVarianceParams &_params)
 {
     const float dI1[] = {(float)*i1, (float)*i1 + 1, (float)*i1 + 2};
     const float dI2[] = {(float)*i2, (float)*i2 + 1, (float)*i2 + 2};
@@ -128,30 +134,21 @@ inline void calcWeightedVarianceColor(const uchar *const i1, const uchar *const 
     const float g{std::sqrt(((valueG[0] * valueG[0]) * _params.weight1) + ((valueG[1] * valueG[1]) * _params.weight2) + ((valueG[2] * valueG[2]) * _params.weight3))};
     const float b{std::sqrt(((valueB[0] * valueB[0]) * _params.weight1) + ((valueB[1] * valueB[1]) * _params.weight2) + ((valueB[2] * valueB[2]) * _params.weight3))};
     const float result{0.299f * r + 0.587f * g + 0.114f * b};
-    *o = _params.enableThreshold ? ((uchar)(result > _params.threshold ? 255.0f : 0.0f))
-                                 : (uchar)result;
+    *o = _params.enableThreshold ? ((uint8_t)(result > _params.threshold ? 255.0f : 0.0f))
+                                 : (uint8_t)result;
 }
 
 void WeightedMovingVarianceCuda::weightedVarianceColor(
-    uchar* const img1,
-    uchar* const img2,
-    uchar* const img3,
-    uchar* outImg,
+    const uint8_t* const img1,
+    const uint8_t* const img2,
+    const uint8_t* const img3,
+    uint8_t* const outImg,
     const size_t numPixels,
-    const int numChannels,
     const WeightedMovingVarianceParams &_params)
 {
-    uchar *dataI1{img1};
-    uchar *dataI2{img2};
-    uchar *dataI3{img3};
-    uchar *dataOut{outImg};
-    for (size_t i{0}; i < numPixels; ++i)
+    for (size_t i{0}, i3{0}; i < numPixels; ++i, i3 += 3)
     {
-        calcWeightedVarianceColor(dataI1, dataI2, dataI3, dataOut, _params);
-        ++dataOut;
-        dataI1 += numChannels;
-        dataI2 += numChannels;
-        dataI3 += numChannels;
+        calcWeightedVarianceColor(img1 + i3, img2 + i3, img3 + i3, outImg + i, _params);
     }
 }
 
@@ -164,8 +161,8 @@ void WeightedMovingVarianceCuda::process(const cv::Mat &_imgInput, cv::Mat &_img
 
     const size_t numPixels = _imgInput.size().area();
 
-    //cudaMemcpy(m_pImgInputCuda, _imgInput.data, numPixels * _imgInput.channels(), cudaMemcpyHostToDevice);
-    memcpy(m_pImgInputCuda, _imgInput.data, numPixels * _imgInput.channels());
+    cudaMemcpy(m_pImgInputCuda, _imgInput.data, numPixels * _imgInput.channels(), cudaMemcpyHostToDevice);
+    //memcpy(m_pImgInputCuda, _imgInput.data, numPixels * _imgInput.channels());
 
     if (m_firstPhase < 2)
     {
@@ -175,14 +172,16 @@ void WeightedMovingVarianceCuda::process(const cv::Mat &_imgInput, cv::Mat &_img
     }
 
     if (_imgInput.channels() == 1)
-        weightedVarianceMono(m_pImgInputCuda, m_pImgInputPrev1Cuda, m_pImgInputPrev1Cuda, m_pImgOutputCuda, 
-                            numPixels, m_params);
+        weightedVarianceMonoCuda(m_pImgInputCuda, m_pImgInputPrev1Cuda, m_pImgInputPrev1Cuda, m_pImgOutputCuda, 
+                            _imgInput.size().width, _imgInput.size().height, m_params);
+        // weightedVarianceMono(m_pImgInputCuda, m_pImgInputPrev1Cuda, m_pImgInputPrev1Cuda, m_pImgOutputCuda, 
+        //                     numPixels, m_params);
     else
         weightedVarianceColor(m_pImgInputCuda, m_pImgInputPrev1Cuda, m_pImgInputPrev1Cuda, m_pImgOutputCuda, 
-                            numPixels, _imgInput.channels() ,m_params);
+                            numPixels, m_params);
 
-    // cudaMemcpy(_imgOutput.data, m_pImgOutputCuda, numPixels, cudaMemcpyDeviceToHost);
-    memcpy(_imgOutput.data, m_pImgOutputCuda, numPixels);
+    cudaMemcpy(_imgOutput.data, m_pImgOutputCuda, numPixels, cudaMemcpyDeviceToHost);
+    //memcpy(_imgOutput.data, m_pImgOutputCuda, numPixels);
 
     rollImages();
 }

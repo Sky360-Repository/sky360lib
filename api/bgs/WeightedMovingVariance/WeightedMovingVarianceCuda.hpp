@@ -37,32 +37,31 @@ namespace sky360lib::bgs
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 
-        uchar* m_pImgInputCuda;
-        uchar* m_pImgInputPrev1Cuda;
-        uchar* m_pImgInputPrev2Cuda;
+        uint8_t* m_pImgInputCuda;
+        uint8_t* m_pImgInputPrev1Cuda;
+        uint8_t* m_pImgInputPrev2Cuda;
 
         size_t m_currentRollingIdx;
-        uchar* m_pImgOutputCuda;
-        uchar* m_pImgMemCuda[3];
+        uint8_t* m_pImgOutputCuda;
+        uint8_t* m_pImgMemCuda[3];
 
         int m_firstPhase;
 
         static inline const float ONE_THIRD{1.0f / 3.0f};
 
         static void weightedVarianceMono(
-            uchar* const _img1,
-            uchar* const _img2,
-            uchar* const _img3,
-            uchar* _outImg,
+            const uint8_t* const _img1,
+            const uint8_t* const _img2,
+            const uint8_t* const _img3,
+            uint8_t* const _outImg,
             const size_t numPixels,
             const WeightedMovingVarianceParams &_params);
         static void weightedVarianceColor(
-            uchar* const _img1,
-            uchar* const _img2,
-            uchar* const _img3,
-            uchar* _outImg,
+            const uint8_t* const _img1,
+            const uint8_t* const _img2,
+            const uint8_t* const _img3,
+            uint8_t* const _outImg,
             const size_t numPixels,
-            const int numChannels,
             const WeightedMovingVarianceParams &_params);
     };
 }

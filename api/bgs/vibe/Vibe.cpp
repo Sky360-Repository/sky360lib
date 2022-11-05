@@ -66,10 +66,10 @@ void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
         size_t nGoodSamplesCount{0}, 
             nSampleIdx{0};
 
-        const uchar* const pixData{&_image.data[colorPixOffset]};
+        const uint8_t* const pixData{&_image.data[colorPixOffset]};
 
         while (nSampleIdx < _params.NBGSamples) {
-            const uchar* const bg{&_bgImg[nSampleIdx]->data[colorPixOffset]};
+            const uint8_t* const bg{&_bgImg[nSampleIdx]->data[colorPixOffset]};
             if (L2dist3Squared(pixData, bg) < _params.NColorDistThresholdSquared) {
                 ++nGoodSamplesCount;
                 if (nGoodSamplesCount >= _params.NRequiredBGSamples) {
@@ -82,14 +82,14 @@ void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
             _fgmask.data[pixOffset] = UCHAR_MAX;
         } else {
             if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
-                uchar* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
+                uint8_t* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
                 bgImgPixData[0] = pixData[0];
                 bgImgPixData[1] = pixData[1];
                 bgImgPixData[2] = pixData[2];
             }
             if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
                 const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32) * 3};
-                uchar* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
+                uint8_t* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
                 xyRandData[0] = pixData[0];
                 xyRandData[1] = pixData[1];
                 xyRandData[2] = pixData[2];
@@ -108,10 +108,10 @@ void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
         size_t nGoodSamplesCount{0}, 
             nSampleIdx{0};
 
-        const uchar* const pixData{&_image.data[colorPixOffset]};
+        const uint8_t* const pixData{&_image.data[colorPixOffset]};
 
         while (nSampleIdx < _params.NBGSamples) {
-            const uchar* const bg{&_bgImg[nSampleIdx]->data[colorPixOffset]};
+            const uint8_t* const bg{&_bgImg[nSampleIdx]->data[colorPixOffset]};
             if (L1dist(pixData, bg) < _params.NColorDistThreshold) {
                 ++nGoodSamplesCount;
                 if (nGoodSamplesCount >= _params.NRequiredBGSamples) {
@@ -124,12 +124,12 @@ void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
             _fgmask.data[pixOffset] = UCHAR_MAX;
         } else {
             if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
-                uchar* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
+                uint8_t* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
                 bgImgPixData[0] = pixData[0];
             }
             if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
                 const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32)};
-                uchar* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
+                uint8_t* const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
                 xyRandData[0] = pixData[0];
             }
         }
@@ -147,7 +147,7 @@ void Vibe::getBackgroundImage(cv::Mat& backgroundImage) {
             for (;inPixOffset < bgSamples[n]->size.size; 
                     inPixOffset += m_origImgSize->numBytesPerPixel, 
                     outPixOffset += sizeof(float) * bgSamples[0]->size.numBytesPerPixel) {
-                const uchar* const pixData{&bgSamples[n]->data[inPixOffset]};
+                const uint8_t* const pixData{&bgSamples[n]->data[inPixOffset]};
                 float* const outData{(float*)(oAvgBGImg.data + outPixOffset)};
                 for(int c{0}; c < m_origImgSize->numBytesPerPixel; ++c) {
                     outData[c] += (float)pixData[c] / (float)m_params.NBGSamples;

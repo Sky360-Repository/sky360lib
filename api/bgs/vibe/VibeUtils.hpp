@@ -9,18 +9,16 @@
 #include <vector>
 
 namespace sky360lib::bgs {
-    typedef unsigned char uchar;
- 
     struct Img {
-        Img(uchar* _data, const ImgSize& _imgSize, std::unique_ptr<uchar[]> _dataPtr = nullptr)
+        Img(uint8_t* _data, const ImgSize& _imgSize, std::unique_ptr<uint8_t[]> _dataPtr = nullptr)
             : data{_data},
             size{_imgSize},
             dataPtr{std::move(_dataPtr)} {
         }
         
         static std::unique_ptr<Img> create(const ImgSize& _imgSize, bool _clear = false) {
-            //auto data = new uchar[_imgSize.size];
-            auto data = std::make_unique_for_overwrite<uchar[]>(_imgSize.size);
+            //auto data = new uint8_t[_imgSize.size];
+            auto data = std::make_unique_for_overwrite<uint8_t[]>(_imgSize.size);
             if (_clear) {
                 memset(data.get(), 0, _imgSize.size);
             }
@@ -33,19 +31,19 @@ namespace sky360lib::bgs {
         }
 
         const ImgSize size;
-        uchar* const data;
+        uint8_t* const data;
 
-        std::unique_ptr<uchar[]> dataPtr;
+        std::unique_ptr<uint8_t[]> dataPtr;
     };
 
-    static inline size_t L2dist3Squared(const uchar* const a, const uchar* const b) {
+    static inline size_t L2dist3Squared(const uint8_t* const a, const uint8_t* const b) {
         const long r0{a[0] - b[0]};
         const long r1{a[1] - b[1]};
         const long r2{a[2] - b[2]};
         return (r0 * r0) + (r1 * r1) + (r2 * r2);
     }
 
-    static inline size_t L1dist(const uchar* const a, const uchar* const b) {
+    static inline size_t L1dist(const uint8_t* const a, const uint8_t* const b) {
         return std::abs((*(char*)a) - (*(char*)b));
     }
 
@@ -131,27 +129,27 @@ namespace sky360lib::bgs {
     }
 
     struct VibeParams {
-            VibeParams(size_t nColorDistThreshold,
+        VibeParams(size_t nColorDistThreshold,
                 size_t nBGSamples,
                 size_t nRequiredBGSamples,
                 size_t learningRate) 
-                : NBGSamples(nBGSamples),
-                NRequiredBGSamples(nRequiredBGSamples),
-                NColorDistThreshold(nColorDistThreshold),
-                NColorDistThresholdSquared{(nColorDistThreshold * 3) * (nColorDistThreshold * 3)},
-                LearningRate(learningRate),
-                ANDlearningRate{learningRate - 1}
-            {}
+            : NBGSamples(nBGSamples),
+            NRequiredBGSamples(nRequiredBGSamples),
+            NColorDistThreshold(nColorDistThreshold),
+            NColorDistThresholdSquared{(nColorDistThreshold * 3) * (nColorDistThreshold * 3)},
+            LearningRate(learningRate),
+            ANDlearningRate{learningRate - 1}
+        {}
 
-            /// number of different samples per pixel/block to be taken from input frames to build the background model ('N' in the original ViBe paper)
-            const size_t NBGSamples;
-            /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
-            const size_t NRequiredBGSamples;
-            /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)
-            const size_t NColorDistThreshold;
-            const size_t NColorDistThresholdSquared;
-            /// should be > 0 and factor of 2 (smaller values == faster adaptation)
-            const size_t LearningRate;
-            const size_t ANDlearningRate;
+        /// number of different samples per pixel/block to be taken from input frames to build the background model ('N' in the original ViBe paper)
+        const size_t NBGSamples;
+        /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
+        const size_t NRequiredBGSamples;
+        /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)
+        const size_t NColorDistThreshold;
+        const size_t NColorDistThresholdSquared;
+        /// should be > 0 and factor of 2 (smaller values == faster adaptation)
+        const size_t LearningRate;
+        const size_t ANDlearningRate;
     };
 } 

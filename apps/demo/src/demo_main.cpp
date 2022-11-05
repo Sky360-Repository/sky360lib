@@ -7,24 +7,43 @@
 #include "bgs.hpp"
 #include "profiling.hpp"
 
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 using namespace sky360lib::bgs;
+
+static const char *_cudaGetErrorEnum(cudaError_t error) {
+  return cudaGetErrorName(error);
+}
+
+template <typename T>
+void check(T result, char const *const func, const char *const file,
+           int const line) {
+  if (result) {
+    fprintf(stderr, "CUDA error at %s:%d code=%d(%s) \"%s\" \n", file, line,
+            static_cast<unsigned int>(result), _cudaGetErrorEnum(result), func);
+    exit(EXIT_FAILURE);
+  }
+}
+
+#define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
 
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
     WeightedMovingVariance wmv;
     Vibe vibeBGS;
 
-    if (argc < 2) {
-        std::cout << "Need one parameter as camera number" << std::endl;
-        return -1;
-    }
+    // if (argc < 2) {
+    //     std::cout << "Need one parameter as camera number" << std::endl;
+    //     return -1;
+    // }
 
     double freq = initFrequency();
 
-    int camNum = std::stoi(argv[1]);
-    //cap.open(camNum);
-    //cap.open("E:\\source\\sky360\\embedded-bgsub\\Dahua-20220901-184734.mp4");
-    cap.open("E:\\source\\sky360\\dataset\\plane_flying_past2.mkv");
+    // int camNum = std::stoi(argv[1]);
+    //cap.open(0);//camNum);
+    cap.open("E:\\source\\sky360\\embedded-bgsub\\Dahua-20220901-184734.mp4");
+    //cap.open("E:\\source\\sky360\\dataset\\plane_flying_past2.mkv");
     if (!cap.isOpened())
     {
         std::cout << "***Could not initialize capturing...***\n";
@@ -60,7 +79,8 @@ int main(int argc, const char** argv) {
 
     std::cout << "Enter loop" << std::endl;
     while (true) {
-        cap >> frame;
+        //cap >> frame;
+        cap.read(frame);
         if (frame.empty()) {
             std::cout << "No image" << std::endl;
             break;
@@ -85,8 +105,7 @@ int main(int argc, const char** argv) {
         //vibeBGS.getBackgroundImage(bgImg);
         //cv::imshow("BG Video", bgImg);
 
-        char c = (char)cv::waitKey(10);
-        if (c == 27) {
+        if ((char)cv::waitKey(1) == 27) {
             std::cout << "Escape key pressed" << std::endl;
             break;
         }

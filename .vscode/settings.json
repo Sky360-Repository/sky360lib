@@ -69,6 +69,7 @@
         "unordered_set": "cpp",
         "xlocmon": "cpp",
         "xloctime": "cpp",
-        "xtree": "cpp"
+        "xtree": "cpp",
+        "cstdarg": "cpp"
     }
 }
