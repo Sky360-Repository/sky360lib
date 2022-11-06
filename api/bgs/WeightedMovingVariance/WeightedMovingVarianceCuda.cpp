@@ -91,12 +91,12 @@ extern "C" void weightedVarianceMonoCuda(
         const size_t numPixels,
         const WeightedMovingVarianceParams &_params);
 extern "C" void weightedVarianceColorCuda(
-    const uint8_t* const img1,
-    const uint8_t* const img2,
-    const uint8_t* const img3,
-    uint8_t* const outImg,
-    const size_t numPixels,
-    const WeightedMovingVarianceParams &_params);
+        const uint8_t* const img1,
+        const uint8_t* const img2,
+        const uint8_t* const img3,
+        uint8_t* const outImg,
+        const size_t numPixels,
+        const WeightedMovingVarianceParams &_params);
 
 void WeightedMovingVarianceCuda::process(const cv::Mat &_imgInput,
                                      cv::Mat &_imgOutput,

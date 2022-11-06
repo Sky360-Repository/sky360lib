@@ -31,17 +31,18 @@ __global__ void calcWeightedVarianceMonoThresholdCuda(
                     const uint8_t *const i2, 
                     const uint8_t *const i3,
                     uint8_t * o, 
-                    float weight1,
-                    float weight2,
-                    float weight3,
+                    float w1,
+                    float w2,
+                    float w3,
                     float threshold)
 {
     size_t pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
+    const float w[] = {w1, w2, w3};
 
     float dI[] = {(float)i1[pixIdx], (float)i2[pixIdx], (float)i3[pixIdx]};
-    float mean = (dI[0] * weight1) + (dI[1] * weight2) + (dI[2] * weight3);
+    float mean = (dI[0] * w[0]) + (dI[1] * w[1]) + (dI[2] * w[2]);
     float value[] = {dI[0] - mean, dI[1] - mean, dI[2] - mean};
-    float result = ((value[0] * value[0]) * weight1) + ((value[1] * value[1]) * weight2) + ((value[2] * value[2]) * weight3);
+    float result = ((value[0] * value[0]) * w[0]) + ((value[1] * value[1]) * w[1]) + ((value[2] * value[2]) * w[2]);
     o[pixIdx] = result > threshold ? MAX_UC : ZERO_UC;
 }
 

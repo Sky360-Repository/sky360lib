@@ -30,7 +30,7 @@ void check(T result, char const *const func, const char *const file,
 
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
-    WeightedMovingVarianceCuda wmv;
+    WeightedMovingVariance wmv;
     Vibe vibeBGS;
 
     // if (argc < 2) {
