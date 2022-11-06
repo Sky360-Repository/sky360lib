@@ -30,7 +30,7 @@ void check(T result, char const *const func, const char *const file,
 
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
-    WeightedMovingVariance wmv;
+    WeightedMovingVarianceCuda wmv;
     Vibe vibeBGS;
 
     // if (argc < 2) {
@@ -98,7 +98,7 @@ int main(int argc, const char** argv) {
             numFrames = 0;
         }
         cv::imshow("BGS Demo", bgsMask);
-        cv::imshow("Live Video", frame);
+        // cv::imshow("Live Video", frame);
 
         if ((char)cv::waitKey(1) == 27) {
             std::cout << "Escape key pressed" << std::endl;
