@@ -17,13 +17,6 @@ WeightedMovingVariance::WeightedMovingVariance(bool _enableWeight,
                _enableWeight ? DEFAULT_WEIGHTS[1] : ONE_THIRD,
                _enableWeight ? DEFAULT_WEIGHTS[2] : ONE_THIRD)
 {
-    imgInputPrevParallel.resize(m_numProcessesParallel);
-
-    for (int i = 0; i < m_numProcessesParallel; ++i)
-    {
-        imgInputPrevParallel[i][0] = std::make_unique<cv::Mat>();
-        imgInputPrevParallel[i][1] = std::make_unique<cv::Mat>();
-    }
 }
 
 WeightedMovingVariance::~WeightedMovingVariance()
@@ -36,6 +29,30 @@ void WeightedMovingVariance::getBackgroundImage(cv::Mat &_bgImage)
 
 void WeightedMovingVariance::initialize(const cv::Mat &_image)
 {
+    imgInputPrev.resize(m_numProcessesParallel);
+    for (int i = 0; i < m_numProcessesParallel; ++i)
+    {
+        imgInputPrev[i].currentRollingIdx = 0;
+        imgInputPrev[i].firstPhase = 0;
+        imgInputPrev[i].pImgSize = m_imgSizesParallel[i].get();
+        imgInputPrev[i].pImgInput = nullptr;
+        imgInputPrev[i].pImgInputPrev1 = nullptr;
+        imgInputPrev[i].pImgInputPrev2 = nullptr;
+        imgInputPrev[i].pImgMem[0] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
+        imgInputPrev[i].pImgMem[1] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
+        imgInputPrev[i].pImgMem[2] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
+        rollImages(imgInputPrev[i]);
+    }
+}
+
+void WeightedMovingVariance::rollImages(RollingImages& rollingImages)
+{
+    const auto rollingIdx = ROLLING_BG_IDX[rollingImages.currentRollingIdx % 3];
+    rollingImages.pImgInput = rollingImages.pImgMem[rollingIdx[0]].get();
+    rollingImages.pImgInputPrev1 = rollingImages.pImgMem[rollingIdx[1]].get();
+    rollingImages.pImgInputPrev2 = rollingImages.pImgMem[rollingIdx[2]].get();
+
+    ++rollingImages.currentRollingIdx;
 }
 
 void WeightedMovingVariance::process(const cv::Mat &_imgInput, cv::Mat &_imgOutput, int _numProcess)
@@ -44,7 +61,29 @@ void WeightedMovingVariance::process(const cv::Mat &_imgInput, cv::Mat &_imgOutp
     {
         _imgOutput.create(_imgInput.size(), CV_8UC1);
     }
-    process(_imgInput, _imgOutput, imgInputPrevParallel[_numProcess], m_params);
+    process(_imgInput, _imgOutput, imgInputPrev[_numProcess], m_params);
+    rollImages(imgInputPrev[_numProcess]);
+}
+
+void WeightedMovingVariance::process(const cv::Mat &_inImage,
+                                     cv::Mat &_outImg,
+                                     RollingImages &_imgInputPrev,
+                                     const WeightedMovingVarianceParams &_params)
+{
+    memcpy(_imgInputPrev.pImgInput, _inImage.data, _imgInputPrev.pImgSize->size);
+
+    if (_imgInputPrev.firstPhase < 2)
+    {
+        ++_imgInputPrev.firstPhase;
+        return;
+    }
+
+    if (_imgInputPrev.pImgSize->numBytesPerPixel == 1)
+        weightedVarianceMono(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2, 
+                            _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+    else
+        weightedVarianceColor(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2, 
+                            _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
 }
 
 inline void calcWeightedVarianceMono(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
@@ -101,40 +140,6 @@ inline void calcWeightedVarianceColorThreshold(const uint8_t *const i1, const ui
     const float b2{((valueB[0] * valueB[0]) * _params.weight1) + ((valueB[1] * valueB[1]) * _params.weight2) + ((valueB[2] * valueB[2]) * _params.weight3)};
     const float result{0.299f * r2 + 0.587f * g2 + 0.114f * b2};
     *o = (uint8_t)(result > _params.thresholdSquared ? 255.0f : 0.0f);
-}
-
-void WeightedMovingVariance::process(const cv::Mat &_inImage,
-                                     cv::Mat &_outImg,
-                                     std::array<std::unique_ptr<cv::Mat>, 2> &_imgInputPrev,
-                                     const WeightedMovingVarianceParams &_params)
-{
-    const ImgSize sizeImg{_inImage.size().width, _inImage.size().height, _inImage.channels()};
-
-    auto inImageCopy = std::make_unique<cv::Mat>();
-    _inImage.copyTo(*inImageCopy);
-
-    if (_imgInputPrev[0]->empty())
-    {
-        _imgInputPrev[0] = std::move(inImageCopy);
-        return;
-    }
-
-    if (_imgInputPrev[1]->empty())
-    {
-        _imgInputPrev[1] = std::move(_imgInputPrev[0]);
-        _imgInputPrev[0] = std::move(inImageCopy);
-        return;
-    }
-
-    if (sizeImg.numBytesPerPixel == 1)
-        weightedVarianceMono(inImageCopy->data, _imgInputPrev[0]->data, _imgInputPrev[1]->data, 
-                            _outImg.data, (size_t)sizeImg.numPixels, _params);
-    else
-        weightedVarianceColor(inImageCopy->data, _imgInputPrev[0]->data, _imgInputPrev[1]->data, 
-                            _outImg.data, (size_t)sizeImg.numPixels, _params);
-
-    _imgInputPrev[1] = std::move(_imgInputPrev[0]);
-    _imgInputPrev[0] = std::move(inImageCopy);
 }
 
 void WeightedMovingVariance::weightedVarianceMono(

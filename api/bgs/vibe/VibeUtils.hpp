@@ -9,33 +9,6 @@
 #include <vector>
 
 namespace sky360lib::bgs {
-    struct Img {
-        Img(uint8_t* _data, const ImgSize& _imgSize, std::unique_ptr<uint8_t[]> _dataPtr = nullptr)
-            : data{_data},
-            size{_imgSize},
-            dataPtr{std::move(_dataPtr)} {
-        }
-        
-        static std::unique_ptr<Img> create(const ImgSize& _imgSize, bool _clear = false) {
-            //auto data = new uint8_t[_imgSize.size];
-            auto data = std::make_unique_for_overwrite<uint8_t[]>(_imgSize.size);
-            if (_clear) {
-                memset(data.get(), 0, _imgSize.size);
-            }
-
-            return std::make_unique<Img>(data.get(), _imgSize, std::move(data));
-        }
-
-        inline void clear() {
-            memset(data, 0, size.size);
-        }
-
-        const ImgSize size;
-        uint8_t* const data;
-
-        std::unique_ptr<uint8_t[]> dataPtr;
-    };
-
     static inline size_t L2dist3Squared(const uint8_t* const a, const uint8_t* const b) {
         const long r0{a[0] - b[0]};
         const long r1{a[1] - b[1]};

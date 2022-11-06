@@ -39,8 +39,8 @@ extern "C" void weightedVarianceMonoCuda(
     int height,
     const WeightedMovingVarianceParams &_params)
 {
-    dim3 block (32 , 32) ;
-    dim3 grid ( width / 32 , height / 32) ;
+    dim3 block(32, 32);
+    dim3 grid(width / 32, height / 32);
     //printf("%f\n", _params.weight1);//.weight1, _params.weight2, _params.weight3);
 
     calcWeightedVarianceMonoCuda<<<grid, block>>>(img1, img2, img3, outImg, 
