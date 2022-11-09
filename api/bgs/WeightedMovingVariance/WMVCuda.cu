@@ -36,14 +36,17 @@ __global__ void calcWeightedVarianceMonoThresholdCuda(
                     float w3,
                     float threshold)
 {
-    size_t pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
-    const float w[] = {w1, w2, w3};
+    const size_t pixIdx = (blockIdx.x * blockDim.x + threadIdx.x) * 100;
+    const float w[]{w1, w2, w3};
 
-    float dI[] = {(float)i1[pixIdx], (float)i2[pixIdx], (float)i3[pixIdx]};
-    float mean = (dI[0] * w[0]) + (dI[1] * w[1]) + (dI[2] * w[2]);
-    float value[] = {dI[0] - mean, dI[1] - mean, dI[2] - mean};
-    float result = ((value[0] * value[0]) * w[0]) + ((value[1] * value[1]) * w[1]) + ((value[2] * value[2]) * w[2]);
-    o[pixIdx] = result > threshold ? MAX_UC : ZERO_UC;
+    for (int i{0}; i < 100; ++i)
+    {
+        float dI[] = {(float)i1[pixIdx + i], (float)i2[pixIdx + i], (float)i3[pixIdx + i]};
+        float mean = (dI[0] * w[0]) + (dI[1] * w[1]) + (dI[2] * w[2]);
+        float value[] = {dI[0] - mean, dI[1] - mean, dI[2] - mean};
+        float result = ((value[0] * value[0]) * w[0]) + ((value[1] * value[1]) * w[1]) + ((value[2] * value[2]) * w[2]);
+        o[pixIdx + i] = result > threshold ? MAX_UC : ZERO_UC;
+    }
 }
 
 extern "C" void weightedVarianceMonoCuda(
@@ -55,15 +58,15 @@ extern "C" void weightedVarianceMonoCuda(
     const WeightedMovingVarianceParams &_params)
 {
     const size_t numThreads{1024};
-    const size_t numBlocks{numPixels / numThreads};
+    const size_t numBlocks{numPixels / numThreads / 100};
     //printf("%f\n", _params.weight1);//.weight1, _params.weight2, _params.weight3);
 
     if (_params.enableThreshold)
         calcWeightedVarianceMonoThresholdCuda<<<numBlocks, numThreads>>>(img1, img2, img3, outImg, 
-            _params.weight1, _params.weight2, _params.weight3, _params.thresholdSquared);
+            _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared);
     else
         calcWeightedVarianceMonoCuda<<<numBlocks, numThreads>>>(img1, img2, img3, outImg, 
-            _params.weight1, _params.weight2, _params.weight3);
+            _params.weight[0], _params.weight[1], _params.weight[2]);
 
     cudaThreadSynchronize();
 }
@@ -125,10 +128,10 @@ extern "C" void weightedVarianceColorCuda(
 
     if (_params.enableThreshold)
         calcWeightedVarianceColorThreshold<<<numBlocks, numThreads>>>(img1, img2, img3, outImg, 
-            _params.weight1, _params.weight2, _params.weight3, _params.thresholdSquared);
+            _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared);
     else
         calcWeightedVarianceColor<<<numBlocks, numThreads>>>(img1, img2, img3, outImg, 
-            _params.weight1, _params.weight2, _params.weight3);
+            _params.weight[0], _params.weight[1], _params.weight[2]);
 
     cudaThreadSynchronize();
 }

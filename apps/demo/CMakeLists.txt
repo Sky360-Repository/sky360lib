@@ -1,4 +1,5 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories($ENV{CUDA_PATH}/include)
 
 add_executable(
     sky360lib_demo

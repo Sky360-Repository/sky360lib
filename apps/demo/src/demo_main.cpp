@@ -30,7 +30,7 @@ void check(T result, char const *const func, const char *const file,
 
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
-    WeightedMovingVariance wmv;
+    WeightedMovingVarianceCuda wmv;
     Vibe vibeBGS;
 
     // if (argc < 2) {
@@ -42,8 +42,12 @@ int main(int argc, const char** argv) {
 
     // int camNum = std::stoi(argv[1]);
     //cap.open(0);//camNum);
+    #ifdef _WIN32
     //cap.open("E:\\source\\sky360\\embedded-bgsub\\Dahua-20220901-184734.mp4");
     cap.open("E:\\source\\sky360\\dataset\\plane_flying_past2.mkv");
+    #else
+    cap.open("Dahua-20220901-184734.mp4");
+    #endif
     if (!cap.isOpened())
     {
         std::cout << "***Could not initialize capturing...***\n";

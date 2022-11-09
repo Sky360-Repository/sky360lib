@@ -3,6 +3,7 @@
 #include "core.hpp"
 
 #include <memory>
+#include <cstring>
 
 namespace sky360lib::bgs {
 

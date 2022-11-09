@@ -9,9 +9,9 @@
 using namespace sky360lib::bgs;
 
 WeightedMovingVarianceCuda::WeightedMovingVarianceCuda(bool _enableWeight,
-                                               bool _enableThreshold,
-                                               float _threshold,
-                                               size_t _numProcessesParallel)
+                                                       bool _enableThreshold,
+                                                       float _threshold,
+                                                       size_t _numProcessesParallel)
     : CoreBgs(_numProcessesParallel),
       m_params(_enableWeight, _enableThreshold, _threshold,
                _enableWeight ? DEFAULT_WEIGHTS[0] : ONE_THIRD,
@@ -63,7 +63,7 @@ void WeightedMovingVarianceCuda::initialize(const cv::Mat &_image)
     }
 }
 
-void WeightedMovingVarianceCuda::rollImages(RollingImages& rollingImages)
+void WeightedMovingVarianceCuda::rollImages(RollingImages &rollingImages)
 {
     const auto rollingIdx = ROLLING_BG_IDX[rollingImages.currentRollingIdx % 3];
     rollingImages.pImgInput = rollingImages.pImgMem[rollingIdx[0]];
@@ -84,24 +84,24 @@ void WeightedMovingVarianceCuda::process(const cv::Mat &_imgInput, cv::Mat &_img
 }
 
 extern "C" void weightedVarianceMonoCuda(
-        const uint8_t* const img1,
-        const uint8_t* const img2,
-        const uint8_t* const img3,
-        uint8_t* const outImg,
-        const size_t numPixels,
-        const WeightedMovingVarianceParams &_params);
+    const uint8_t *const img1,
+    const uint8_t *const img2,
+    const uint8_t *const img3,
+    uint8_t *const outImg,
+    const size_t numPixels,
+    const WeightedMovingVarianceParams &_params);
 extern "C" void weightedVarianceColorCuda(
-        const uint8_t* const img1,
-        const uint8_t* const img2,
-        const uint8_t* const img3,
-        uint8_t* const outImg,
-        const size_t numPixels,
-        const WeightedMovingVarianceParams &_params);
+    const uint8_t *const img1,
+    const uint8_t *const img2,
+    const uint8_t *const img3,
+    uint8_t *const outImg,
+    const size_t numPixels,
+    const WeightedMovingVarianceParams &_params);
 
 void WeightedMovingVarianceCuda::process(const cv::Mat &_imgInput,
-                                     cv::Mat &_imgOutput,
-                                     RollingImages &_imgInputPrev,
-                                     const WeightedMovingVarianceParams &_params)
+                                         cv::Mat &_imgOutput,
+                                         RollingImages &_imgInputPrev,
+                                         const WeightedMovingVarianceParams &_params)
 {
     const size_t numPixels = _imgInput.size().area();
     cudaMemcpyAsync(_imgInputPrev.pImgInput, _imgInput.data, numPixels * _imgInput.channels(), cudaMemcpyHostToDevice);
@@ -113,12 +113,11 @@ void WeightedMovingVarianceCuda::process(const cv::Mat &_imgInput,
     }
 
     if (_imgInputPrev.pImgSize->numBytesPerPixel == 1)
-        weightedVarianceMonoCuda(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2, 
-                _imgInputPrev.pImgOutputCuda, numPixels, _params);
+        weightedVarianceMonoCuda(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
+                                 _imgInputPrev.pImgOutputCuda, numPixels, _params);
     else
-        weightedVarianceColorCuda(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2, 
-                _imgInputPrev.pImgOutputCuda, numPixels, _params);
+        weightedVarianceColorCuda(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
+                                  _imgInputPrev.pImgOutputCuda, numPixels, _params);
 
     cudaMemcpyAsync(_imgOutput.data, _imgInputPrev.pImgOutputCuda, numPixels, cudaMemcpyDeviceToHost);
 }
-
