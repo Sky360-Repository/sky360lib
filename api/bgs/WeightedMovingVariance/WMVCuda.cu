@@ -36,17 +36,14 @@ __global__ void calcWeightedVarianceMonoThresholdCuda(
                     float w3,
                     float threshold)
 {
-    const size_t pixIdx = (blockIdx.x * blockDim.x + threadIdx.x) * 100;
+    const size_t pixIdx = blockIdx.x * blockDim.x + threadIdx.x;
     const float w[]{w1, w2, w3};
 
-    for (int i{0}; i < 100; ++i)
-    {
-        float dI[] = {(float)i1[pixIdx + i], (float)i2[pixIdx + i], (float)i3[pixIdx + i]};
-        float mean = (dI[0] * w[0]) + (dI[1] * w[1]) + (dI[2] * w[2]);
-        float value[] = {dI[0] - mean, dI[1] - mean, dI[2] - mean};
-        float result = ((value[0] * value[0]) * w[0]) + ((value[1] * value[1]) * w[1]) + ((value[2] * value[2]) * w[2]);
-        o[pixIdx + i] = result > threshold ? MAX_UC : ZERO_UC;
-    }
+    float dI[] = {(float)i1[pixIdx], (float)i2[pixIdx], (float)i3[pixIdx]};
+    float mean = (dI[0] * w[0]) + (dI[1] * w[1]) + (dI[2] * w[2]);
+    float value[] = {dI[0] - mean, dI[1] - mean, dI[2] - mean};
+    float result = ((value[0] * value[0]) * w[0]) + ((value[1] * value[1]) * w[1]) + ((value[2] * value[2]) * w[2]);
+    o[pixIdx] = result > threshold ? MAX_UC : ZERO_UC;
 }
 
 extern "C" void weightedVarianceMonoCuda(
@@ -57,8 +54,8 @@ extern "C" void weightedVarianceMonoCuda(
     const size_t numPixels,
     const WeightedMovingVarianceParams &_params)
 {
-    const size_t numThreads{1024};
-    const size_t numBlocks{numPixels / numThreads / 100};
+    const size_t numThreads{512};
+    const size_t numBlocks{numPixels / numThreads};
     //printf("%f\n", _params.weight1);//.weight1, _params.weight2, _params.weight3);
 
     if (_params.enableThreshold)

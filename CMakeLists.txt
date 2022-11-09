@@ -90,7 +90,7 @@ IF (NOT WIN32)
     # add_definitions(-pedantic-errors)
     add_definitions(-Wno-missing-braces)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        add_definitions(-Ofast)
+        # add_definitions(-Ofast)
         find_package(TBB REQUIRED)  # for <execution> stdlib
     endif ()
 ENDIF()
