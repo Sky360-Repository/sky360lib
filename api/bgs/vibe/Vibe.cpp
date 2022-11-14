@@ -98,20 +98,21 @@ void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
     }
 }
 
-void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, Img& _fgmask, const VibeParams& _params) {
+void Vibe::apply1(const Img& _image, 
+                std::vector<std::unique_ptr<Img>>& _bgImg, 
+                Img& _fgmask, 
+                const VibeParams& _params) {
     Pcg32 pcg32;
     _fgmask.clear();
 
-    for (int pixOffset{0}, colorPixOffset{0}; 
-            pixOffset < _image.size.numPixels; 
-            ++pixOffset, colorPixOffset += _image.size.numBytesPerPixel) {
+    for (int pixOffset{0}; pixOffset < _image.size.numPixels; ++pixOffset) {
         size_t nGoodSamplesCount{0}, 
             nSampleIdx{0};
 
-        const uint8_t* const pixData{&_image.data[colorPixOffset]};
+        const uint8_t* const pixData{&_image.data[pixOffset]};
 
         while (nSampleIdx < _params.NBGSamples) {
-            const uint8_t* const bg{&_bgImg[nSampleIdx]->data[colorPixOffset]};
+            const uint8_t* const bg{&_bgImg[nSampleIdx]->data[pixOffset]};
             if (L1dist(pixData, bg) < _params.NColorDistThreshold) {
                 ++nGoodSamplesCount;
                 if (nGoodSamplesCount >= _params.NRequiredBGSamples) {
@@ -124,7 +125,7 @@ void Vibe::apply1(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
             _fgmask.data[pixOffset] = UCHAR_MAX;
         } else {
             if ((pcg32.fast() & _params.ANDlearningRate) == 0) {
-                uint8_t* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
+                uint8_t* const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[pixOffset]};
                 bgImgPixData[0] = pixData[0];
             }
             if ((pcg32.fast() & _params.ANDlearningRate) == 0) {

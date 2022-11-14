@@ -31,7 +31,7 @@ void check(T result, char const *const func, const char *const file,
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
     WeightedMovingVarianceCuda wmv;
-    Vibe vibeBGS;
+    //Vibe vibeBGS;
 
     // if (argc < 2) {
     //     std::cout << "Need one parameter as camera number" << std::endl;
@@ -65,7 +65,7 @@ int main(int argc, const char** argv) {
     long numFrames = 0;
     double totalTime = 0;
 
-    cap >> frame;
+    cap.read(frame);
     if (frame.type() != CV_8UC3) {
         std::cout << "Image type not supported" << std::endl;
         return -1;

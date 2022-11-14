@@ -43,7 +43,7 @@ __global__ void calcWeightedVarianceMonoThresholdCuda(
     float mean = (dI[0] * w[0]) + (dI[1] * w[1]) + (dI[2] * w[2]);
     float value[] = {dI[0] - mean, dI[1] - mean, dI[2] - mean};
     float result = ((value[0] * value[0]) * w[0]) + ((value[1] * value[1]) * w[1]) + ((value[2] * value[2]) * w[2]);
-    o[pixIdx] = result > threshold ? MAX_UC : ZERO_UC;
+    o[pixIdx] = result > threshold ? UCHAR_MAX : ZERO_UC;
 }
 
 extern "C" void weightedVarianceMonoCuda(
@@ -65,7 +65,7 @@ extern "C" void weightedVarianceMonoCuda(
         calcWeightedVarianceMonoCuda<<<numBlocks, numThreads>>>(img1, img2, img3, outImg, 
             _params.weight[0], _params.weight[1], _params.weight[2]);
 
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 }
 
 __global__ void calcWeightedVarianceColorThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
@@ -87,7 +87,7 @@ __global__ void calcWeightedVarianceColorThreshold(const uint8_t *const i1, cons
     const float g2{((valueG[0] * valueG[0]) * weight1) + ((valueG[1] * valueG[1]) * weight2) + ((valueG[2] * valueG[2]) * weight3)};
     const float b2{((valueB[0] * valueB[0]) * weight1) + ((valueB[1] * valueB[1]) * weight2) + ((valueB[2] * valueB[2]) * weight3)};
     const float result{0.299f * r2 + 0.587f * g2 + 0.114f * b2};
-    o[pixIdx] = result > threshold ? MAX_UC : ZERO_UC;
+    o[pixIdx] = result > threshold ? UCHAR_MAX : ZERO_UC;
 }
 
 __global__ void calcWeightedVarianceColor(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
@@ -130,5 +130,5 @@ extern "C" void weightedVarianceColorCuda(
         calcWeightedVarianceColor<<<numBlocks, numThreads>>>(img1, img2, img3, outImg, 
             _params.weight[0], _params.weight[1], _params.weight[2]);
 
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 }

@@ -106,7 +106,7 @@ inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uin
     const float result{((value[0] * value[0]) * _params.weight[0]) 
                         + ((value[1] * value[1]) * _params.weight[1]) 
                         + ((value[2] * value[2]) * _params.weight[2])};
-    *o = result > _params.thresholdSquared ? MAX_UC : ZERO_UC;
+    *o = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
 }
 
 inline void calcWeightedVarianceColor(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
@@ -155,7 +155,7 @@ inline void calcWeightedVarianceColorThreshold(const uint8_t *const i1, const ui
                     + ((valueB[1] * valueB[1]) * _params.weight[1]) 
                     + ((valueB[2] * valueB[2]) * _params.weight[2])};
     const float result{0.299f * r2 + 0.587f * g2 + 0.114f * b2};
-    *o = result > _params.thresholdSquared ? MAX_UC : ZERO_UC;
+    *o = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
 }
 
 void WeightedMovingVariance::weightedVarianceMono(
