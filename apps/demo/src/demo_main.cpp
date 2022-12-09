@@ -7,30 +7,12 @@
 #include "bgs.hpp"
 #include "profiling.hpp"
 
-#include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
-
 using namespace sky360lib::bgs;
-
-static const char *_cudaGetErrorEnum(cudaError_t error) {
-  return cudaGetErrorName(error);
-}
-
-template <typename T>
-void check(T result, char const *const func, const char *const file,
-           int const line) {
-  if (result) {
-    fprintf(stderr, "CUDA error at %s:%d code=%d(%s) \"%s\" \n", file, line,
-            static_cast<unsigned int>(result), _cudaGetErrorEnum(result), func);
-    exit(EXIT_FAILURE);
-  }
-}
-
-#define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
 
 int main(int argc, const char** argv) {
     cv::VideoCapture cap;
-    WeightedMovingVarianceCuda wmv;
+    //WeightedMovingVariance wmv;
+    WeightedMovingVarianceHalide wmv;
     //Vibe vibeBGS;
 
     // if (argc < 2) {

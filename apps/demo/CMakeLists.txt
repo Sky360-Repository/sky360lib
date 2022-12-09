@@ -1,5 +1,4 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories($ENV{CUDA_PATH}/include)
 
 add_executable(
     sky360lib_demo
@@ -43,3 +42,9 @@ install(
     RUNTIME DESTINATION "bin"
     COMPONENT "apps"
 )
+
+set(VIDEOTEST ${CMAKE_SOURCE_DIR}/Dahua-20220901-184734.mp4)
+if (EXISTS ${VIDEOTEST})
+    message(STATUS "Copying Video Dahua-20220901-184734.mp4")
+    configure_file(${VIDEOTEST} "${CMAKE_BINARY_DIR}/bin/Dahua-20220901-184734.mp4" COPYONLY)
+endif ()
