@@ -17,14 +17,11 @@ namespace sky360lib::bgs
         static inline const bool DEFAULT_ENABLE_WEIGHT{true};
         static inline const bool DEFAULT_ENABLE_THRESHOLD{true};
         static inline const float DEFAULT_THRESHOLD_VALUE{15.0f};
-        /// defines the default value for the number of parallel threads
-        static inline const size_t DEFAULT_PARALLEL_TASKS{12};
         static inline const float DEFAULT_WEIGHTS[] = {0.5f, 0.3f, 0.2f};
 
         WeightedMovingVarianceHalide(bool _enableWeight = DEFAULT_ENABLE_WEIGHT,
                                bool _enableThreshold = DEFAULT_ENABLE_THRESHOLD,
-                               float _threshold = DEFAULT_THRESHOLD_VALUE,
-                               size_t _numProcessesParallel = DEFAULT_PARALLEL_TASKS);
+                               float _threshold = DEFAULT_THRESHOLD_VALUE);
         ~WeightedMovingVarianceHalide();
 
         void getBackgroundImage(cv::Mat &_bgImage);

@@ -84,6 +84,7 @@ int main(int argc, const char** argv) {
             numFrames = 0;
         }
         cv::imshow("BGS Demo", bgsMask);
+        cv::resizeWindow("BGS Demo", 1024, 1024);
         // cv::imshow("Live Video", frame);
 
         if ((char)cv::waitKey(1) == 27) {

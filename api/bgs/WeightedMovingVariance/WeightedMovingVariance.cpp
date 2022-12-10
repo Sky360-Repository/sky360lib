@@ -23,14 +23,15 @@ WeightedMovingVariance::~WeightedMovingVariance()
 {
 }
 
-void WeightedMovingVariance::getBackgroundImage(cv::Mat &_bgImage)
+void WeightedMovingVariance::getBackgroundImage(cv::Mat &)
 {
+    // Not implemented
 }
 
-void WeightedMovingVariance::initialize(const cv::Mat &_image)
+void WeightedMovingVariance::initialize(const cv::Mat &)
 {
     imgInputPrev.resize(m_numProcessesParallel);
-    for (int i = 0; i < m_numProcessesParallel; ++i)
+    for (size_t i = 0; i < m_numProcessesParallel; ++i)
     {
         imgInputPrev[i].currentRollingIdx = 0;
         imgInputPrev[i].firstPhase = 0;

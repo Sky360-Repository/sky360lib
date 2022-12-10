@@ -21,7 +21,7 @@ void Vibe::initialize(const cv::Mat& _initImg) {
     splitImg(frameImg, imgSplit, m_numProcessesParallel);
 
     m_bgImgSamples.resize(m_numProcessesParallel);
-    for (int i{0}; i < m_numProcessesParallel; ++i) {
+    for (size_t i{0}; i < m_numProcessesParallel; ++i) {
         initialize(*imgSplit[i], m_bgImgSamples[i]);
     }
 }
@@ -60,7 +60,7 @@ void Vibe::apply3(const Img& _image, std::vector<std::unique_ptr<Img>>& _bgImg, 
     Pcg32 pcg32;
     _fgmask.clear();
 
-    for (int pixOffset{0}, colorPixOffset{0}; 
+    for (size_t pixOffset{0}, colorPixOffset{0}; 
             pixOffset < _image.size.numPixels; 
             ++pixOffset, colorPixOffset += _image.size.numBytesPerPixel) {
         size_t nGoodSamplesCount{0}, 
@@ -105,7 +105,7 @@ void Vibe::apply1(const Img& _image,
     Pcg32 pcg32;
     _fgmask.clear();
 
-    for (int pixOffset{0}; pixOffset < _image.size.numPixels; ++pixOffset) {
+    for (size_t pixOffset{0}; pixOffset < _image.size.numPixels; ++pixOffset) {
         size_t nGoodSamplesCount{0}, 
             nSampleIdx{0};
 

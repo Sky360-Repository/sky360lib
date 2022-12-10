@@ -12,7 +12,7 @@ namespace sky360lib::bgs {
             : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numBytesPerPixel, _imgSize.originalPixelPos) {
         }
 
-        ImgSize(int _width, int _height, int _numBytesPerPixel, int _originalPixelPos = 0) 
+        ImgSize(int _width, int _height, int _numBytesPerPixel, size_t _originalPixelPos = 0) 
             : width(_width), 
             height(_height),
             numBytesPerPixel(_numBytesPerPixel),
@@ -21,17 +21,17 @@ namespace sky360lib::bgs {
             originalPixelPos{_originalPixelPos}
         {}
 
-        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numBytesPerPixel, int _originalPixelPos = 0) {
+        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numBytesPerPixel, size_t _originalPixelPos = 0) {
             return std::make_unique<ImgSize>(_width, _height, _numBytesPerPixel, _originalPixelPos);
         }
 
         const int width;
         const int height;
         const int numBytesPerPixel;
-        const int numPixels;
-        const int size;
+        const size_t numPixels;
+        const size_t size;
 
-        const int originalPixelPos;
+        const size_t originalPixelPos;
     };
 
     struct Img {
@@ -54,8 +54,8 @@ namespace sky360lib::bgs {
             memset(data, 0, size.size);
         }
 
-        const ImgSize size;
         uint8_t* const data;
+        const ImgSize size;
 
         std::unique_ptr<uint8_t[]> dataPtr;
     };

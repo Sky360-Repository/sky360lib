@@ -25,13 +25,13 @@ WeightedMovingVarianceCuda::~WeightedMovingVarianceCuda()
     clearCuda();
 }
 
-void WeightedMovingVarianceCuda::getBackgroundImage(cv::Mat &_bgImage)
+void WeightedMovingVarianceCuda::getBackgroundImage(cv::Mat &)
 {
 }
 
 void WeightedMovingVarianceCuda::clearCuda()
 {
-    for (int i = 0; i < m_numProcessesParallel; ++i)
+    for (size_t i = 0; i < m_numProcessesParallel; ++i)
     {
         if (imgInputPrev[i].pImgOutputCuda != nullptr)
             cudaFree(imgInputPrev[i].pImgOutputCuda);
@@ -44,10 +44,10 @@ void WeightedMovingVarianceCuda::clearCuda()
     }
 }
 
-void WeightedMovingVarianceCuda::initialize(const cv::Mat &_image)
+void WeightedMovingVarianceCuda::initialize(const cv::Mat &)
 {
     imgInputPrev.resize(m_numProcessesParallel);
-    for (int i = 0; i < m_numProcessesParallel; ++i)
+    for (size_t i = 0; i < m_numProcessesParallel; ++i)
     {
         imgInputPrev[i].currentRollingIdx = 0;
         imgInputPrev[i].firstPhase = 0;

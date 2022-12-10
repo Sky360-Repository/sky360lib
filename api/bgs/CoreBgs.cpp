@@ -38,7 +38,7 @@ void CoreBgs::prepareParallel(const cv::Mat &_image)
     m_processSeq.resize(m_numProcessesParallel);
     size_t y{0};
     size_t h{_image.size().height / m_numProcessesParallel};
-    for (int i{0}; i < m_numProcessesParallel; ++i)
+    for (size_t i{0}; i < m_numProcessesParallel; ++i)
     {
         m_processSeq[i] = i;
         if (i == (m_numProcessesParallel - 1))

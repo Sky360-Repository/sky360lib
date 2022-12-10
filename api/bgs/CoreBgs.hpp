@@ -24,7 +24,7 @@ namespace sky360lib::bgs {
 
         size_t m_numProcessesParallel;
         bool m_initialized;
-        std::vector<int> m_processSeq;
+        std::vector<size_t> m_processSeq;
         std::vector<std::unique_ptr<ImgSize>> m_imgSizesParallel;
     };
 
