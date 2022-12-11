@@ -9,27 +9,23 @@
 
 using namespace sky360lib::bgs;
 
-int main(int argc, const char** argv) {
+int main(int argc, const char **argv)
+{
     cv::VideoCapture cap;
-    //WeightedMovingVariance wmv;
+    // WeightedMovingVariance wmv;
     WeightedMovingVarianceHalide wmv;
-    //Vibe vibeBGS;
+    // Vibe vibeBGS;
 
     // if (argc < 2) {
     //     std::cout << "Need one parameter as camera number" << std::endl;
     //     return -1;
     // }
 
-    double freq = initFrequency();
+    initFrequency();
 
     // int camNum = std::stoi(argv[1]);
-    //cap.open(0);//camNum);
-    #ifdef _WIN32
-    //cap.open("E:\\source\\sky360\\embedded-bgsub\\Dahua-20220901-184734.mp4");
-    cap.open("E:\\source\\sky360\\dataset\\plane_flying_past2.mkv");
-    #else
+    // cap.open(camNum);
     cap.open("Dahua-20220901-184734.mp4");
-    #endif
     if (!cap.isOpened())
     {
         std::cout << "***Could not initialize capturing...***\n";
@@ -48,7 +44,8 @@ int main(int argc, const char** argv) {
     double totalTime = 0;
 
     cap.read(frame);
-    if (frame.type() != CV_8UC3) {
+    if (frame.type() != CV_8UC3)
+    {
         std::cout << "Image type not supported" << std::endl;
         return -1;
     }
@@ -57,15 +54,17 @@ int main(int argc, const char** argv) {
 
     // Applying first time for initialization of algo
     cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
-    //vibeBGS.apply(greyFrame, bgsMask);
+    // vibeBGS.apply(greyFrame, bgsMask);
     wmv.apply(greyFrame, bgsMask);
 
     cv::imshow("BGS Demo", frame);
 
     std::cout << "Enter loop" << std::endl;
-    while (true) {
+    while (true)
+    {
         cap.read(frame);
-        if (frame.empty()) {
+        if (frame.empty())
+        {
             std::cout << "No image" << std::endl;
             break;
         }
@@ -73,26 +72,30 @@ int main(int argc, const char** argv) {
 
         double startTime = getAbsoluteTime();
         wmv.apply(greyFrame, bgsMask);
-        //vibeBGS.apply(greyFrame, bgsMask);
+        // vibeBGS.apply(greyFrame, bgsMask);
         double endTime = getAbsoluteTime();
         totalTime += endTime - startTime;
         ++numFrames;
 
-        if (numFrames % 100 == 0) {
+        if (numFrames % 100 == 0)
+        {
             std::cout << "Framerate: " << (numFrames / totalTime) << " fps" << std::endl;
             totalTime = 0;
             numFrames = 0;
         }
         cv::imshow("BGS Demo", bgsMask);
         cv::resizeWindow("BGS Demo", 1024, 1024);
-        // cv::imshow("Live Video", frame);
+        cv::imshow("Live Video", frame);
+        cv::resizeWindow("Live Video", 1024, 1024);
 
-        if ((char)cv::waitKey(1) == 27) {
+        if ((char)cv::waitKey(1) == 27)
+        {
             std::cout << "Escape key pressed" << std::endl;
             break;
         }
     }
-    std::cout << "Exit loop\n" << std::endl;
+    std::cout << "Exit loop\n"
+              << std::endl;
 
     return 0;
 }

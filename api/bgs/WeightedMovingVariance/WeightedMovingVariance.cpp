@@ -5,6 +5,10 @@
 #include <execution>
 #include <iostream>
 
+#ifdef __ARM_NEON
+#include <arm_neon.h>
+#endif
+
 using namespace sky360lib::bgs;
 
 WeightedMovingVariance::WeightedMovingVariance(bool _enableWeight,
@@ -98,6 +102,36 @@ inline void calcWeightedVarianceMono(const uint8_t *const i1, const uint8_t *con
                     + ((value[2] * value[2]) * _params.weight[2]));
 }
 
+// ChatGPT Neon optimized version, need to test
+#ifdef __ARM_NEON
+inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+                                     uint8_t *const o, const WeightedMovingVarianceParams &_params)
+{
+    // Load the input values into NEON registers
+    const float32x4_t dI1 = vld1q_f32(i1);
+    const float32x4_t dI2 = vld1q_f32(i2);
+    const float32x4_t dI3 = vld1q_f32(i3);
+
+    // Combine the values from i1, i2, and i3 into a single NEON register
+    const float32x4_t dI = vcombine_f32(dI1, dI2, dI3);
+
+    // Load the weights into a NEON register
+    const float32x4_t weights = vld1q_f32(_params.weight);
+
+    // Compute the mean value using NEON intrinsic functions
+    const float32x4_t product = vmulq_f32(dI, weights);
+    const float mean = vaddvq_f32(product);
+
+    // Compute the value and result using NEON intrinsic functions
+    const float32x4_t value = vsubq_f32(dI, vdupq_n_f32(mean));
+    const float32x4_t square = vmulq_f32(value, value);
+    const float32x4_t weightedSquare = vmulq_f32(square, weights);
+    const float result = vaddvq_f32(weightedSquare);
+
+    // Compare the result to the threshold and set the output value
+    *o = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
+}
+#else
 inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
                                      uint8_t *const o, const WeightedMovingVarianceParams &_params)
 {
@@ -109,6 +143,7 @@ inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uin
                         + ((value[2] * value[2]) * _params.weight[2])};
     *o = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
 }
+#endif
 
 inline void calcWeightedVarianceColor(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
                                       uint8_t *const o, const WeightedMovingVarianceParams &_params)

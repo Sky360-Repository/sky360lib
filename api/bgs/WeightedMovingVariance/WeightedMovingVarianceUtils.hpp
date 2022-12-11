@@ -11,7 +11,7 @@ struct WeightedMovingVarianceParams
         : enableWeight{_enableWeight},
         enableThreshold{_enableThreshold},
         threshold{_threshold},
-        weight{_weight1, _weight2, _weight3},
+        weight{_weight1, _weight2, _weight3, 0.0f},
         thresholdSquared{_threshold * _threshold}
     {
     }
@@ -19,6 +19,6 @@ struct WeightedMovingVarianceParams
     const bool enableWeight;
     const bool enableThreshold;
     const float threshold;
-    const float weight[3];
+    const float weight[4];
     const float thresholdSquared;
 };

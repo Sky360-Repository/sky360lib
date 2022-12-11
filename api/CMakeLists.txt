@@ -25,7 +25,6 @@ add_halide_library(wmv_halide_auto_schedule FROM wmv_halide.generator
                 #    AUTOSCHEDULER Halide::Adams2019)
                 #    AUTOSCHEDULER Halide::Li2018)
 
-
 add_library(sky360lib_api STATIC)
 
 target_sources(

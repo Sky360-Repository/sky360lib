@@ -114,8 +114,8 @@ void WeightedMovingVarianceHalide::weightedVarianceMono(
     Buffer<uint8_t> input2(img3, width, height);
     Buffer<uint8_t> output(outImg, width, height);
 
-    //wmv_halide_auto_schedule(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
-    wmv_halide(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
+    wmv_halide_auto_schedule(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
+    //wmv_halide(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
     output.device_sync();
 
     // if (_params.enableThreshold)
