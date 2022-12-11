@@ -12,8 +12,8 @@ using namespace sky360lib::bgs;
 int main(int argc, const char **argv)
 {
     cv::VideoCapture cap;
-    // WeightedMovingVariance wmv;
-    WeightedMovingVarianceHalide wmv;
+    WeightedMovingVariance wmv;
+    //WeightedMovingVarianceHalide wmv;
     // Vibe vibeBGS;
 
     // if (argc < 2) {
