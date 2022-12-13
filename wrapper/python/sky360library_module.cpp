@@ -3,7 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <Python.h>
 
-// #include <numpy/ndarrayobject.h>
+#include "ndarray_converter.h"
 
 #include "bgs.hpp"
 
@@ -12,8 +12,8 @@ using namespace sky360lib::bgs;
 
 PYBIND11_MODULE(pysky360, m)
 {
-    //NDArrayConverter::init_numpy();
-    // import_array1(false);
+    NDArrayConverter::init_numpy();
+
     m.doc() = "python wrapper for sky360lib using pybind11";
     py::object version = py::cast("1.0.0");
     m.attr("__version__") = version;
