@@ -114,27 +114,57 @@ endif ()
 add_subdirectory(api)
 add_subdirectory(apps)
 
+SET(SKY360_PYTHON_SUPPORT ON)
+if(SKY360_PYTHON_SUPPORT)
+    if(NOT DEFINED SKY360_PYTHON_VERSION)
+        set(SKY360_PYTHON_VERSION 3)
+    endif()
+    set(PYBIND11_LTO_CXX_FLAGS "")
+    set(PYBIND11_PYTHON_VERSION ${SKY360_PYTHON_VERSION})
+    message(STATUS "PYTHON VERSION: ${SKY360_PYTHON_VERSION}")
 
-#file(GLOB_RECURSE bgs_python_src wrapper/python/*.cpp)
-#file(GLOB_RECURSE bgs_python_inc wrapper/python/*.h)
+    add_subdirectory(modules/pybind11)
+    message(STATUS "")
+    message(STATUS "Python library status:")
+    message(STATUS "    executable: ${PYTHON_EXECUTABLE}")
+    #message(STATUS "    version: ${PYTHON_VERSION_STRING}")
+    #message(STATUS "    libraries: ${PYTHON_LIBRARIES}")
+    message(STATUS "    library: ${PYTHON_LIBRARY}")
+    message(STATUS "    include path: ${PYTHON_INCLUDE_DIRS}")
 
-#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/modules/pybind11/include)
-##include_directories(${Boost_INCLUDE_DIRS})
-#include_directories(${PYTHON_INCLUDE_DIRS})
+    if(NOT NUMPY_INCLUDE_DIR)
+        exec_program ("${PYTHON_EXECUTABLE}"
+            ARGS "-c \"import numpy; print(numpy.get_include())\""
+            OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+            RETURN_VALUE NUMPY_NOT_FOUND)
+    endif()
+    message(STATUS "NUMPY_INCLUDE_DIR: ${NUMPY_INCLUDE_DIR}\n")
 
+    file(GLOB_RECURSE sky360_python_src wrapper/python/*.cpp)
+    file(GLOB_RECURSE sky360_python_inc wrapper/python/*.h)
+  
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/modules/pybind11/include)
+    include_directories(${PYTHON_INCLUDE_DIRS})
+    include_directories(${NUMPY_INCLUDE_DIR})
 
-#set(PYBIND11_LTO_CXX_FLAGS "")
-#set(BGS_PYTHON_VERSION 3)
-##set(PYBIND11_PYTHON_VERSION 2.7 3.5 3.6)
-#set(PYBIND11_PYTHON_VERSION ${BGS_PYTHON_VERSION})
-##find_package(pybind11 REQUIRED)
-#add_subdirectory(modules/pybind11)
+    pybind11_add_module(sky360_python ${sky360_python_src} ${sky360_python_inc})
+    target_link_libraries(sky360_python PRIVATE sky360lib_api ${OpenCV_LIBS} ${PYTHON_LIBRARY} pybind11::module)
+    set_target_properties(sky360_python PROPERTIES SUFFIX "${PYTHON_MODULE_EXTENSION}")
+    target_compile_definitions(sky360_python PRIVATE SKY360_PYTHON_SUPPORT=1)
+    set_property(TARGET sky360_python PROPERTY OUTPUT_NAME "pysky360")
 
-#pybind11_add_module(bgs_python ${bgs_python_src} ${bgs_python_inc})
+    if(UNIX)
+        execute_process(
+            COMMAND "${PYTHON_EXECUTABLE}" -c "if True:
+                from distutils import sysconfig as sc
+                print(sc.get_python_lib(prefix='', plat_specific=True))"
+            OUTPUT_VARIABLE PYTHON_SITE
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
 
-#target_link_libraries(bgs_python PRIVATE bgslibrary_core ${OpenCV_LIBS} ${PYTHON_LIBRARY} pybind11::module)
-#set_target_properties(bgs_python PROPERTIES SUFFIX "${PYTHON_MODULE_EXTENSION}")
-#target_compile_definitions(bgs_python PRIVATE BGS_PYTHON_SUPPORT=1)
+        message(STATUS "")
+        message(STATUS "The sky360 library python package will be installed at: ${PYTHON_SITE}\n")
 
-## Set the output library name to bgslibrary because that's what setup.py and distutils expects.
-#set_property(TARGET bgs_python PROPERTY OUTPUT_NAME "pysky360lib")
+        install(TARGETS sky360_python DESTINATION ${PYTHON_SITE})
+    endif()
+endif()

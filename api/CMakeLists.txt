@@ -47,14 +47,21 @@ target_sources(
 )
 
 target_link_libraries(sky360lib_api
-                      PRIVATE
-                      Halide::Tools
-                      wmv_halide
-                      wmv_halide_auto_schedule)
+                    PRIVATE
+                        "${OpenCV_LIBS}"
+                        Halide::Tools
+                        wmv_halide
+                        wmv_halide_auto_schedule)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(sky360lib_api
+            PRIVATE
+                TBB::tbb
+    )
+endif ()
 
 target_include_directories(
     sky360lib_api
         PUBLIC
             "${CMAKE_SOURCE_DIR}/api/include" "${CMAKE_SOURCE_DIR}/api/bgs"
 )
-

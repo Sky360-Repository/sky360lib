@@ -9,7 +9,7 @@ namespace sky360lib::bgs {
 
     class CoreBgs {
     public:
-        CoreBgs(size_t _numProcessesParallel);
+        CoreBgs(size_t _numProcessesParallel = 1);
 
         void apply(const cv::Mat& _image, cv::Mat& _fgmask);
 
