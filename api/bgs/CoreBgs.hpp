@@ -12,6 +12,7 @@ namespace sky360lib::bgs {
         CoreBgs(size_t _numProcessesParallel = 1);
 
         void apply(const cv::Mat& _image, cv::Mat& _fgmask);
+        cv::Mat applyRet(const cv::Mat& _image);
 
         virtual void getBackgroundImage(cv::Mat& _bgImage) = 0;
 

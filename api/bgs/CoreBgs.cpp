@@ -32,6 +32,13 @@ void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
     }
 }
 
+cv::Mat CoreBgs::applyRet(const cv::Mat& _image)
+{
+    cv::Mat imgMask;
+    apply(_image, imgMask);
+    return imgMask;
+}
+
 void CoreBgs::prepareParallel(const cv::Mat &_image)
 {
     m_imgSizesParallel.resize(m_numProcessesParallel);

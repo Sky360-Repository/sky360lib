@@ -20,6 +20,6 @@ PYBIND11_MODULE(pysky360, m)
 
     py::class_<WeightedMovingVariance>(m, "WeightedMovingVariance")
         .def(py::init<>())
-        .def("apply", &WeightedMovingVariance::apply)
+        .def("apply", &WeightedMovingVariance::applyRet)
         .def("getBackgroundImage", &WeightedMovingVariance::getBackgroundImage);
 }
