@@ -2,6 +2,8 @@ import cv2
 import pysky360
 
 algorithm = pysky360.WeightedMovingVariance()
+# algorithm = pysky360.WeightedMovingVarianceHalide()
+# algorithm = pysky360.WeightedMovingVarianceCuda()
 
 video_file = "Dahua-20220901-184734.mp4"
 capture = cv2.VideoCapture(video_file)
@@ -15,6 +17,7 @@ while True:
     flag, frame = capture.read()
 
     if flag:
+        frame = cv2.resize(frame, (1024, 1024))
         cv2.imshow('video', frame)
         pos_frame = capture.get(1)
         img_output = algorithm.apply(frame)
