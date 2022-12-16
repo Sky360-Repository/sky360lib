@@ -5,9 +5,12 @@
 #include <execution>
 #include <iostream>
 
-#include "wmv_halide_auto_schedule.h"
-#include "wmv_halide.h"
-#include "HalideBuffer.h"
+#include "wmv_mono_auto_schedule.h"
+#include "wmv_mono_threshold_auto_schedule.h"
+#include "wmv_color_auto_schedule.h"
+#include "wmv_color_threshold_auto_schedule.h"
+
+#include <HalideBuffer.h>
 
 using namespace sky360lib::bgs;
 using namespace Halide::Runtime;
@@ -34,7 +37,6 @@ void WeightedMovingVarianceHalide::getBackgroundImage(cv::Mat &)
 void WeightedMovingVarianceHalide::initialize(const cv::Mat &)
 {
     initParallelData();
-    initHalide();
 }
 
 void WeightedMovingVarianceHalide::initParallelData()
@@ -53,10 +55,6 @@ void WeightedMovingVarianceHalide::initParallelData()
         imgInputPrev[i].pImgMem[2] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
         rollImages(imgInputPrev[i]);
     }
-}
-
-void WeightedMovingVarianceHalide::initHalide()
-{
 }
 
 void WeightedMovingVarianceHalide::rollImages(RollingImages& rollingImages)
@@ -97,7 +95,7 @@ void WeightedMovingVarianceHalide::process(const cv::Mat &_inImage,
                             _outImg.data, _imgInputPrev.pImgSize->width, _imgInputPrev.pImgSize->height, _params);
     else
         weightedVarianceColor(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2, 
-                            _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+                            _outImg.data, _imgInputPrev.pImgSize->width, _imgInputPrev.pImgSize->height, _params);
 }
 
 void WeightedMovingVarianceHalide::weightedVarianceMono(
@@ -114,16 +112,11 @@ void WeightedMovingVarianceHalide::weightedVarianceMono(
     Buffer<uint8_t> input2(img3, width, height);
     Buffer<uint8_t> output(outImg, width, height);
 
-    wmv_halide_auto_schedule(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
-    //wmv_halide(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
+    if (_params.enableThreshold)
+        wmv_mono_threshold_auto_schedule(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
+    else
+        wmv_mono_auto_schedule(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], output);
     output.device_sync();
-
-    // if (_params.enableThreshold)
-    //     for (size_t i{0}; i < totalPixels; ++i)
-    //         calcWeightedVarianceMonoThreshold(img1 + i, img2 + i, img3 + i, outImg + i, _params);
-    // else
-    //     for (size_t i{0}; i < totalPixels; ++i)
-    //         calcWeightedVarianceMono(img1 + i, img2 + i, img3 + i, outImg + i, _params);
 }
 
 void WeightedMovingVarianceHalide::weightedVarianceColor(
@@ -131,13 +124,18 @@ void WeightedMovingVarianceHalide::weightedVarianceColor(
     const uint8_t *const img2,
     const uint8_t *const img3,
     uint8_t *const outImg,
-    const size_t totalPixels,
+    const int width,
+    const int height,
     const WeightedMovingVarianceParams &_params)
 {
-    // if (_params.enableThreshold)
-    //     for (size_t i{0}, i3{0}; i < totalPixels; ++i, i3 += 3)
-    //         calcWeightedVarianceColorThreshold(img1 + i3, img2 + i3, img3 + i3, outImg + i, _params);
-    // else
-    //     for (size_t i{0}, i3{0}; i < totalPixels; ++i, i3 += 3)
-    //         calcWeightedVarianceColor(img1 + i3, img2 + i3, img3 + i3, outImg + i, _params);
+    Buffer<uint8_t> input0{Buffer<uint8_t>::make_interleaved((uint8_t*)img1, width, height, 3)};
+    Buffer<uint8_t> input1{Buffer<uint8_t>::make_interleaved((uint8_t*)img2, width, height, 3)};
+    Buffer<uint8_t> input2{Buffer<uint8_t>::make_interleaved((uint8_t*)img3, width, height, 3)};
+    Buffer<uint8_t> output(outImg, width, height);
+
+    if (_params.enableThreshold)
+        wmv_color_threshold_auto_schedule(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], _params.thresholdSquared, output);
+    else
+        wmv_color_auto_schedule(input0, input1, input2, _params.weight[0], _params.weight[1], _params.weight[2], output);
+    output.device_sync();
 }

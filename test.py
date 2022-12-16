@@ -19,8 +19,9 @@ while True:
     if flag:
         frame = cv2.resize(frame, (1024, 1024))
         cv2.imshow('video', frame)
+        greyFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY);
         pos_frame = capture.get(1)
-        img_output = algorithm.apply(frame)
+        img_output = algorithm.apply(greyFrame)
         
         cv2.imshow('img_output', img_output)
 

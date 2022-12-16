@@ -73,6 +73,19 @@
         "cstdarg": "cpp",
         "chrono": "cpp",
         "random": "cpp",
-        "semaphore": "cpp"
+        "semaphore": "cpp",
+        "*.tcc": "cpp",
+        "cwctype": "cpp",
+        "forward_list": "cpp",
+        "set": "cpp",
+        "memory_resource": "cpp",
+        "optional": "cpp",
+        "string_view": "cpp",
+        "fstream": "cpp",
+        "numbers": "cpp",
+        "shared_mutex": "cpp",
+        "cfenv": "cpp",
+        "valarray": "cpp",
+        "variant": "cpp"
     }
 }

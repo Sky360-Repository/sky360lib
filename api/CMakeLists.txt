@@ -6,24 +6,57 @@ message(STATUS "CUDA_PATH = $ENV{CUDA_PATH}")
 find_package(Halide REQUIRED)
 
 # Generator
-add_halide_generator(wmv_halide.generator
-                     SOURCES "bgs/WeightedMovingVariance/WMVHalideGenerator.cpp"
+add_halide_generator(wmv_mono.generator
+                     SOURCES "bgs/WeightedMovingVariance/WMVMonoGenerator.cpp"
                      LINK_LIBRARIES Halide::Tools)
-
+add_halide_generator(wmv_mono_threshold.generator
+                     SOURCES "bgs/WeightedMovingVariance/WMVMonoThresholdGenerator.cpp"
+                     LINK_LIBRARIES Halide::Tools)
+add_halide_generator(wmv_color.generator
+                     SOURCES "bgs/WeightedMovingVariance/WMVColorGenerator.cpp"
+                     LINK_LIBRARIES Halide::Tools)
+add_halide_generator(wmv_color_threshold.generator
+                     SOURCES "bgs/WeightedMovingVariance/WMVColorThresholdGenerator.cpp"
+                     LINK_LIBRARIES Halide::Tools)
 # Filters
-add_halide_library(wmv_halide FROM wmv_halide.generator
-                   STMT wmv_halide_STMT
-                   SCHEDULE wmv_halide_SCHEDULE)
+add_halide_library(wmv_mono FROM wmv_mono.generator
+                   STMT wmv_mono_STMT
+                   SCHEDULE wmv_mono_SCHEDULE)
+add_halide_library(wmv_mono_threshold FROM wmv_mono_threshold.generator
+                   STMT wmv_mono_threshold_STMT
+                   SCHEDULE wmv_mono_threshold_SCHEDULE)
+add_halide_library(wmv_color FROM wmv_color.generator
+                   STMT wmv_color_STMT
+                   SCHEDULE wmv_color_SCHEDULE)
+add_halide_library(wmv_color_threshold FROM wmv_color_threshold.generator
+                   STMT wmv_color_threshold_STMT
+                   SCHEDULE wmv_color_threshold_SCHEDULE)
 
-add_halide_library(wmv_halide_auto_schedule FROM wmv_halide.generator
-                   GENERATOR wmv_halide
-                   STMT wmv_halide_auto_schedule_STMT
-                   SCHEDULE wmv_halide_auto_schedule_SCHEDULE
+add_halide_library(wmv_mono_auto_schedule FROM wmv_mono.generator
+                   GENERATOR wmv_mono
+                   STMT wmv_mono_auto_schedule_STMT
+                   SCHEDULE wmv_mono_auto_schedule_SCHEDULE
                    AUTOSCHEDULER Halide::Li2018)
-                # Three different auto-schedulers (for my Ryzen 7, the best was Li2018)
-                #    AUTOSCHEDULER Halide::Mullapudi2016)
-                #    AUTOSCHEDULER Halide::Adams2019)
-                #    AUTOSCHEDULER Halide::Li2018)
+add_halide_library(wmv_mono_threshold_auto_schedule FROM wmv_mono_threshold.generator
+                   GENERATOR wmv_mono_threshold
+                   STMT wmv_mono_auto_schedule_STMT
+                   SCHEDULE wmv_mono_threshold_auto_schedule_SCHEDULE
+                   AUTOSCHEDULER Halide::Li2018)
+add_halide_library(wmv_color_auto_schedule FROM wmv_color.generator
+                   GENERATOR wmv_color
+                   STMT wmv_color_auto_schedule_STMT
+                   SCHEDULE wmv_color_auto_schedule_SCHEDULE
+                   AUTOSCHEDULER Halide::Li2018)
+add_halide_library(wmv_color_threshold_auto_schedule FROM wmv_color_threshold.generator
+                   GENERATOR wmv_color_threshold
+                   STMT wmv_color_threshold_auto_schedule_STMT
+                   SCHEDULE wmv_color_threshold_auto_schedule_SCHEDULE
+                   AUTOSCHEDULER Halide::Li2018)
+
+# Three different auto-schedulers (for my Ryzen 7, the best was Li2018)
+#    AUTOSCHEDULER Halide::Mullapudi2016)
+#    AUTOSCHEDULER Halide::Adams2019)
+#    AUTOSCHEDULER Halide::Li2018)
 
 add_library(sky360lib_api STATIC)
 
@@ -50,8 +83,15 @@ target_link_libraries(sky360lib_api
                     PRIVATE
                         "${OpenCV_LIBS}"
                         Halide::Tools
-                        wmv_halide
-                        wmv_halide_auto_schedule)
+                        wmv_mono
+                        wmv_mono_auto_schedule
+                        wmv_mono_threshold
+                        wmv_mono_threshold_auto_schedule
+                        wmv_color
+                        wmv_color_auto_schedule
+                        wmv_color_threshold
+                        wmv_color_threshold_auto_schedule
+                        )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(sky360lib_api
