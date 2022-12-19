@@ -79,6 +79,24 @@ target_sources(
             "include/profiling.hpp" "bgs/bgs.hpp"
 )
 
+target_sources(
+    sky360lib_api
+        PRIVATE
+            "tracking/precomp.hpp"
+            "tracking/trackerCSRT.hpp"
+            "tracking/trackerCSRT.cpp"
+            "tracking/trackerCSRTScaleEstimation.hpp"
+            "tracking/trackerCSRTScaleEstimation.cpp"
+            "tracking/trackerCSRTSegmentation.hpp"
+            "tracking/trackerCSRTSegmentation.cpp"
+            "tracking/trackerCSRTUtils.hpp"
+            "tracking/trackerCSRTUtils.cpp"
+            "tracking/trackerModel.hpp"
+            "tracking/trackerModel.cpp"
+        PUBLIC
+            "tracking/tracker.hpp"
+)
+
 target_link_libraries(sky360lib_api
                     PRIVATE
                         "${OpenCV_LIBS}"
