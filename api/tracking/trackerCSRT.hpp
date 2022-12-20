@@ -5,6 +5,7 @@
 
 namespace sky360lib::tracking
 {
+    using namespace cv;
     /** @brief the CSRT tracker
 
     The implementation is based on @cite Lukezic_IJCV2018 Discriminative Correlation Filter with Channel and Spatial Reliability
@@ -16,9 +17,9 @@ namespace sky360lib::tracking
     public:
         virtual ~TrackerCSRT() override;
 
-        struct CV_EXPORTS_W_SIMPLE Params
+        struct Params
         {
-            CV_WRAP Params();
+            Params();
 
             bool use_hog;
             bool use_color_names;
@@ -52,13 +53,7 @@ namespace sky360lib::tracking
             float psr_threshold; //!< we lost the target, if the psr is lower than this.
         };
 
-        /** @brief Create CSRT tracker instance
-        @param parameters CSRT parameters TrackerCSRT::Params
-        */
         static Ptr<TrackerCSRT> create(const TrackerCSRT::Params &parameters = TrackerCSRT::Params());
-
-        // void init(InputArray image, const Rect& boundingBox) CV_OVERRIDE;
-        // bool update(InputArray image, CV_OUT Rect& boundingBox) CV_OVERRIDE;
 
         virtual void setInitialMask(InputArray mask) = 0;
     };

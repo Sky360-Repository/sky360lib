@@ -93,6 +93,7 @@ target_sources(
             "tracking/trackerCSRTUtils.cpp"
             "tracking/trackerModel.hpp"
             "tracking/trackerModel.cpp"
+            "tracking/featureColorName.cpp"
         PUBLIC
             "tracking/tracker.hpp"
 )
@@ -121,5 +122,5 @@ endif ()
 target_include_directories(
     sky360lib_api
         PUBLIC
-            "${CMAKE_SOURCE_DIR}/api/include" "${CMAKE_SOURCE_DIR}/api/bgs"
+            "${CMAKE_SOURCE_DIR}/api/include" "${CMAKE_SOURCE_DIR}/api/bgs" "${CMAKE_SOURCE_DIR}/api/tracking"
 )

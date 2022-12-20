@@ -3,17 +3,22 @@
 
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+//#include <opencv2/tracking.hpp>
 
 #include "bgs.hpp"
+#include "tracker.hpp"
 #include "profiling.hpp"
 
 using namespace sky360lib::bgs;
+using namespace sky360lib::tracking;
 
 int main(int argc, const char **argv)
 {
     cv::VideoCapture cap;
     //WeightedMovingVariance wmv;
     WeightedMovingVarianceHalide wmv;
+    // cv::Ptr<cv::TrackerCSRT> tracker = cv::TrackerCSRT::create();
+    Ptr<TrackerCSRT> tracker = TrackerCSRT::create();
     // Vibe vibeBGS;
 
     // if (argc < 2) {
@@ -57,6 +62,9 @@ int main(int argc, const char **argv)
     // vibeBGS.apply(greyFrame, bgsMask);
     wmv.apply(greyFrame, bgsMask);
 
+    cv::Rect boundingBox = cv::Rect(0, 0, greyFrame.size().width, greyFrame.size().height);
+    tracker->init(bgsMask, boundingBox);
+
     cv::imshow("BGS Demo", frame);
 
     std::cout << "Enter loop" << std::endl;
@@ -70,8 +78,12 @@ int main(int argc, const char **argv)
         }
         cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
 
-        double startTime = getAbsoluteTime();
         wmv.apply(greyFrame, bgsMask);
+        double startTime = getAbsoluteTime();
+        if (tracker->update(bgsMask, boundingBox))
+        {
+            cv::rectangle(frame, boundingBox, cv::Scalar(0, 255, 0), 2);
+        }
         // vibeBGS.apply(greyFrame, bgsMask);
         double endTime = getAbsoluteTime();
         totalTime += endTime - startTime;
@@ -96,6 +108,10 @@ int main(int argc, const char **argv)
     }
     std::cout << "Exit loop\n"
               << std::endl;
+
+    cap.release();
+
+    cv::destroyAllWindows();
 
     return 0;
 }

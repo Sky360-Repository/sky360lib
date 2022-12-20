@@ -79,9 +79,9 @@ namespace sky360lib::tracking
         int cell_size;
     };
 
-    TrackerCSRTImpl::TrackerCSRTImpl(const TrackerCSRT::Params &parameters) : params(parameters)
+    TrackerCSRTImpl::TrackerCSRTImpl(const TrackerCSRT::Params &parameters) 
+        : params(parameters)
     {
-        // nothing
     }
 
     void TrackerCSRTImpl::setInitialMask(InputArray mask)
@@ -676,7 +676,7 @@ namespace sky360lib::tracking
         histogram_bins = 16;
         background_ratio = 2;
         histogram_lr = 0.04f;
-        psr_threshold = 0.035f;
+        psr_threshold = 0.06f;// 0.035f;
     }
 
     TrackerCSRT::TrackerCSRT()
