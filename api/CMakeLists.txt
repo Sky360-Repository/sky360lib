@@ -70,11 +70,11 @@ target_sources(
             "bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp"
             "bgs/WeightedMovingVariance/WeightedMovingVariance.cpp" 
             "bgs/WeightedMovingVariance/WeightedMovingVariance.hpp"
-            "bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.cpp" 
-            "bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.hpp"
+            #"bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.cpp" 
+            #"bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.hpp"
             "bgs/WeightedMovingVariance/WeightedMovingVarianceHalide.cpp"
             "bgs/WeightedMovingVariance/WeightedMovingVarianceHalide.hpp"
-            "bgs/WeightedMovingVariance/WMVCuda.cu"
+            #"bgs/WeightedMovingVariance/WMVCuda.cu"
         PUBLIC
             "include/profiling.hpp" "bgs/bgs.hpp"
 )
