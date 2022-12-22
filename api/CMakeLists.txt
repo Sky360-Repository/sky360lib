@@ -1,5 +1,5 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories($ENV{CUDA_PATH}/include)
+#include_directories($ENV{CUDA_PATH}/include)
 include_directories($ENV{Halide_DIR}/include)
 message(STATUS "CUDA_PATH = $ENV{CUDA_PATH}")
 
