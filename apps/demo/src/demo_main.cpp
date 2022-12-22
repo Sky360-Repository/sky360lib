@@ -1,72 +1,52 @@
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 #include <easy/profiler.h>
 
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-//#include <opencv2/tracking.hpp>
+#include <opencv2/features2d.hpp>
 
 #include "bgs.hpp"
-#include "tracker.hpp"
 #include "profiling.hpp"
 
-using namespace sky360lib::bgs;
-using namespace sky360lib::tracking;
+#include "demoTracker.hpp"
 
+using namespace sky360lib::bgs;
+
+/////////////////////////////////////////////////////////////
 // Default parameters
 int blur_radius{3};
 bool applyGreyscale{true};
 bool applyNoiseReduction{true};
+int sensitivity{1};
 
+/////////////////////////////////////////////////////////////
 // Background subtractor to use
 WeightedMovingVariance bgs;
-//WeightedMovingVarianceHalide bgs;
-// Vibe bgs;
+// WeightedMovingVarianceHalide bgs;
+//  Vibe bgs;
 
-// Tracker to use
-// cv::Ptr<cv::TrackerCSRT> tracker = cv::TrackerCSRT::create(); //OpenCV Tracker
-cv::Ptr<TrackerCSRT> tracker = TrackerCSRT::create(); // sky360lib Tracker implementation
+/////////////////////////////////////////////////////////////
+// Blob Detector
+cv::Ptr<cv::SimpleBlobDetector> detector = nullptr;
 
-// Do image pre-processing
-inline void appyPreProcess(const cv::Mat& input, cv::Mat& output)
-{
-    EASY_FUNCTION(profiler::colors::Green);
-    cv::Mat tmpFrame;
+/////////////////////////////////////////////////////////////
+// Function Definitions
+inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
+inline void appyBGS(const cv::Mat &input, cv::Mat &output);
+inline cv::Ptr<cv::SimpleBlobDetector> createBlobDetector(const cv::Mat &frame);
+inline std::vector<std::vector<cv::KeyPoint>> applyBlobDetection(const cv::Mat &frame);
 
-    EASY_BLOCK("Greyscale");
-    if (applyGreyscale)
-        cv::cvtColor(input, tmpFrame, cv::COLOR_BGR2GRAY);
-    else
-        tmpFrame = input;
-    EASY_END_BLOCK;
-    EASY_BLOCK("Noise Reduction");
-    if (applyNoiseReduction)
-        cv::GaussianBlur(tmpFrame, output, cv::Size(blur_radius, blur_radius), 0);
-    else
-        output = tmpFrame;
-    EASY_END_BLOCK;
-}
-
-// Apply background subtraction
-inline void appyBGS(const cv::Mat& input, cv::Mat& output)
-{
-    EASY_FUNCTION(profiler::colors::Red);
-    bgs.apply(input, output);
-}
-
-// Main entry point
+/////////////////////////////////////////////////////////////
+// Main entry point for demo
 int main(int argc, const char **argv)
 {
     EASY_PROFILER_ENABLE;
 
     cv::VideoCapture cap;
-
-    // if (argc < 2) {
-    //     std::cout << "Need one parameter as camera number" << std::endl;
-    //     return -1;
-    // }
 
     initFrequency();
 
@@ -102,9 +82,9 @@ int main(int argc, const char **argv)
     // Applying first time for initialization of algo
     appyPreProcess(frame, processedFrame);
     appyBGS(processedFrame, bgsMask);
+    detector = createBlobDetector(bgsMask);
 
-    //cv::Rect boundingBox = cv::Rect(0, 0, frame.size().width, frame.size().height);
-    //tracker->init(bgsMask, boundingBox);
+    // cv::Rect boundingBox = cv::Rect(0, 0, frame.size().width, frame.size().height);
 
     cv::imshow("BGS Demo", frame);
 
@@ -157,4 +137,59 @@ int main(int argc, const char **argv)
     profiler::dumpBlocksToFile("test_profile.prof");
 
     return 0;
+}
+
+// Do image pre-processing
+inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
+{
+    EASY_FUNCTION(profiler::colors::Green);
+    cv::Mat tmpFrame;
+
+    EASY_BLOCK("Greyscale");
+    if (applyGreyscale)
+        cv::cvtColor(input, tmpFrame, cv::COLOR_BGR2GRAY);
+    else
+        tmpFrame = input;
+    EASY_END_BLOCK;
+    EASY_BLOCK("Noise Reduction");
+    if (applyNoiseReduction)
+        cv::GaussianBlur(tmpFrame, output, cv::Size(blur_radius, blur_radius), 0);
+    else
+        output = tmpFrame;
+    EASY_END_BLOCK;
+}
+
+// Apply background subtraction
+inline void appyBGS(const cv::Mat &input, cv::Mat &output)
+{
+    EASY_FUNCTION(profiler::colors::Red);
+    bgs.apply(input, output);
+}
+
+inline cv::Ptr<cv::SimpleBlobDetector> createBlobDetector(const cv::Mat &frame)
+{
+    cv::SimpleBlobDetector::Params params;
+    params.minRepeatability = 2;
+    // 5% of the width of the image
+    params.minDistBetweenBlobs = (int)(frame.size().width * 0.05f);
+    params.minThreshold = 3;
+    params.filterByArea = 1;
+    params.filterByColor = 0;
+    if (sensitivity == 1) //  # Detects small, medium and large objects
+        params.minArea = 3;
+    else if (sensitivity == 2) //  # Detects medium and large objects
+        params.minArea = 5;
+    else if (sensitivity == 3) // # Detects large objects
+        params.minArea = 25;
+
+    return cv::SimpleBlobDetector::create(params);
+}
+
+inline std::vector<std::vector<cv::KeyPoint>> applyBlobDetection(const cv::Mat &frame)
+{
+    EASY_FUNCTION(profiler::colors::Blue);
+    std::vector<std::vector<cv::KeyPoint>> keypoints;
+    detector->detect(frame, keypoints);
+
+    return keypoints;
 }

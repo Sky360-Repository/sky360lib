@@ -3,6 +3,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(
     sky360lib_demo
         "src/demo_main.cpp"
+        "src/demoTracker.hpp"
 )
 
 target_include_directories(
