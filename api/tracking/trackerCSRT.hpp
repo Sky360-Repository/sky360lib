@@ -1,21 +1,23 @@
 #pragma once
 
 #include <opencv2/core.hpp>
-#include <opencv2/video/tracking.hpp>
 
 namespace sky360lib::tracking
 {
-    using namespace cv;
     /** @brief the CSRT tracker
 
     The implementation is based on @cite Lukezic_IJCV2018 Discriminative Correlation Filter with Channel and Spatial Reliability
     */
-    class TrackerCSRT : public Tracker
+    class TrackerCSRT
     {
     protected:
         TrackerCSRT(); // use ::create()
     public:
-        virtual ~TrackerCSRT() override;
+        virtual ~TrackerCSRT();
+
+        virtual void init(cv::InputArray image, const cv::Rect &boundingBox) = 0;
+        virtual bool update(cv::InputArray image, cv::Rect &boundingBox) = 0;
+        virtual void setInitialMask(cv::InputArray mask) = 0;
 
         struct Params
         {
@@ -53,8 +55,6 @@ namespace sky360lib::tracking
             float psr_threshold; //!< we lost the target, if the psr is lower than this.
         };
 
-        static Ptr<TrackerCSRT> create(const TrackerCSRT::Params &parameters = TrackerCSRT::Params());
-
-        virtual void setInitialMask(InputArray mask) = 0;
+        static cv::Ptr<TrackerCSRT> create(const TrackerCSRT::Params &parameters = TrackerCSRT::Params());
     };
 }

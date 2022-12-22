@@ -16,12 +16,8 @@ target_link_libraries(
         PUBLIC
             "${OpenCV_LIBS}"
             sky360lib_api
+            easy_profiler
 )
-
-# target_link_libraries(sky360lib_demo PUBLIC cublas cudart_static cufilt cusparse nppidei nppist nvblas nvrtc
-# cublasLt curand nppc nppif nppisu nvjpeg nvrtc_static
-# cuda cufft cusolver nppial nppig nppitc nvml nvrtc-builtins_static
-# cudadevrt cufftw cusolverMg nppicc nppim npps nvptxcompiler_static OpenCL)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(  # for <execution> stdlib

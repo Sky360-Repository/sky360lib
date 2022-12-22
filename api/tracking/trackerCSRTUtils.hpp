@@ -30,7 +30,7 @@ namespace sky360lib::tracking
     double get_max(const Mat &m);
     double get_min(const Mat &m);
 
-    Mat get_hann_win(Size sz);
+    Mat get_hann_win(const Size &sz);
     Mat get_kaiser_win(Size sz, float alpha);
     Mat get_chebyshev_win(Size sz, float attenuation);
 

@@ -297,7 +297,6 @@ namespace sky360lib::tracking
 
         std::pair<cv::Mat, cv::Mat> sizedProbs = getRegularizedSegmentation(prob_o, prob_b,
                                                                             fgPriorScaled, bgPriorScaled);
-        // std::pair<cv::Mat, cv::Mat> sizedProbs = std::pair<cv::Mat, cv::Mat>(prob_o, prob_b);
 
         // resize probs to original size
         std::pair<cv::Mat, cv::Mat> probs;
@@ -368,6 +367,64 @@ namespace sky360lib::tracking
         return probs;
     }
 
+    inline void tempOBMult(Mat& Si_o, Mat& Si_b, const Mat& prior_o, const Mat& prior_b)
+    {
+        const size_t size = prior_o.rows * prior_o.cols;
+        double* dSi_o = (double*)Si_o.data;
+        double* dSi_b = (double*)Si_b.data;
+        double* dprior_o = (double*)prior_o.data;
+        double* dprior_b = (double*)prior_b.data;
+
+        for (size_t i = 0; i < size; ++i)
+        {
+            *dSi_o *= *dprior_o;
+            *dSi_b *= *dprior_b;
+            const double normSi{1.0 / (*dSi_o + *dSi_b)};
+            *dSi_o *= normSi;
+            *dSi_b *= normSi;
+            ++dSi_o;
+            ++dSi_b;
+            ++dprior_o;
+            ++dprior_b;
+        }
+        // Si_o = Si_o.mul(prior_o);
+        // Si_b = Si_b.mul(prior_b);
+        // cv::Mat normSi = 1.0 / (Si_o + Si_b);
+        // Si_o = Si_o.mul(normSi);
+        // Si_b = Si_b.mul(normSi);        
+    }
+
+    inline void tempOBSumSum(const Mat& Qsum_o, const Mat& Ssum_o, const Mat& Qsum_b, const Mat& Ssum_b, Mat& prior_o, Mat& prior_b)
+    {
+            // prior_o = (Qsum_o + Ssum_o) * 0.25;
+            // prior_b = (Qsum_b + Ssum_b) * 0.25;
+            // cv::Mat normPI = 1.0 / (prior_o + prior_b);
+            // prior_o = prior_o.mul(normPI);
+            // prior_b = prior_b.mul(normPI);
+        const size_t size = prior_o.rows * prior_o.cols;
+        double* dQsum_o = (double*)Qsum_o.data;
+        double* dSsum_o = (double*)Ssum_o.data;
+        double* dQsum_b = (double*)Qsum_b.data;
+        double* dSsum_b = (double*)Ssum_b.data;
+        double* dprior_o = (double*)prior_o.data;
+        double* dprior_b = (double*)prior_b.data;
+
+        for (size_t i = 0; i < size; ++i)
+        {
+            *dprior_o = (*dQsum_o + *dSsum_o) * 0.25;
+            *dprior_b = (*dQsum_b + *dSsum_b) * 0.25;
+            const double normPI{1.0 / (*dprior_o + *dprior_b)};
+            *dprior_o *= normPI;
+            *dprior_b *= normPI;
+            ++dQsum_o;
+            ++dSsum_o;
+            ++dQsum_b;
+            ++dSsum_b;
+            ++dprior_o;
+            ++dprior_b;
+        }
+    }
+
     std::pair<cv::Mat, cv::Mat> Segment::getRegularizedSegmentation(
         cv::Mat &prob_o, cv::Mat &prob_b, cv::Mat &prior_o, cv::Mat &prior_b)
     {
@@ -418,8 +475,7 @@ namespace sky360lib::tracking
         cv::Mat logQo(prior_o.rows, prior_o.cols, prior_o.type());
         cv::Mat logQb(prior_o.rows, prior_o.cols, prior_o.type());
 
-        int i;
-        for (i = 0; i < maxIter; ++i)
+        for (int i = 0; i < maxIter; ++i)
         {
             // follows the equations from Kristan et al. ACCV2014 paper
             //"A graphical model for rapid obstacle image-map estimation from unmanned surface vehicles"
@@ -428,29 +484,34 @@ namespace sky360lib::tracking
 
             cv::filter2D(prior_o, Si_o, -1, lambda, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
             cv::filter2D(prior_b, Si_b, -1, lambda, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-            Si_o = Si_o.mul(prior_o);
-            Si_b = Si_b.mul(prior_b);
-            cv::Mat normSi = 1.0 / (Si_o + Si_b);
-            Si_o = Si_o.mul(normSi);
-            Si_b = Si_b.mul(normSi);
+
+            tempOBMult(Si_o, Si_b, prior_o, prior_b);
+            // Si_o = Si_o.mul(prior_o);
+            // Si_b = Si_b.mul(prior_b);
+            // cv::Mat normSi = 1.0 / (Si_o + Si_b);
+            // Si_o = Si_o.mul(normSi);
+            // Si_b = Si_b.mul(normSi);
+
             cv::filter2D(Si_o, Ssum_o, -1, lambda2, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
             cv::filter2D(Si_b, Ssum_b, -1, lambda2, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
 
             cv::filter2D(P_Io, Qi_o, -1, lambda, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
             cv::filter2D(P_Ib, Qi_b, -1, lambda, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-            Qi_o = Qi_o.mul(P_Io);
-            Qi_b = Qi_b.mul(P_Ib);
-            cv::Mat normQi = 1.0 / (Qi_o + Qi_b);
-            Qi_o = Qi_o.mul(normQi);
-            Qi_b = Qi_b.mul(normQi);
+            tempOBMult(Qi_o, Qi_b, P_Io, P_Ib);
+            // Qi_o = Qi_o.mul(P_Io);
+            // Qi_b = Qi_b.mul(P_Ib);
+            // cv::Mat normQi = 1.0 / (Qi_o + Qi_b);
+            // Qi_o = Qi_o.mul(normQi);
+            // Qi_b = Qi_b.mul(normQi);
             cv::filter2D(Qi_o, Qsum_o, -1, lambda2, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
             cv::filter2D(Qi_b, Qsum_b, -1, lambda2, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
 
-            prior_o = (Qsum_o + Ssum_o) * 0.25;
-            prior_b = (Qsum_b + Ssum_b) * 0.25;
-            cv::Mat normPI = 1.0 / (prior_o + prior_b);
-            prior_o = prior_o.mul(normPI);
-            prior_b = prior_b.mul(normPI);
+            tempOBSumSum(Qsum_o, Ssum_o, Qsum_b, Ssum_b, prior_o, prior_b);
+            // prior_o = (Qsum_o + Ssum_o) * 0.25;
+            // prior_b = (Qsum_b + Ssum_b) * 0.25;
+            // cv::Mat normPI = 1.0 / (prior_o + prior_b);
+            // prior_o = prior_o.mul(normPI);
+            // prior_b = prior_b.mul(normPI);
 
             // converge ?
             cv::log(Qsum_o, logQo);

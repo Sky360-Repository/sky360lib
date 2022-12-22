@@ -110,6 +110,7 @@ target_link_libraries(sky360lib_api
                         wmv_color_auto_schedule
                         wmv_color_threshold
                         wmv_color_threshold_auto_schedule
+                        easy_profiler
                         )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

@@ -48,9 +48,9 @@ namespace sky360lib::tracking
                                                img_features,
                                            const cv::Mat Y, const cv::Mat P);
         Mat calculate_response(const Mat &image, const std::vector<Mat> filter);
-        Mat get_location_prior(const Rect roi, const Size2f target_size, const Size img_sz);
-        Mat segment_region(const Mat &image, const Point2f &object_center,
-                           const Size2f &template_size, const Size &target_size, float scale_factor);
+        Mat get_location_prior(const Rect& roi, const Size2f& target_size, const Size& img_sz);
+        void segment_region(const Mat &image, const Point2f &object_center,
+                           const Size2f &template_size, const Size &target_size, float scale_factor, Mat &filter_mask);
         Point2f estimate_new_position(const Mat &image);
         std::vector<Mat> get_features(const Mat &patch, const Size2i &feature_size);
 
@@ -297,50 +297,77 @@ namespace sky360lib::tracking
         return result_filter;
     }
 
-    Mat TrackerCSRTImpl::get_location_prior(
-        const Rect roi,
-        const Size2f target_size,
-        const Size img_sz)
+    inline void fgPrior(const Mat& input, Mat& output, const double max_val, const double minTruc, const double maxTrunc)
     {
-        int x1 = cvRound(max(min(roi.x - 1, img_sz.width - 1), 0));
-        int y1 = cvRound(max(min(roi.y - 1, img_sz.height - 1), 0));
+        double *dataInPtr = (double*)input.data;
+        double *dataOutPtr = (double*)output.data;
+        const size_t numData = input.size().area();
+        for (size_t i = 0; i < numData; ++i)
+        {
+            const double dataTmp = *dataInPtr / max_val;
+            *dataOutPtr = dataTmp < minTruc ? minTruc : (dataTmp > maxTrunc ? maxTrunc : dataTmp);
+            ++dataInPtr;
+            ++dataOutPtr;
+        }
+    }
 
-        int x2 = cvRound(min(max(roi.width - 1, 0), img_sz.width - 1));
-        int y2 = cvRound(min(max(roi.height - 1, 0), img_sz.height - 1));
+    Mat TrackerCSRTImpl::get_location_prior(
+        const Rect& roi,
+        const Size2f& target_size,
+        const Size& img_sz)
+    {
+        const int x1 = cvRound(max(min(roi.x - 1, img_sz.width - 1), 0));
+        const int y1 = cvRound(max(min(roi.y - 1, img_sz.height - 1), 0));
+
+        const int x2 = cvRound(min(max(roi.width - 1, 0), img_sz.width - 1));
+        const int y2 = cvRound(min(max(roi.height - 1, 0), img_sz.height - 1));
 
         Size target_sz;
         target_sz.width = target_sz.height = cvFloor(min(target_size.width, target_size.height));
 
-        double cx = x1 + (x2 - x1) / 2.;
-        double cy = y1 + (y2 - y1) / 2.;
-        double kernel_size_width = 1.0 / (0.5 * static_cast<double>(target_sz.width) * 1.4142 + 1);
-        double kernel_size_height = 1.0 / (0.5 * static_cast<double>(target_sz.height) * 1.4142 + 1);
+        const double cx = x1 + (x2 - x1) / 2.;
+        const double cy = y1 + (y2 - y1) / 2.;
+        const double kernel_size_width = 1.0 / (0.5 * static_cast<double>(target_sz.width) * 1.4142 + 1);
+        const double kernel_size_height = 1.0 / (0.5 * static_cast<double>(target_sz.height) * 1.4142 + 1);
 
-        cv::Mat kernel_weight = Mat::zeros(1 + cvFloor(y2 - y1), 1 + cvFloor(-(x1 - cx) + (x2 - cx)), CV_64FC1);
+        cv::Mat kernel_weight{Mat::zeros(1 + cvFloor(y2 - y1), 1 + cvFloor(-(x1 - cx) + (x2 - cx)), CV_64FC1)};
+        double tmp_y = (cy - y1) * (cy - y1) * kernel_size_height * kernel_size_height;
+        const double tmp_y_inc = (-2*cy + 2*y1 + 1) * kernel_size_height * kernel_size_height;
+        const double tmp_x_init = (cx - x1) * (cx - x1) * kernel_size_width * kernel_size_width;
+        const double tmp_x_inc = (-2*cx + 2*x1 + 1) * kernel_size_width * kernel_size_width;
+        double max_val{0.0};
         for (int y = y1; y < y2 + 1; ++y)
         {
             double *weightPtr = kernel_weight.ptr<double>(y);
-            double tmp_y = std::pow((cy - y) * kernel_size_height, 2);
+            //double tmp_y = std::pow((cy - y) * kernel_size_height, 2);
+            //assert(tmp_y == tmp_y2);
+            double tmp_x = tmp_x_init;
             for (int x = x1; x < x2 + 1; ++x)
             {
-                weightPtr[x] = kernel_epan(std::pow((cx - x) * kernel_size_width, 2) + tmp_y);
+                // weightPtr[x] = kernel_epan(std::pow((cx - x) * kernel_size_width, 2) + tmp_y);
+                weightPtr[x] = kernel_epan(tmp_x + tmp_y);
+                if (weightPtr[x] > max_val)
+                    max_val = weightPtr[x];
+                tmp_x += tmp_x_inc;
             }
+            tmp_y += tmp_y_inc;
         }
 
-        double max_val;
-        cv::minMaxLoc(kernel_weight, NULL, &max_val, NULL, NULL);
-        Mat fg_prior = kernel_weight / max_val;
-        fg_prior.setTo(0.5, fg_prior < 0.5);
-        fg_prior.setTo(0.9, fg_prior > 0.9);
+        Mat fg_prior{kernel_weight.size(), CV_64FC1};
+        fgPrior(kernel_weight, fg_prior, max_val, 0.5, 0.9);
+        // Mat fg_prior = kernel_weight / max_val;
+        // fg_prior.setTo(0.5, fg_prior < 0.5);
+        // fg_prior.setTo(0.9, fg_prior > 0.9);
         return fg_prior;
     }
 
-    Mat TrackerCSRTImpl::segment_region(
+    void TrackerCSRTImpl::segment_region(
         const Mat &image,
         const Point2f &object_center,
         const Size2f &template_size,
         const Size &target_size,
-        float scale_factor)
+        float scale_factor,
+        Mat &filter_mask)
     {
         Rect valid_pixels;
         Mat patch = get_subwindow(image, object_center, cvFloor(scale_factor * template_size.width),
@@ -360,8 +387,7 @@ namespace sky360lib::tracking
         probs.first(valid_pixels).copyTo(mask(valid_pixels));
         double max_resp = get_max(mask);
         threshold(mask, mask, max_resp / 2.0, 1, THRESH_BINARY);
-        mask.convertTo(mask, CV_32FC1, 1.0);
-        return mask;
+        mask.convertTo(filter_mask, CV_32FC1, 1.0);
     }
 
     void TrackerCSRTImpl::extract_histograms(const Mat &image, cv::Rect region, Histogram &hf, Histogram &hb)
@@ -431,7 +457,6 @@ namespace sky360lib::tracking
 
     Point2f TrackerCSRTImpl::estimate_new_position(const Mat &image)
     {
-
         Mat resp = calculate_response(image, csr_filter);
 
         double max_val;
@@ -494,8 +519,7 @@ namespace sky360lib::tracking
         {
             Mat hsv_img = bgr2hsv(image);
             update_histograms(hsv_img, bounding_box);
-            filter_mask = segment_region(hsv_img, object_center,
-                                         template_size, original_target_size, current_scale_factor);
+            segment_region(hsv_img, object_center, template_size, original_target_size, current_scale_factor, filter_mask);
             resize(filter_mask, filter_mask, yf.size(), 0, 0, INTER_NEAREST);
             if (check_mask_area(filter_mask, default_mask_area))
             {
@@ -510,6 +534,7 @@ namespace sky360lib::tracking
         {
             filter_mask = default_mask;
         }
+
         update_csr_filter(image, filter_mask);
         dsst.update(image, object_center);
         boundingBox = bounding_box;
@@ -585,8 +610,8 @@ namespace sky360lib::tracking
             hist_foreground = Histogram(hsv_img.channels(), params.histogram_bins);
             hist_background = Histogram(hsv_img.channels(), params.histogram_bins);
             extract_histograms(hsv_img, bounding_box, hist_foreground, hist_background);
-            filter_mask = segment_region(hsv_img, object_center, template_size,
-                                         original_target_size, current_scale_factor);
+            segment_region(hsv_img, object_center, template_size,
+                           original_target_size, current_scale_factor, filter_mask);
             // update calculated mask with preset mask
             if (preset_mask.data)
             {

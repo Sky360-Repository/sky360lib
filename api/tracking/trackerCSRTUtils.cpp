@@ -233,7 +233,7 @@ namespace sky360lib::tracking
         return result;
     }
 
-    Mat get_hann_win(Size sz)
+    Mat get_hann_win(const Size &sz)
     {
         Mat hann_rows = Mat::ones(sz.height, 1, CV_32F);
         Mat hann_cols = Mat::ones(1, sz.width, CV_32F);

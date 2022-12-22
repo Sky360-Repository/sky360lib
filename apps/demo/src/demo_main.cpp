@@ -1,8 +1,11 @@
 #include <iostream>
 #include <string>
 
+#include <easy/profiler.h>
+
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 //#include <opencv2/tracking.hpp>
 
 #include "bgs.hpp"
@@ -12,14 +15,53 @@
 using namespace sky360lib::bgs;
 using namespace sky360lib::tracking;
 
+// Default parameters
+int blur_radius{3};
+bool applyGreyscale{true};
+bool applyNoiseReduction{true};
+
+// Background subtractor to use
+WeightedMovingVariance bgs;
+//WeightedMovingVarianceHalide bgs;
+// Vibe bgs;
+
+// Tracker to use
+// cv::Ptr<cv::TrackerCSRT> tracker = cv::TrackerCSRT::create(); //OpenCV Tracker
+cv::Ptr<TrackerCSRT> tracker = TrackerCSRT::create(); // sky360lib Tracker implementation
+
+// Do image pre-processing
+inline void appyPreProcess(const cv::Mat& input, cv::Mat& output)
+{
+    EASY_FUNCTION(profiler::colors::Green);
+    cv::Mat tmpFrame;
+
+    EASY_BLOCK("Greyscale");
+    if (applyGreyscale)
+        cv::cvtColor(input, tmpFrame, cv::COLOR_BGR2GRAY);
+    else
+        tmpFrame = input;
+    EASY_END_BLOCK;
+    EASY_BLOCK("Noise Reduction");
+    if (applyNoiseReduction)
+        cv::GaussianBlur(tmpFrame, output, cv::Size(blur_radius, blur_radius), 0);
+    else
+        output = tmpFrame;
+    EASY_END_BLOCK;
+}
+
+// Apply background subtraction
+inline void appyBGS(const cv::Mat& input, cv::Mat& output)
+{
+    EASY_FUNCTION(profiler::colors::Red);
+    bgs.apply(input, output);
+}
+
+// Main entry point
 int main(int argc, const char **argv)
 {
+    EASY_PROFILER_ENABLE;
+
     cv::VideoCapture cap;
-    //WeightedMovingVariance wmv;
-    WeightedMovingVarianceHalide wmv;
-    // cv::Ptr<cv::TrackerCSRT> tracker = cv::TrackerCSRT::create();
-    Ptr<TrackerCSRT> tracker = TrackerCSRT::create();
-    // Vibe vibeBGS;
 
     // if (argc < 2) {
     //     std::cout << "Need one parameter as camera number" << std::endl;
@@ -44,7 +86,7 @@ int main(int argc, const char **argv)
     cv::namedWindow("BGS Demo", 0);
     cv::namedWindow("Live Video", 0);
 
-    cv::Mat frame, greyFrame, bgImg;
+    cv::Mat frame, processedFrame;
     long numFrames = 0;
     double totalTime = 0;
 
@@ -55,15 +97,14 @@ int main(int argc, const char **argv)
         return -1;
     }
 
-    cv::Mat bgsMask(frame.size(), CV_8UC1);
+    cv::Mat bgsMask{frame.size(), CV_8UC1};
 
     // Applying first time for initialization of algo
-    cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
-    // vibeBGS.apply(greyFrame, bgsMask);
-    wmv.apply(greyFrame, bgsMask);
+    appyPreProcess(frame, processedFrame);
+    appyBGS(processedFrame, bgsMask);
 
-    cv::Rect boundingBox = cv::Rect(0, 0, greyFrame.size().width, greyFrame.size().height);
-    tracker->init(bgsMask, boundingBox);
+    //cv::Rect boundingBox = cv::Rect(0, 0, frame.size().width, frame.size().height);
+    //tracker->init(bgsMask, boundingBox);
 
     cv::imshow("BGS Demo", frame);
 
@@ -76,15 +117,15 @@ int main(int argc, const char **argv)
             std::cout << "No image" << std::endl;
             break;
         }
-        cv::cvtColor(frame, greyFrame, cv::COLOR_BGR2GRAY);
-
-        wmv.apply(greyFrame, bgsMask);
         double startTime = getAbsoluteTime();
-        if (tracker->update(bgsMask, boundingBox))
-        {
-            cv::rectangle(frame, boundingBox, cv::Scalar(0, 255, 0), 2);
-        }
-        // vibeBGS.apply(greyFrame, bgsMask);
+        EASY_BLOCK("Doing process");
+        appyPreProcess(frame, processedFrame);
+        appyBGS(processedFrame, bgsMask);
+        EASY_END_BLOCK;
+        // if (tracker->update(bgsMask, boundingBox))
+        // {
+        //     cv::rectangle(frame, boundingBox, cv::Scalar(0, 255, 0), 2);
+        // }
         double endTime = getAbsoluteTime();
         totalTime += endTime - startTime;
         ++numFrames;
@@ -112,6 +153,8 @@ int main(int argc, const char **argv)
     cap.release();
 
     cv::destroyAllWindows();
+
+    profiler::dumpBlocksToFile("test_profile.prof");
 
     return 0;
 }
