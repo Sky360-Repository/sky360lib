@@ -5,12 +5,8 @@
 
 using namespace sky360lib::bgs;
 
-Vibe::Vibe(size_t _nColorDistThreshold,
-           size_t _nBGSamples,
-           size_t _nRequiredBGSamples,
-           size_t _learningRate,
-           size_t _numProcessesParallel)
-    : CoreBgs(_numProcessesParallel), m_params(_nColorDistThreshold, _nBGSamples, _nRequiredBGSamples, _learningRate)
+Vibe::Vibe(const VibeParams& _params, size_t _numProcessesParallel)
+    : CoreBgs(_numProcessesParallel), m_params(_params)
 {
 }
 
@@ -146,7 +142,7 @@ void Vibe::apply1(const Img &_image,
         }
         if (nGoodSamplesCount < _params.NRequiredBGSamples)
         {
-            _fgmask.data[pixOffset] = UCHAR_MAX;
+            _fgmask.data[pixOffset] = 255;//UCHAR_MAX;
         }
         else
         {

@@ -14,14 +14,7 @@ namespace sky360lib::bgs
         : public CoreBgs
     {
     public:
-        static inline const bool DEFAULT_ENABLE_WEIGHT{true};
-        static inline const bool DEFAULT_ENABLE_THRESHOLD{true};
-        static inline const float DEFAULT_THRESHOLD_VALUE{15.0f};
-        static inline const float DEFAULT_WEIGHTS[] = {0.5f, 0.3f, 0.2f};
-
-        WeightedMovingVarianceHalide(bool _enableWeight = DEFAULT_ENABLE_WEIGHT,
-                               bool _enableThreshold = DEFAULT_ENABLE_THRESHOLD,
-                               float _threshold = DEFAULT_THRESHOLD_VALUE);
+        WeightedMovingVarianceHalide(const WeightedMovingVarianceParams& _params = WeightedMovingVarianceParams());
         ~WeightedMovingVarianceHalide();
 
         void getBackgroundImage(cv::Mat &_bgImage);
@@ -31,7 +24,6 @@ namespace sky360lib::bgs
         void process(const cv::Mat &img_input, cv::Mat &img_output, int _numProcess);
         void initParallelData();
 
-        static inline const float ONE_THIRD{1.0f / 3.0f};
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 
         const WeightedMovingVarianceParams m_params;

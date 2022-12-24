@@ -8,22 +8,8 @@ namespace sky360lib::bgs {
     class Vibe
         : public CoreBgs {
     public:
-        /// defines the default value for ColorDistThreshold
-        static const size_t DEFAULT_COLOR_DIST_THRESHOLD{15};
-        /// defines the default value for BGSamples
-        static const size_t DEFAULT_NB_BG_SAMPLES{8};
-        /// defines the default value for RequiredBGSamples
-        static const size_t DEFAULT_REQUIRED_NB_BG_SAMPLES{2};
-        /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
-        static const size_t DEFAULT_LEARNING_RATE{8};
-        /// defines the default value for the number of parallel threads
-        static const size_t DEFAULT_PARALLEL_TASKS{12};
-
-        Vibe(size_t nColorDistThreshold = DEFAULT_COLOR_DIST_THRESHOLD,
-             size_t nBGSamples = DEFAULT_NB_BG_SAMPLES,
-             size_t nRequiredBGSamples = DEFAULT_REQUIRED_NB_BG_SAMPLES,
-             size_t learningRate = DEFAULT_LEARNING_RATE,
-             size_t _numProcessesParallel = DEFAULT_PARALLEL_TASKS);
+        Vibe(const VibeParams& _params = VibeParams(),
+            size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
         void getBackgroundImage(cv::Mat& _bgImage);
 

@@ -15,14 +15,9 @@
 using namespace sky360lib::bgs;
 using namespace Halide::Runtime;
 
-WeightedMovingVarianceHalide::WeightedMovingVarianceHalide(bool _enableWeight,
-                                               bool _enableThreshold,
-                                               float _threshold)
+WeightedMovingVarianceHalide::WeightedMovingVarianceHalide(const WeightedMovingVarianceParams& _params)
     : CoreBgs(1),
-      m_params(_enableWeight, _enableThreshold, _threshold,
-               _enableWeight ? DEFAULT_WEIGHTS[0] : ONE_THIRD,
-               _enableWeight ? DEFAULT_WEIGHTS[1] : ONE_THIRD,
-               _enableWeight ? DEFAULT_WEIGHTS[2] : ONE_THIRD)
+      m_params(_params)
 {
 }
 

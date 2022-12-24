@@ -7,15 +7,10 @@
 
 using namespace sky360lib::bgs;
 
-WeightedMovingVariance::WeightedMovingVariance(bool _enableWeight,
-                                               bool _enableThreshold,
-                                               float _threshold,
-                                               size_t _numProcessesParallel)
+WeightedMovingVariance::WeightedMovingVariance(const WeightedMovingVarianceParams& _params,
+                               size_t _numProcessesParallel)
     : CoreBgs(_numProcessesParallel),
-      m_params(_enableWeight, _enableThreshold, _threshold,
-               _enableWeight ? DEFAULT_WEIGHTS[0] : ONE_THIRD,
-               _enableWeight ? DEFAULT_WEIGHTS[1] : ONE_THIRD,
-               _enableWeight ? DEFAULT_WEIGHTS[2] : ONE_THIRD)
+      m_params(_params)
 {
 }
 

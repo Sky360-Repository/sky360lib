@@ -3,9 +3,7 @@
 #include <opencv2/videoio.hpp>
 
 #include "tracker.hpp"
-
-inline double bbox_overlap(const cv::Rect& bbox1, const cv::Rect& bbox2);
-inline bool bbox1_contain_bbox2(const cv::Rect& bbox1, const cv::Rect& bbox2);
+#include "demoUtils.hpp"
 
 using namespace sky360lib::tracking;
 
@@ -34,17 +32,23 @@ public:
         cv::Point2i center;
         cv::Scalar color;
     };
+    struct Settings
+    {
+        bool track_plotting_enabled{true};
+        bool track_prediction_enabled{false};
+        bool enable_track_validation{true};
+        int stationary_track_threshold{5};
+        int orphaned_track_thold{20};
+    };
 
-    DemoTracker(int id, const cv::Rect& bbox, const cv::Mat& frame, 
-        bool track_plotting_enabled = true, bool track_prediction_enabled = false, bool enable_track_validation = true,
-        int stationary_track_threshold = 5, int orphaned_track_thold = 20)
+    DemoTracker(const Settings& settings, int id, const cv::Mat& frame, const cv::Rect& bbox)
     {
         m_id = id;
-        m_track_plotting_enabled = track_plotting_enabled;
-        m_track_prediction_enabled = track_prediction_enabled;
-        m_enable_track_validation = enable_track_validation;
-        m_stationary_track_threshold = stationary_track_threshold;
-        m_orphaned_track_thold = orphaned_track_thold;
+        m_settings.track_plotting_enabled = settings.track_plotting_enabled;
+        m_settings.track_prediction_enabled = settings.track_prediction_enabled;
+        m_settings.enable_track_validation = settings.enable_track_validation;
+        m_settings.stationary_track_threshold = settings.stationary_track_threshold;
+        m_settings.orphaned_track_thold = settings.orphaned_track_thold;
 
         m_bboxes.push_back(bbox);
         m_tracking_state = TargetStatus::PROVISIONARY_TARGET;
@@ -60,13 +64,13 @@ public:
     }
 
     // function to get the latest bbox in the format (x1,y1,w,h)
-    const cv::Rect& get_bbox()
+    const cv::Rect& get_bbox() const
     {
         return m_bboxes.back();
     }
 
     // function to determine the center of the the bbox being tracked
-    const cv::Point2i get_center()
+    const cv::Point2i get_center() const
     {
         const cv::Rect& rect = get_bbox();
         return cv::Point2i(rect.x + (rect.width / 2), rect.y + (rect.height / 2));
@@ -83,14 +87,14 @@ public:
 
             // Mike: If we have track plotting enabled, then we need to store the center points of the bboxes so that we can plo the 
             // entire track on the frame including the colour
-            if (m_track_plotting_enabled)
+            if (m_settings.track_plotting_enabled)
                 m_center_points.push_back(Track(get_center(), bbox_color()));
 
             // TODO
             // if (m_track_prediction_enabled)
             //     m_predictor_center_points.push_back(self.track_predictor.update(bbox))
 
-            if (m_enable_track_validation)
+            if (m_settings.enable_track_validation)
             {
                 // Mike: perform validation logic every second, on the tickover of that second. Validation logic is very much dependent on the 
                 // target moving a certain amount over time. The technology that we use does have its limitation in that it will 
@@ -105,7 +109,7 @@ public:
                 }
 
                 // Mike: grab the validation config options from the settings dictionary
-                int stationary_scavanage_threshold = (int)(m_stationary_track_threshold * 1.5);
+                int stationary_scavanage_threshold = (int)(m_settings.stationary_track_threshold * 1.5);
 
                 // Mike: Only process validation after a second, we need to allow the target to move
                 if (m_tracked_boxes.size() > 1)
@@ -134,7 +138,7 @@ public:
                     }
                 }
                 // Mike: If the target has not moved for a period of time, we classify the target as lost
-                if (m_stationary_track_threshold <= m_stationary_track_counter && 
+                if (m_settings.stationary_track_threshold <= m_stationary_track_counter && 
                     m_stationary_track_counter < stationary_scavanage_threshold)
                 {
                     // Mike: If its not moved enough then mark it as red for potential scavenging
@@ -149,7 +153,7 @@ public:
                 if (m_tracking_state == TargetStatus::ACTIVE_TARGET)
                 {
                     ++m_active_track_counter;
-                    if (m_active_track_counter > m_orphaned_track_thold)
+                    if (m_active_track_counter > m_settings.orphaned_track_thold)
                     {
                         m_bbox_to_check = bbox;
                         m_active_track_counter = 0;
@@ -160,7 +164,7 @@ public:
         return success;
     }
 
-    const cv::Scalar bbox_color()
+    const cv::Scalar bbox_color() const
     {
         switch (m_tracking_state)
         {
@@ -171,17 +175,17 @@ public:
         return cv::Scalar(255, 255, 225);
     }
 
-    bool is_tracking()
+    bool is_tracking() const
     {
         return m_tracking_state == TargetStatus::ACTIVE_TARGET;
     }
 
-    bool does_bbx_overlap(const cv::Rect& bbox)
+    bool does_bbx_overlap(const cv::Rect& bbox) const
     {
         return bbox_overlap(m_bboxes.back(), bbox) > 0;
     }
 
-    bool is_bbx_contained(const cv::Rect& bbox)
+    bool is_bbx_contained(const cv::Rect& bbox) const
     {
         return bbox1_contain_bbox2(m_bboxes.back(), bbox);
     }
@@ -199,47 +203,10 @@ private:
     std::vector<Track> m_center_points;
     //std::vector<cv::Point2i> predictor_center_points;
     double m_start;
-    bool m_track_plotting_enabled = true;
-    bool m_track_prediction_enabled = false;
-    bool m_enable_track_validation = true;
-    int m_stationary_track_threshold;
-    int m_orphaned_track_thold;
+    Settings m_settings;
+    // bool m_track_plotting_enabled = true;
+    // bool m_track_prediction_enabled = false;
+    // bool m_enable_track_validation = true;
+    // int m_stationary_track_threshold;
+    // int m_orphaned_track_thold;
 };
-
-
-inline double bbox_overlap(const cv::Rect& bbox1, const cv::Rect& bbox2)
-{
-    // determine the coordinates of the intersection rectangle
-    int x_left = std::max(bbox1.x, bbox2.x);
-    int y_top = std::max(bbox1.y, bbox2.y);
-    int x_right = std::min(bbox1.x + bbox1.width, bbox2.x + bbox2.width);
-    int y_bottom = std::min(bbox1.y + bbox1.height, bbox2.y + bbox2.height);
-
-    if (x_right < x_left || y_bottom < y_top)
-        return 0.0;
-
-    // The intersection of two axis-aligned bounding boxes is always an
-    // axis-aligned bounding box.
-    // NOTE: We MUST ALWAYS add +1 to calculate area when working in
-    // screen coordinates, since 0,0 is the top left pixel, and w-1,h-1
-    // is the bottom right pixel. If we DON'T add +1, the result is wrong.
-    int intersection_area = (x_right - x_left + 1) * (y_bottom - y_top + 1);
-
-    // compute the area of both AABBs
-    int bb1_area = (bbox1.width + 1) * (bbox1.height + 1);
-    int bb2_area = (bbox2.width + 1) * (bbox2.height + 1);
-
-    // compute the intersection over union by taking the intersection
-    // area and dividing it by the sum of prediction + ground-truth areas - the interesection area
-    return (double)intersection_area / (double)(bb1_area + bb2_area - intersection_area);
-}
-
-// Utility function to determine if a bounding box 1 contains bounding box 2. In order to make tracking more efficient
-// we try not to track sections of the same point of interest (blob)
-inline bool bbox1_contain_bbox2(const cv::Rect& bbox1, const cv::Rect& bbox2)
-{
-    return (bbox2.x > bbox1.x) && 
-        (bbox2.y > bbox1.y) && 
-        ((bbox2.x + bbox2.width) < (bbox1.x + bbox1.width)) && 
-        ((bbox2.y + bbox2.height) < (bbox1.y + bbox1.height));
-}

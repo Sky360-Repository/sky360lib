@@ -8,15 +8,9 @@
 
 using namespace sky360lib::bgs;
 
-WeightedMovingVarianceCuda::WeightedMovingVarianceCuda(bool _enableWeight,
-                                                       bool _enableThreshold,
-                                                       float _threshold,
-                                                       size_t _numProcessesParallel)
-    : CoreBgs(_numProcessesParallel),
-      m_params(_enableWeight, _enableThreshold, _threshold,
-               _enableWeight ? DEFAULT_WEIGHTS[0] : ONE_THIRD,
-               _enableWeight ? DEFAULT_WEIGHTS[1] : ONE_THIRD,
-               _enableWeight ? DEFAULT_WEIGHTS[2] : ONE_THIRD)
+WeightedMovingVarianceCuda::WeightedMovingVarianceCuda(const WeightedMovingVarianceParams& _params)
+    : CoreBgs(1),
+      m_params(_params)
 {
 }
 
