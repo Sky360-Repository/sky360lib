@@ -5,7 +5,7 @@
 
 using namespace sky360lib::bgs;
 
-Vibe::Vibe(const VibeParams& _params, size_t _numProcessesParallel)
+Vibe::Vibe(const VibeParams &_params, size_t _numProcessesParallel)
     : CoreBgs(_numProcessesParallel), m_params(_params)
 {
 }
@@ -17,16 +17,16 @@ void Vibe::initialize(const cv::Mat &_initImg)
     Img frameImg(_initImg.data, *m_origImgSize);
     splitImg(frameImg, imgSplit, m_numProcessesParallel);
 
+    m_randomGenerators.resize(m_numProcessesParallel);
     m_bgImgSamples.resize(m_numProcessesParallel);
     for (size_t i{0}; i < m_numProcessesParallel; ++i)
     {
-        initialize(*imgSplit[i], m_bgImgSamples[i]);
+        initialize(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
     }
 }
 
-void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bgImgSamples)
+void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Pcg32 &_rndGen)
 {
-    Pcg32 pcg32;
     int ySample, xSample;
     _bgImgSamples.resize(m_params.NBGSamples);
     for (size_t s{0}; s < m_params.NBGSamples; ++s)
@@ -36,7 +36,7 @@ void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_b
         {
             for (int xOrig{0}; xOrig < _initImg.size.width; xOrig++)
             {
-                getSamplePosition_7x7_std2(pcg32.fast(), xSample, ySample, xOrig, yOrig, _initImg.size);
+                getSamplePosition_7x7_std2(_rndGen.fast(), xSample, ySample, xOrig, yOrig, _initImg.size);
                 const size_t pixelPos = (yOrig * _initImg.size.width + xOrig) * _initImg.size.numBytesPerPixel;
                 const size_t samplePos = (ySample * _initImg.size.width + xSample) * _initImg.size.numBytesPerPixel;
                 _bgImgSamples[s]->data[pixelPos] = _initImg.data[samplePos];
@@ -55,14 +55,17 @@ void Vibe::process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess)
     Img imgSplit(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels()));
     Img maskPartial(_fgmask.data, ImgSize(_image.size().width, _image.size().height, _fgmask.channels()));
     if (imgSplit.size.numBytesPerPixel > 1)
-        apply3(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params);
+        apply3(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
     else
-        apply1(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params);
+        apply1(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
 }
 
-void Vibe::apply3(const Img &_image, std::vector<std::unique_ptr<Img>> &_bgImg, Img &_fgmask, const VibeParams &_params)
+void Vibe::apply3(const Img &_image,
+                  std::vector<std::unique_ptr<Img>> &_bgImg,
+                  Img &_fgmask,
+                  const VibeParams &_params,
+                  Pcg32 &_rndGen)
 {
-    Pcg32 pcg32;
     _fgmask.clear();
 
     for (size_t pixOffset{0}, colorPixOffset{0};
@@ -93,17 +96,17 @@ void Vibe::apply3(const Img &_image, std::vector<std::unique_ptr<Img>> &_bgImg, 
         }
         else
         {
-            if ((pcg32.fast() & _params.ANDlearningRate) == 0)
+            if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
             {
-                uint8_t *const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
+                uint8_t *const bgImgPixData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
                 bgImgPixData[0] = pixData[0];
                 bgImgPixData[1] = pixData[1];
                 bgImgPixData[2] = pixData[2];
             }
-            if ((pcg32.fast() & _params.ANDlearningRate) == 0)
+            if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
             {
-                const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32) * 3};
-                uint8_t *const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
+                const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, _rndGen.fast()) * 3};
+                uint8_t *const xyRandData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData]};
                 xyRandData[0] = pixData[0];
                 xyRandData[1] = pixData[1];
                 xyRandData[2] = pixData[2];
@@ -115,9 +118,9 @@ void Vibe::apply3(const Img &_image, std::vector<std::unique_ptr<Img>> &_bgImg, 
 void Vibe::apply1(const Img &_image,
                   std::vector<std::unique_ptr<Img>> &_bgImg,
                   Img &_fgmask,
-                  const VibeParams &_params)
+                  const VibeParams &_params,
+                  Pcg32 &_rndGen)
 {
-    Pcg32 pcg32;
     _fgmask.clear();
 
     for (size_t pixOffset{0}; pixOffset < _image.size.numPixels; ++pixOffset)
@@ -142,19 +145,19 @@ void Vibe::apply1(const Img &_image,
         }
         if (nGoodSamplesCount < _params.NRequiredBGSamples)
         {
-            _fgmask.data[pixOffset] = 255;//UCHAR_MAX;
+            _fgmask.data[pixOffset] = UCHAR_MAX;
         }
         else
         {
-            if ((pcg32.fast() & _params.ANDlearningRate) == 0)
+            if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
             {
-                uint8_t *const bgImgPixData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[pixOffset]};
+                uint8_t *const bgImgPixData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[pixOffset]};
                 bgImgPixData[0] = pixData[0];
             }
-            if ((pcg32.fast() & _params.ANDlearningRate) == 0)
+            if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
             {
-                const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, pcg32)};
-                uint8_t *const xyRandData{&_bgImg[pcg32.fast() & _params.ANDlearningRate]->data[neighData]};
+                const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, _rndGen.fast())};
+                uint8_t *const xyRandData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData]};
                 xyRandData[0] = pixData[0];
             }
         }

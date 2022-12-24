@@ -59,7 +59,7 @@ int main(int argc, const char **argv)
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
     EASY_PROFILER_ENABLE;
 
-    bgsPtr = createBGS(BGSType::Vibe);
+    bgsPtr = createBGS(BGSType::WMVHalide);
 
     cv::VideoCapture cap;
 
@@ -162,7 +162,7 @@ int main(int argc, const char **argv)
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> createVibe()
 {
-    sky360lib::bgs::VibeParams params(80, 8, 2, 3);
+    sky360lib::bgs::VibeParams params(100, 20, 1, 2);
     return std::make_unique<sky360lib::bgs::Vibe>(params);
 }
 

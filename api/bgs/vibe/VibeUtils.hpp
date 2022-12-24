@@ -1,7 +1,5 @@
 #pragma once
 
-#include "pcg32.hpp"
-
 #include <iostream>
 
 #include <array>
@@ -24,7 +22,7 @@ namespace sky360lib::bgs
     }
 
     /// returns the neighbor location for the specified random index & original pixel location; also guards against out-of-bounds values via image/border size check
-    static inline int getNeighborPosition_3x3(const int pix, const ImgSize &oImageSize, Pcg32 &pgc32)
+    static inline int getNeighborPosition_3x3(const int pix, const ImgSize &oImageSize, const uint32_t nRandIdx)
     {
         typedef std::array<int, 2> Nb;
         static const std::array<std::array<int, 2>, 8> s_anNeighborPattern = {
@@ -37,7 +35,7 @@ namespace sky360lib::bgs
             Nb{0, -1},
             Nb{1, -1},
         };
-        const size_t r{pgc32.fast() & 0x7};
+        const size_t r{nRandIdx & 0x7};
         int nNeighborCoord_X{std::max(std::min((pix % oImageSize.width) + s_anNeighborPattern[r][0], oImageSize.width - 1), 0)};
         int nNeighborCoord_Y{std::max(std::min((pix / oImageSize.width) + s_anNeighborPattern[r][1], oImageSize.height - 1), 0)};
         return (nNeighborCoord_Y * oImageSize.width + nNeighborCoord_X);
@@ -177,13 +175,13 @@ namespace sky360lib::bgs
     struct VibeParams
     {
         /// defines the default value for ColorDistThreshold
-        static const size_t DEFAULT_COLOR_DIST_THRESHOLD{80};//15};
+        static const size_t DEFAULT_COLOR_DIST_THRESHOLD{32};
         /// defines the default value for BGSamples
         static const size_t DEFAULT_NB_BG_SAMPLES{8};
         /// defines the default value for RequiredBGSamples
         static const size_t DEFAULT_REQUIRED_NB_BG_SAMPLES{2};
         /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
-        static const size_t DEFAULT_LEARNING_RATE{3};//8};
+        static const size_t DEFAULT_LEARNING_RATE{8};
 
         VibeParams()
             : VibeParams(DEFAULT_COLOR_DIST_THRESHOLD, DEFAULT_NB_BG_SAMPLES, DEFAULT_REQUIRED_NB_BG_SAMPLES, DEFAULT_LEARNING_RATE)
@@ -212,6 +210,6 @@ namespace sky360lib::bgs
         const size_t NColorDistThresholdSquared;
         /// should be > 0 and factor of 2 (smaller values == faster adaptation)
         const size_t LearningRate;
-        const size_t ANDlearningRate;
+        const size_t ANDlearningRate;        
     };
 }

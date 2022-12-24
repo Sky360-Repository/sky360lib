@@ -2,12 +2,14 @@
 
 #include "core.hpp"
 
-namespace sky360lib {
-	class Pcg32 {
+namespace sky360lib
+{
+	class Pcg32
+	{
 	public:
-
-		Pcg32() {
-			for (size_t i = 0; i < tableSize; ++i)
+		Pcg32()
+		{
+			for (size_t i{0}; i < tableSize; ++i)
 				fixedTable[i] = fast2() % tableSize;
 		}
 
@@ -15,11 +17,11 @@ namespace sky360lib {
 		inline uint32_t fast2()
 		{
 			uint64_t x = mcg_state;
-			unsigned count = (unsigned)(x >> 61);	// 61 = 64 - 3
+			unsigned count = (unsigned)(x >> 61); // 61 = 64 - 3
 
 			mcg_state = x * multiplier;
 			x ^= x >> 22;
-			return (uint32_t)(x >> (22 + count));	// 22 = 32 - 3 - 7
+			return (uint32_t)(x >> (22 + count)); // 22 = 32 - 3 - 7
 		}
 
 		inline uint32_t fast()
@@ -31,11 +33,11 @@ namespace sky360lib {
 		}
 
 	private:
-		static uint32_t const tableSize = 65536; 
-		static uint64_t const multiplier = 6364136223846793005u;		
+		static uint32_t const tableSize = 65536;
+		static uint64_t const multiplier = 6364136223846793005u;
 
-		uint64_t mcg_state{0xcafef00dd15ea5e5u};	// Must be odd
+		uint64_t mcg_state{0xcafef00dd15ea5e5u}; // Must be odd
 		uint32_t fixedTable[tableSize];
-		size_t currentPos = 0;
+		size_t currentPos{0};
 	};
 }
