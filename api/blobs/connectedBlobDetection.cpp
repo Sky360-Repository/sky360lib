@@ -25,10 +25,10 @@ inline cv::KeyPoint convertFromRect(const cv::Rect& rect)
     return cv::KeyPoint(rect.x + scale * size / 2.0f, rect.y + scale * size / 2.0f, size);
 }
 
-std::vector<cv::KeyPoint> ConnectedBlobDetection::detectRect(const cv::Mat &_image)
+std::vector<cv::KeyPoint> ConnectedBlobDetection::detectRet(const cv::InputArray &_image)
 {
     std::vector<cv::Rect> bboxes;
-    detect(_image, bboxes);
+    detect(_image.getMat(), bboxes);
     std::vector<cv::KeyPoint> kps;
     std::transform(bboxes.begin(), 
                  bboxes.end(),

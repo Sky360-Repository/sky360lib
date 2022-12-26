@@ -39,5 +39,5 @@ PYBIND11_MODULE(pysky360, m)
 
     py::class_<ConnectedBlobDetection>(m, "ConnectedBlobDetection")
         .def(py::init<>())
-        .def("detect", &ConnectedBlobDetection::detectRect);
+        .def("detect", &ConnectedBlobDetection::detectRet);
 }
