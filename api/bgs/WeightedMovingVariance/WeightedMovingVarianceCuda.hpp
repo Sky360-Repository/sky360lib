@@ -10,7 +10,7 @@
 
 namespace sky360lib::bgs
 {
-    class WeightedMovingVarianceCuda
+    class WeightedMovingVarianceCuda final
         : public CoreBgs
     {
     public:

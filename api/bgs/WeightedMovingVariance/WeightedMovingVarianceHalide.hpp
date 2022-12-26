@@ -10,7 +10,7 @@
 
 namespace sky360lib::bgs
 {
-    class WeightedMovingVarianceHalide
+    class WeightedMovingVarianceHalide final
         : public CoreBgs
     {
     public:

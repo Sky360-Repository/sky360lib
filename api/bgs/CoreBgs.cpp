@@ -1,6 +1,5 @@
 #include "CoreBgs.hpp"
 
-#include <thread>
 #include <execution>
 #include <algorithm>
 
@@ -11,7 +10,7 @@ CoreBgs::CoreBgs(size_t _numProcessesParallel)
 {
     if (_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
     {
-        m_numProcessesParallel = (size_t)std::max(1U, std::thread::hardware_concurrency() - 1);
+        m_numProcessesParallel = calcAvailableThreads();;
     }
 }
 
@@ -38,7 +37,7 @@ void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
     }
 }
 
-cv::Mat CoreBgs::applyRet(const cv::Mat& _image)
+cv::Mat CoreBgs::applyRet(const cv::Mat &_image)
 {
     cv::Mat imgMask;
     apply(_image, imgMask);
@@ -68,7 +67,7 @@ void CoreBgs::prepareParallel(const cv::Mat &_image)
 void CoreBgs::applyParallel(const cv::Mat &_image, cv::Mat &_fgmask)
 {
     std::for_each(
-        std::execution::par_unseq,
+        std::execution::par,
         m_processSeq.begin(),
         m_processSeq.end(),
         [&](int np)
@@ -76,7 +75,7 @@ void CoreBgs::applyParallel(const cv::Mat &_image, cv::Mat &_fgmask)
             const cv::Mat imgSplit(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _image.type(),
                                    _image.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numBytesPerPixel));
             cv::Mat maskPartial(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _fgmask.type(),
-                                      _fgmask.data + m_imgSizesParallel[np]->originalPixelPos);
+                                _fgmask.data + m_imgSizesParallel[np]->originalPixelPos);
             process(imgSplit, maskPartial, np);
         });
 }

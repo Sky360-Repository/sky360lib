@@ -6,7 +6,6 @@
 
 namespace sky360lib::bgs
 {
-
     class Vibe
         : public CoreBgs
     {

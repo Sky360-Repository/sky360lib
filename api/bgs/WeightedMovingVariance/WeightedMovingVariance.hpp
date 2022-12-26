@@ -10,8 +10,8 @@
 
 namespace sky360lib::bgs
 {
-    class WeightedMovingVariance
-        : public CoreBgs
+    class WeightedMovingVariance final
+        : public CoreBgs 
     {
     public:
         WeightedMovingVariance(const WeightedMovingVarianceParams& _params = WeightedMovingVarianceParams(),

@@ -18,6 +18,9 @@ add_halide_generator(wmv_color.generator
 add_halide_generator(wmv_color_threshold.generator
                      SOURCES "bgs/WeightedMovingVariance/WMVColorThresholdGenerator.cpp"
                      LINK_LIBRARIES Halide::Tools)
+# add_halide_generator(vibe_mono.generator
+#                      SOURCES "bgs/vibe/VibeMonoGenerator.cpp"
+#                      LINK_LIBRARIES Halide::Tools)
 # Filters
 add_halide_library(wmv_mono FROM wmv_mono.generator
                    STMT wmv_mono_STMT
@@ -53,6 +56,12 @@ add_halide_library(wmv_color_threshold_auto_schedule FROM wmv_color_threshold.ge
                    SCHEDULE wmv_color_threshold_auto_schedule_SCHEDULE
                    AUTOSCHEDULER Halide::Li2018)
 
+# add_halide_library(vibe_mono_auto_schedule FROM vibe_mono.generator
+#                    GENERATOR vibe_mono
+#                    STMT vibe_mono_auto_schedule_STMT
+#                    SCHEDULE vibe_mono_auto_schedule_SCHEDULE
+#                    AUTOSCHEDULER Halide::Li2018)
+
 # Three different auto-schedulers (for my Ryzen 7, the best was Li2018)
 #    AUTOSCHEDULER Halide::Mullapudi2016)
 #    AUTOSCHEDULER Halide::Adams2019)
@@ -63,35 +72,24 @@ add_library(sky360lib_api STATIC)
 target_sources(
     sky360lib_api
         PRIVATE
-            "include/pcg32.hpp" "include/core.hpp"
-            "bgs/CoreBgs.hpp" "bgs/CoreBgs.cpp"
-            "bgs/vibe/Vibe.cpp" "bgs/vibe/Vibe.hpp"
+            "bgs/CoreBgs.cpp"
+            "bgs/vibe/Vibe.cpp"
             "bgs/vibe/VibeUtils.hpp" 
-            "bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp"
             "bgs/WeightedMovingVariance/WeightedMovingVariance.cpp" 
-            "bgs/WeightedMovingVariance/WeightedMovingVariance.hpp"
-            #"bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.cpp" 
-            #"bgs/WeightedMovingVariance/WeightedMovingVarianceCuda.hpp"
             "bgs/WeightedMovingVariance/WeightedMovingVarianceHalide.cpp"
-            "bgs/WeightedMovingVariance/WeightedMovingVarianceHalide.hpp"
-            #"bgs/WeightedMovingVariance/WMVCuda.cu"
+            "blobs/connectedBlobDetection.cpp"
         PUBLIC
-            "include/profiling.hpp" "bgs/bgs.hpp"
+            "include/profiling.hpp" 
+            "bgs/bgs.hpp"
 )
 
 target_sources(
     sky360lib_api
         PRIVATE
-            "tracking/precomp.hpp"
-            "tracking/trackerCSRT.hpp"
             "tracking/trackerCSRT.cpp"
-            "tracking/trackerCSRTScaleEstimation.hpp"
             "tracking/trackerCSRTScaleEstimation.cpp"
-            "tracking/trackerCSRTSegmentation.hpp"
             "tracking/trackerCSRTSegmentation.cpp"
-            "tracking/trackerCSRTUtils.hpp"
             "tracking/trackerCSRTUtils.cpp"
-            "tracking/trackerModel.hpp"
             "tracking/trackerModel.cpp"
             "tracking/featureColorName.cpp"
         PUBLIC
@@ -123,5 +121,8 @@ endif ()
 target_include_directories(
     sky360lib_api
         PUBLIC
-            "${CMAKE_SOURCE_DIR}/api/include" "${CMAKE_SOURCE_DIR}/api/bgs" "${CMAKE_SOURCE_DIR}/api/tracking"
+            "${CMAKE_SOURCE_DIR}/api/include" 
+            "${CMAKE_SOURCE_DIR}/api/bgs" 
+            "${CMAKE_SOURCE_DIR}/api/tracking"
+            "${CMAKE_SOURCE_DIR}/api/blobs" 
 )

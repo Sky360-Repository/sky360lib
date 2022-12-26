@@ -125,7 +125,7 @@ void Vibe::apply1(const Img &_image,
 
     for (size_t pixOffset{0}; pixOffset < _image.size.numPixels; ++pixOffset)
     {
-        size_t nGoodSamplesCount{0},
+        size_t nGoodSamplesCount{0}, 
             nSampleIdx{0};
 
         const uint8_t *const pixData{&_image.data[pixOffset]};
