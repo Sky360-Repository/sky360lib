@@ -17,7 +17,10 @@ namespace sky360lib::blobs
         ConnectedBlobDetection(size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
         // Finds the connected components in the image and returns a list of bounding boxes
-        bool detect(const cv::Mat &image, std::vector<cv::Rect>& bboxes);
+        bool detect(const cv::Mat &_image, std::vector<cv::Rect>& _bboxes);
+
+        // Finds the connected components in the image and returns a list of bounding boxes
+        std::vector<cv::Rect> detectRect(const cv::Mat &_image);
 
     private:
         size_t m_numProcessesParallel;

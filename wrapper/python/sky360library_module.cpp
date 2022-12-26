@@ -6,9 +6,11 @@
 #include "ndarray_converter.h"
 
 #include "bgs.hpp"
+#include "connectedBlobDetection.hpp"
 
 namespace py = pybind11;
 using namespace sky360lib::bgs;
+using namespace sky360lib::blobs;
 
 PYBIND11_MODULE(pysky360, m)
 {
@@ -30,4 +32,8 @@ PYBIND11_MODULE(pysky360, m)
     //     .def(py::init<>())
     //     .def("apply", &WeightedMovingVarianceCuda::applyRet)
     //     .def("getBackgroundImage", &WeightedMovingVarianceCuda::getBackgroundImage);
+
+    py::class_<ConnectedBlobDetection>(m, "ConnectedBlobDetection")
+        .def(py::init<>())
+        .def("detect", &ConnectedBlobDetection::detectRect);
 }

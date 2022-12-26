@@ -18,6 +18,13 @@ ConnectedBlobDetection::ConnectedBlobDetection(size_t _numProcessesParallel)
     }
 }
 
+std::vector<cv::Rect> ConnectedBlobDetection::detectRect(const cv::Mat &_image)
+{
+    std::vector<cv::Rect> bboxes;
+    detect(_image, bboxes);
+    return bboxes;
+}
+
 // Finds the connected components in the image and returns a list of bounding boxes
 bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes)
 {
