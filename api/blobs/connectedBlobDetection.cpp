@@ -18,11 +18,23 @@ ConnectedBlobDetection::ConnectedBlobDetection(size_t _numProcessesParallel)
     }
 }
 
-std::vector<cv::Rect> ConnectedBlobDetection::detectRect(const cv::Mat &_image)
+inline cv::KeyPoint convertFromRect(const cv::Rect& rect)
+{
+    static const float scale = 6.0f;
+    const float size = (float)std::max(rect.width, rect.height) / scale;
+    return cv::KeyPoint(rect.x + scale * size / 2.0f, rect.y + scale * size / 2.0f, size);
+}
+
+std::vector<cv::KeyPoint> ConnectedBlobDetection::detectRect(const cv::Mat &_image)
 {
     std::vector<cv::Rect> bboxes;
     detect(_image, bboxes);
-    return bboxes;
+    std::vector<cv::KeyPoint> kps;
+    std::transform(bboxes.begin(), 
+                 bboxes.end(),
+                 std::back_inserter(kps),
+                 [](const cv::Rect& r) -> cv::KeyPoint { return convertFromRect(r); });
+    return kps;
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes
