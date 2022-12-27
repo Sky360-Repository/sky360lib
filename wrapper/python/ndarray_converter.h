@@ -42,6 +42,23 @@ namespace pybind11
             }
         };
 
+        template <>
+        struct type_caster<cv::KeyPoint>
+        {
+        public:
+            PYBIND11_TYPE_CASTER(cv::KeyPoint, _("keypoint"));
+
+            bool load(handle src, bool)
+            {
+                return true;//NDArrayConverter::toMat(src.ptr(), value);
+            }
+
+            static handle cast(const cv::KeyPoint &m, return_value_policy, handle defval)
+            {
+                return handle(NDArrayConverter::toPy(m));
+            }
+        };
+
     }
 } // namespace pybind11::detail
 
