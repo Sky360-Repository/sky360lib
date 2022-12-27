@@ -19,8 +19,11 @@ namespace sky360lib::blobs
         // Finds the connected components in the image and returns a list of bounding boxes
         bool detect(const cv::Mat &_image, std::vector<cv::Rect>& _bboxes);
 
+        // Finds the connected components in the image and returns a list of keypoints
+        std::vector<cv::KeyPoint> detectKP(const cv::Mat &_image);
+
         // Finds the connected components in the image and returns a list of bounding boxes
-        std::vector<cv::KeyPoint> detectRet(const cv::Mat &_image);
+        std::vector<cv::Rect> detectRet(const cv::Mat &_image);
 
     private:
         size_t m_numProcessesParallel;

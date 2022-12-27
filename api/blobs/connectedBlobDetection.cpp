@@ -25,7 +25,7 @@ inline cv::KeyPoint convertFromRect(const cv::Rect& rect)
     return cv::KeyPoint(rect.x + scale * size / 2.0f, rect.y + scale * size / 2.0f, size);
 }
 
-std::vector<cv::KeyPoint> ConnectedBlobDetection::detectRet(const cv::Mat &_image)
+std::vector<cv::KeyPoint> ConnectedBlobDetection::detectKP(const cv::Mat &_image)
 {
     std::vector<cv::Rect> bboxes;
     detect(_image, bboxes);
@@ -35,6 +35,13 @@ std::vector<cv::KeyPoint> ConnectedBlobDetection::detectRet(const cv::Mat &_imag
                  std::back_inserter(kps),
                  [](const cv::Rect& r) -> cv::KeyPoint { return convertFromRect(r); });
     return kps;
+}
+
+std::vector<cv::Rect> ConnectedBlobDetection::detectRet(const cv::Mat &_image)
+{
+    std::vector<cv::Rect> bboxes;
+    detect(_image, bboxes);
+    return bboxes;
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes

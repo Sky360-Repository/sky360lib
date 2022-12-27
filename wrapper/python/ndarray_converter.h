@@ -13,6 +13,7 @@ public:
     static bool toMat(PyObject *o, cv::Mat &m);
     static PyObject *toNDArray(const cv::Mat &mat);
     static PyObject *toPy(const cv::KeyPoint &mat);
+    static PyObject *toPy(const cv::Rect &mat);
 };
 
 //
@@ -54,6 +55,23 @@ namespace pybind11
             }
 
             static handle cast(const cv::KeyPoint &m, return_value_policy, handle)
+            {
+                return handle(NDArrayConverter::toPy(m));
+            }
+        };
+
+        template <>
+        struct type_caster<cv::Rect>
+        {
+        public:
+            PYBIND11_TYPE_CASTER(cv::KeyPoint, _("rect"));
+
+            bool load(handle src, bool)
+            {
+                return true;//NDArrayConverter::toMat(src.ptr(), value);
+            }
+
+            static handle cast(const cv::Rect &m, return_value_policy, handle)
             {
                 return handle(NDArrayConverter::toPy(m));
             }
