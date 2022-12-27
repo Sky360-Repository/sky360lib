@@ -53,7 +53,7 @@ namespace pybind11
                 return true;//NDArrayConverter::toMat(src.ptr(), value);
             }
 
-            static handle cast(const cv::KeyPoint &m, return_value_policy, handle defval)
+            static handle cast(const cv::KeyPoint &m, return_value_policy, handle)
             {
                 return handle(NDArrayConverter::toPy(m));
             }

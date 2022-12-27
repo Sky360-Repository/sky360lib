@@ -368,5 +368,9 @@ PyObject *NDArrayConverter::toNDArray(const cv::Mat &m)
 
 PyObject *NDArrayConverter::toPy(const cv::KeyPoint &kp)
 {
-    return Py_BuildValue("(ffffiif)", kp.pt.x, kp.pt.y, kp.size, kp.angle, kp.class_id, kp.octave, kp.response);
+    return Py_BuildValue("(ffffiif)", 
+        kp.pt.x, kp.pt.y, kp.size, kp.angle, kp.class_id, kp.octave, kp.response);
+    // return Py_BuildValue("{s:{s:f,s:f},s:f,s:f,s:i,s:i,s:f}", 
+    //     "pt", "x", kp.pt.x, "y", kp.pt.y, "size", kp.size, "angle", kp.angle, 
+    //     "class_id", kp.class_id, "octave", kp.octave, "response", kp.response);
 }
