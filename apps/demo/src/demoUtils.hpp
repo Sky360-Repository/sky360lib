@@ -49,11 +49,11 @@ inline cv::Rect kp_to_bbox(const cv::KeyPoint &kp)
                     (int)(scale * kp.size));
 }
 
-inline int calc_centre_point_distance(const cv::Rect& bbox1, const cv::Rect& bbox2)
+inline size_t calc_centre_point_distance(const cv::Rect& bbox1, const cv::Rect& bbox2)
 {
     // euclidean = math.sqrt((x2-x1)**2+(y2-y1)**2)
-    int cx = (bbox2.x + (bbox2.width / 2)) - (bbox1.x + (bbox1.width / 2));
-    int cy = (bbox2.y + (bbox2.height / 2)) - (bbox1.y + (bbox1.height / 2));
+    size_t cx = (bbox2.x + (bbox2.width / 2)) - (bbox1.x + (bbox1.width / 2));
+    size_t cy = (bbox2.y + (bbox2.height / 2)) - (bbox1.y + (bbox1.height / 2));
     return std::sqrt(cx * cx + cy * cy);
 }
 

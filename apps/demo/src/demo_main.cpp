@@ -64,7 +64,7 @@ int main(int argc, const char **argv)
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
     EASY_PROFILER_ENABLE;
 
-    bgsPtr = createBGS(BGSType::Vibe);
+    bgsPtr = createBGS(BGSType::WMV);
 
     cv::VideoCapture cap;
 
@@ -195,6 +195,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
     case BGSType::WMVHalide:
         return createWMVHalide();
     }
+    return createWMV();
 }
 
 // Do image pre-processing

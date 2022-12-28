@@ -35,8 +35,8 @@ public:
             max_active_trackers{10}
         {}
         DemoTracker::Settings trackerSettings;
-        int min_centre_point_distance_between_bboxes;
-        int max_active_trackers;
+        size_t min_centre_point_distance_between_bboxes;
+        size_t max_active_trackers;
     };
 
     DemoVideoTracker(const Settings &settings = DemoVideoTracker::Settings())
@@ -106,7 +106,7 @@ public:
     {
         std::vector<cv::Rect> unmatched_bboxes(bboxes);
         std::vector<DemoTracker*> failed_trackers;
-        int tracker_count = m_live_trackers.size();
+        //int tracker_count = m_live_trackers.size();
 
         for (DemoTracker tracker : m_live_trackers)
         {
@@ -192,66 +192,66 @@ public:
 
     // called from listeners / visualizers
     // returns named image for current frame
-    const cv::Mat& get_image(const std::string& frame_name)
-    {
-        return cv::Mat();
-        // frame = None
-        // if frame_name in self.frames:
-        //     frame = self.frames[frame_name]
-        // return frame
-    }
+    // const cv::Mat& get_image(const std::string& frame_name)
+    // {
+    //     return cv::Mat();
+    //     // frame = None
+    //     // if frame_name in self.frames:
+    //     //     frame = self.frames[frame_name]
+    //     // return frame
+    // }
 
-    // called from listeners / visualizers
-    // returns annotated image for current frame
-    const cv::Mat& get_annotated_image(bool active_trackers_only = true)
-    {
-        return cv::Mat();
-        // annotated_frame = self.get_image(self.FRAME_TYPE_ANNOTATED)
-        // if annotated_frame is None:
-        //     annotated_frame = self.frames[self.FRAME_TYPE_ORIGINAL].copy()
-        //     if active_trackers_only:
-        //         for tracker in self.active_trackers():
-        //             utils.add_bbox_to_image(tracker.get_bbox(), annotated_frame, tracker.id, 1, tracker.bbox_color(), self.settings)
-        //             if self.settings['track_plotting_enabled']:
-        //                 utils.add_track_line_to_image(tracker, annotated_frame)
-        //             if self.settings['track_prediction_enabled']:
-        //                 utils.add_predicted_point_to_image(tracker, annotated_frame)
-        //     else:
-        //         for tracker in self.live_trackers:
-        //             utils.add_bbox_to_image(tracker.get_bbox(), annotated_frame, tracker.id, 1, tracker.bbox_color(), self.settings)
-        //             if self.settings['track_plotting_enabled']:
-        //                 utils.add_track_line_to_image(tracker, annotated_frame)
-        //             if self.settings['track_prediction_enabled']:
-        //                 utils.add_predicted_point_to_image(tracker, annotated_frame)
+    // // called from listeners / visualizers
+    // // returns annotated image for current frame
+    // const cv::Mat& get_annotated_image(bool active_trackers_only = true)
+    // {
+    //     return cv::Mat();
+    //     // annotated_frame = self.get_image(self.FRAME_TYPE_ANNOTATED)
+    //     // if annotated_frame is None:
+    //     //     annotated_frame = self.frames[self.FRAME_TYPE_ORIGINAL].copy()
+    //     //     if active_trackers_only:
+    //     //         for tracker in self.active_trackers():
+    //     //             utils.add_bbox_to_image(tracker.get_bbox(), annotated_frame, tracker.id, 1, tracker.bbox_color(), self.settings)
+    //     //             if self.settings['track_plotting_enabled']:
+    //     //                 utils.add_track_line_to_image(tracker, annotated_frame)
+    //     //             if self.settings['track_prediction_enabled']:
+    //     //                 utils.add_predicted_point_to_image(tracker, annotated_frame)
+    //     //     else:
+    //     //         for tracker in self.live_trackers:
+    //     //             utils.add_bbox_to_image(tracker.get_bbox(), annotated_frame, tracker.id, 1, tracker.bbox_color(), self.settings)
+    //     //             if self.settings['track_plotting_enabled']:
+    //     //                 utils.add_track_line_to_image(tracker, annotated_frame)
+    //     //             if self.settings['track_prediction_enabled']:
+    //     //                 utils.add_predicted_point_to_image(tracker, annotated_frame)
 
-        //     self.frames[self.FRAME_TYPE_ANNOTATED] = annotated_frame
+    //     //     self.frames[self.FRAME_TYPE_ANNOTATED] = annotated_frame
 
-        // return self.frames[self.FRAME_TYPE_ANNOTATED]
-    }
+    //     // return self.frames[self.FRAME_TYPE_ANNOTATED]
+    // }
 
-    // utility function to add a frame to the dictionary for usage by listeners / visualizers
-    void add_image(std::string frame_name, const cv::Mat& frame)
-    {
-        //self.frames[frame_name] = frame;
-    }
+    // // utility function to add a frame to the dictionary for usage by listeners / visualizers
+    // void add_image(std::string frame_name, const cv::Mat& frame)
+    // {
+    //     //self.frames[frame_name] = frame;
+    // }
 
-    // funtions mainly called from listeners / visualizers
+    // // funtions mainly called from listeners / visualizers
 
-    // returns all images for current frame
-    void get_images() const
-    {
-        // return self.frames
-    }
+    // // returns all images for current frame
+    // void get_images() const
+    // {
+    //     // return self.frames
+    // }
 
-    double get_fps() const
-    {
-        return 0.0; //int(self.fps)
-    }
+    // double get_fps() const
+    // {
+    //     return 0.0; //int(self.fps)
+    // }
 
-    long get_frame_count() const
-    {
-        return 0;//m_frame_count;
-    }
+    // long get_frame_count() const
+    // {
+    //     return 0;//m_frame_count;
+    // }
 
     const std::vector<DemoTracker>& get_live_trackers() const
     {

@@ -4,7 +4,7 @@ struct WeightedMovingVarianceParams
 {
     static inline const bool DEFAULT_ENABLE_WEIGHT{true};
     static inline const bool DEFAULT_ENABLE_THRESHOLD{true};
-    static inline const float DEFAULT_THRESHOLD_VALUE{15.0f};
+    static inline const float DEFAULT_THRESHOLD_VALUE{25.0f};
     static inline const float DEFAULT_WEIGHTS[] = {0.5f, 0.3f, 0.2f};
     static inline const float ONE_THIRD{1.0f / 3.0f};
 

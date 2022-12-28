@@ -37,11 +37,11 @@ public:
         bool track_plotting_enabled{true};
         bool track_prediction_enabled{false};
         bool enable_track_validation{true};
-        int stationary_track_threshold{5};
-        int orphaned_track_thold{20};
+        size_t stationary_track_threshold{5};
+        size_t orphaned_track_thold{20};
     };
 
-    DemoTracker(const Settings& settings, int id, const cv::Mat& frame, const cv::Rect& bbox)
+    DemoTracker(const Settings& settings, size_t id, const cv::Mat& frame, const cv::Rect& bbox)
     {
         m_id = id;
         m_settings.track_plotting_enabled = settings.track_plotting_enabled;
@@ -101,7 +101,7 @@ public:
                 // identify and try and track false positives. This validaiton logic is in place to try and limit this
                 bool validate_bbox = false;
 
-                if ((int)(getAbsoluteTime() - m_start) > m_second_counter)
+                if ((size_t)(getAbsoluteTime() - m_start) > m_second_counter)
                 {
                     m_tracked_boxes.push_back(bbox);
                     ++m_second_counter;
@@ -109,7 +109,7 @@ public:
                 }
 
                 // Mike: grab the validation config options from the settings dictionary
-                int stationary_scavanage_threshold = (int)(m_settings.stationary_track_threshold * 1.5);
+                size_t stationary_scavanage_threshold = (size_t)(m_settings.stationary_track_threshold * 1.5);
 
                 // Mike: Only process validation after a second, we need to allow the target to move
                 if (m_tracked_boxes.size() > 1)
@@ -191,14 +191,14 @@ public:
     }
 
 private:
-    int m_id;
+    size_t m_id;
     TargetStatus m_tracking_state;
     std::vector<cv::Rect> m_bboxes;
     cv::Ptr<TrackerCSRT> m_tracker = nullptr;
-    int m_stationary_track_counter;
-    int m_active_track_counter;
+    size_t m_stationary_track_counter;
+    size_t m_active_track_counter;
     cv::Rect m_bbox_to_check;
-    int m_second_counter;
+    size_t m_second_counter;
     std::vector<cv::Rect> m_tracked_boxes;
     std::vector<Track> m_center_points;
     //std::vector<cv::Point2i> predictor_center_points;
