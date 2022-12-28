@@ -112,12 +112,14 @@ bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect>
     {
         prepareParallel(_image);
         // Create a labels image to store the labels for each connected component
-        m_labels.create(_image.size(), CV_32SC1);
         m_initialized = true;
     }
 
     // Use connected component analysis to find the blobs in the image, subtract 1 because the background is consured as label
-    const int numLabels = cv::connectedComponents(_image, m_labels, 8) - 1;
+    // CCL_WU        = 0,  //!< SAUF @cite Wu2009 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for SAUF.
+    // CCL_GRANA     = 1,  //!< BBDT @cite Grana2010 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both BBDT and SAUF.
+    // CCL_BOLELLI   = 2,  //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
+    const int numLabels = cv::connectedComponents(_image, m_labels, 8, 4, cv::CCL_BOLELLI) - 1;
 
     _bboxes.resize(numLabels);
     if (numLabels > 0)

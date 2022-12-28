@@ -72,10 +72,10 @@ namespace sky360lib
         std::unique_ptr<uint8_t[]> dataPtr;
     };
 
-    // Returning the number of available threads for the CPU - 1, floor to the even
+    // Returning the number of available threads for the CPU
     inline size_t calcAvailableThreads()
     {
-        return (size_t)std::max(1U, (std::thread::hardware_concurrency() - 1) & 0xFFF7);
+        return (size_t)std::max(1U, std::thread::hardware_concurrency());
     }
 
     inline bool rectsOverlap(const cv::Rect &r1, const cv::Rect &r2)

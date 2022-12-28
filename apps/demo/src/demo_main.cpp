@@ -5,6 +5,8 @@
 
 #include <easy/profiler.h>
 
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/ocl.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
@@ -61,6 +63,11 @@ int main(int argc, const char **argv)
     bgsPtr = createBGS(BGSType::WMV);
 
     cv::VideoCapture cap;
+
+    //cv::setUseOpenVX(true);
+    cv::ocl::setUseOpenCL(true);
+    if (cv::ocl::haveOpenCL())
+        std::cout << "Has OpenCL support, using: " << cv::ocl::useOpenCL() << std::endl;
 
     initFrequency();
 
