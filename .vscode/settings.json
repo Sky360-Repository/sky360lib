@@ -86,6 +86,7 @@
         "shared_mutex": "cpp",
         "cfenv": "cpp",
         "valarray": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "codecvt": "cpp"
     }
 }

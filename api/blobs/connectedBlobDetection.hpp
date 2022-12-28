@@ -20,6 +20,7 @@ namespace sky360lib::blobs
         bool detect(const cv::Mat &_image, std::vector<cv::Rect>& _bboxes);
 
         // Finds the connected components in the image and returns a list of keypoints
+        // This function uses detect and converts from Rect to KeyPoints using a fixed scale
         std::vector<cv::KeyPoint> detectKP(const cv::Mat &_image);
 
         // Finds the connected components in the image and returns a list of bounding boxes
@@ -34,6 +35,7 @@ namespace sky360lib::blobs
         std::vector<std::vector<cv::Rect>> m_bboxesParallel;
 
         void prepareParallel(const cv::Mat &_image);
-        static void applyDetect(const cv::Mat& _labels, std::vector<cv::Rect> &_bboxes);
+        static void applyDetectBBoxes(const cv::Mat& _labels, std::vector<cv::Rect> &_bboxes);
+        inline void posProcessBboxes(std::vector<cv::Rect> &_bboxes);
     };
 }

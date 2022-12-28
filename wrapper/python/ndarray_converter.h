@@ -37,7 +37,7 @@ namespace pybind11
                 return NDArrayConverter::toMat(src.ptr(), value);
             }
 
-            static handle cast(const cv::Mat &m, return_value_policy, handle defval)
+            static handle cast(const cv::Mat &m, return_value_policy, handle)
             {
                 return handle(NDArrayConverter::toNDArray(m));
             }
@@ -49,7 +49,7 @@ namespace pybind11
         public:
             PYBIND11_TYPE_CASTER(cv::KeyPoint, _("keypoint"));
 
-            bool load(handle src, bool)
+            bool load(handle, bool)
             {
                 return true;//NDArrayConverter::toMat(src.ptr(), value);
             }
@@ -66,7 +66,7 @@ namespace pybind11
         public:
             PYBIND11_TYPE_CASTER(cv::KeyPoint, _("rect"));
 
-            bool load(handle src, bool)
+            bool load(handle, bool)
             {
                 return true;//NDArrayConverter::toMat(src.ptr(), value);
             }

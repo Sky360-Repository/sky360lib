@@ -2,6 +2,8 @@
 
 #include "core.hpp"
 
+#include <opencv2/core.hpp>
+
 #include <memory>
 #include <cstring>
 #include <thread>
@@ -74,5 +76,16 @@ namespace sky360lib
     inline size_t calcAvailableThreads()
     {
         return (size_t)std::max(1U, (std::thread::hardware_concurrency() - 1) & 0xFFF7);
+    }
+
+    inline bool rectsOverlap(const cv::Rect &r1, const cv::Rect &r2)
+    {
+        // checking if they don't everlap
+        if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
+            (r1.x > (r2.x + r2.width) || r2.x > (r1.x + r1.width)) ||
+            (r1.y > (r2.y + r2.height) || r2.y > (r1.y + r1.height)))
+            return false;
+
+        return true;
     }
 }

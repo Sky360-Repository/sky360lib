@@ -7,8 +7,6 @@
 
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/features2d.hpp>
 
 #include "bgs.hpp"
 #include "profiling.hpp"
@@ -36,7 +34,6 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 /////////////////////////////////////////////////////////////
 // Blob Detector
-// cv::Ptr<cv::SimpleBlobDetector> detector = nullptr;
 sky360lib::blobs::ConnectedBlobDetection blobDetector;
 
 /////////////////////////////////////////////////////////////
@@ -48,13 +45,10 @@ DemoVideoTracker videoTracker;
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
 inline void appyBGS(const cv::Mat &input, cv::Mat &output);
-//inline cv::Ptr<cv::SimpleBlobDetector> createBlobDetector(const cv::Mat &frame);
-//inline std::vector<cv::KeyPoint> applyBlobDetection(const cv::Mat &frame);
 inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline void drawBlobs(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
-
 inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
-inline void drawBlobs2(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
+inline void drawBlobs(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -64,7 +58,7 @@ int main(int argc, const char **argv)
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
     EASY_PROFILER_ENABLE;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    bgsPtr = createBGS(BGSType::Vibe);
 
     cv::VideoCapture cap;
 
@@ -106,6 +100,7 @@ int main(int argc, const char **argv)
 
     cv::imshow("BGS Demo", frame);
 
+    std::vector<cv::Rect> blobs;
     bool pause = false;
     std::cout << "Enter loop" << std::endl;
     while (true)
@@ -122,14 +117,11 @@ int main(int argc, const char **argv)
             EASY_BLOCK("Doing process");
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
-            auto blobs = findBlobs(bgsMask);
-            // auto blobs = applyBlobDetection(bgsMask);
+            blobs = findBlobs(bgsMask);
             // applyTracker(blobs, processedFrame);
             EASY_END_BLOCK;
-            drawBlobs2(blobs, bgsMask);
-            drawBlobs2(blobs, frame);
-            // drawBlobs(blobs, bgsMask);
-            // drawBlobs(blobs, frame);
+            drawBlobs(blobs, bgsMask);
+            drawBlobs(blobs, frame);
             double endTime = getAbsoluteTime();
             totalTime += endTime - startTime;
             ++numFrames;
@@ -141,9 +133,9 @@ int main(int argc, const char **argv)
                 numFrames = 0;
             }
             cv::imshow("BGS Demo", bgsMask);
-            cv::resizeWindow("BGS Demo", 1024, 1024);
+            cv::resizeWindow("BGS Demo", 1600, 1600);
             cv::imshow("Live Video", frame);
-            cv::resizeWindow("Live Video", 1024, 1024);
+            cv::resizeWindow("Live Video", 1600, 1600);
         }
         char key = (char)cv::waitKey(1);
         if (key == 27)
@@ -154,6 +146,11 @@ int main(int argc, const char **argv)
         else if (key == 32)
         {
             pause = !pause;
+            std::cout << "Bounding boxes" << std::endl;
+            for (auto kp : blobs)
+            {
+                std::cout << kp << std::endl;
+            }
         }
     }
     std::cout << "Exit loop\n"
@@ -168,34 +165,19 @@ int main(int argc, const char **argv)
     return 0;
 }
 
-std::unique_ptr<sky360lib::bgs::CoreBgs> createVibe()
-{
-    sky360lib::bgs::VibeParams params(100, 20, 1, 2);
-    return std::make_unique<sky360lib::bgs::Vibe>(params);
-}
-
-std::unique_ptr<sky360lib::bgs::CoreBgs> createWMV()
-{
-    return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
-}
-
-std::unique_ptr<sky360lib::bgs::CoreBgs> createWMVHalide()
-{
-    return std::make_unique<sky360lib::bgs::WeightedMovingVarianceHalide>();
-}
-
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
 {
     switch (_type)
     {
     case BGSType::Vibe:
-        return createVibe();
+        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(120, 24, 1, 2));
     case BGSType::WMV:
-        return createWMV();
+        return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     case BGSType::WMVHalide:
-        return createWMVHalide();
+        return std::make_unique<sky360lib::bgs::WeightedMovingVarianceHalide>();
+    default:
+        return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     }
-    return createWMV();
 }
 
 // Do image pre-processing
@@ -225,61 +207,24 @@ inline void appyBGS(const cv::Mat &input, cv::Mat &output)
     bgsPtr->apply(input, output);
 }
 
-// inline cv::Ptr<cv::SimpleBlobDetector> createBlobDetector(const cv::Mat &frame)
-// {
-//     cv::SimpleBlobDetector::Params params;
-//     params.minRepeatability = 2;
-//     // 5% of the width of the image
-//     params.minDistBetweenBlobs = frame.size().width * 0.05f;
-//     params.minThreshold = 3.0f;
-//     params.filterByArea = false;
-//     params.filterByColor = true;
-//     if (sensitivity == 1) //  # Detects small, medium and large objects
-//         params.minArea = 3.0f;
-//     else if (sensitivity == 2) //  # Detects medium and large objects
-//         params.minArea = 5.0f;
-//     else if (sensitivity == 3) // # Detects large objects
-//         params.minArea = 25.0f;
-
-//     return cv::SimpleBlobDetector::create(params);
-// }
-
-// inline std::vector<cv::KeyPoint> applyBlobDetection(const cv::Mat &frame)
-// {
-//     EASY_FUNCTION(profiler::colors::Blue);
-//     std::vector<cv::KeyPoint> keypoints;
-//     detector->detect(frame, keypoints);
-
-//     return keypoints;
-// }
-
 inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame)
 {
     EASY_FUNCTION(profiler::colors::Yellow);
     videoTracker.create_trackers_from_keypoints(keypoints, frame);
 }
 
-inline void drawBlobs(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame)
+inline void drawBlobs(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
 {
-    for (auto kp : keypoints)
+    for (auto bb : bboxes)
     {
-        cv::rectangle(frame, kp_to_bbox(kp), cv::Scalar(255, 255, 0), 2);
-    }
-}
-
-inline void drawBlobs2(std::vector<cv::Rect> &keypoints, const cv::Mat &frame)
-{
-    for (auto kp : keypoints)
-    {
-        //std::cout << "bbox: " << kp << std::endl;
-        cv::rectangle(frame, kp, cv::Scalar(0, 255, 255), 2);
+        cv::rectangle(frame, bb, cv::Scalar(255, 0, 255), 2);
     }
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes
 inline std::vector<cv::Rect> findBlobs(const cv::Mat &image)
 {
-    EASY_FUNCTION(profiler::colors::Pink);
+    EASY_FUNCTION(profiler::colors::Blue);
 
     std::vector<cv::Rect> blobs;
     blobDetector.detect(image, blobs);
