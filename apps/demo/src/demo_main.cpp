@@ -140,9 +140,9 @@ int main(int argc, const char **argv)
                 numFrames = 0;
             }
             cv::imshow("BGS Demo", bgsMask);
-            cv::resizeWindow("BGS Demo", 1600, 1600);
+            cv::resizeWindow("BGS Demo", 1024, 1024);
             cv::imshow("Live Video", frame);
-            cv::resizeWindow("Live Video", 1600, 1600);
+            cv::resizeWindow("Live Video", 1024, 1024);
         }
         char key = (char)cv::waitKey(1);
         if (key == 27)
