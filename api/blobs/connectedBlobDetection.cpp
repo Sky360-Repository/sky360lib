@@ -101,6 +101,7 @@ inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bbo
         }
     }
 
+    // Joining bboxes that are overlaping each other
     joinBBoxes(_bboxes);
 }
 

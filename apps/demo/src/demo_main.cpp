@@ -58,7 +58,7 @@ int main(int argc, const char **argv)
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
     EASY_PROFILER_ENABLE;
 
-    bgsPtr = createBGS(BGSType::Vibe);
+    bgsPtr = createBGS(BGSType::WMV);
 
     cv::VideoCapture cap;
 
