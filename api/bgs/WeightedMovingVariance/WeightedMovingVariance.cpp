@@ -7,8 +7,8 @@
 
 using namespace sky360lib::bgs;
 
-WeightedMovingVariance::WeightedMovingVariance(const WeightedMovingVarianceParams& _params,
-                               size_t _numProcessesParallel)
+WeightedMovingVariance::WeightedMovingVariance(const WeightedMovingVarianceParams &_params,
+                                               size_t _numProcessesParallel)
     : CoreBgs(_numProcessesParallel),
       m_params(_params)
 {
@@ -41,7 +41,7 @@ void WeightedMovingVariance::initialize(const cv::Mat &)
     }
 }
 
-void WeightedMovingVariance::rollImages(RollingImages& rollingImages)
+void WeightedMovingVariance::rollImages(RollingImages &rollingImages)
 {
     const auto rollingIdx = ROLLING_BG_IDX[rollingImages.currentRollingIdx % 3];
     rollingImages.pImgInput = rollingImages.pImgMem[rollingIdx[0]].get();
@@ -75,84 +75,97 @@ void WeightedMovingVariance::process(const cv::Mat &_inImage,
     }
 
     if (_imgInputPrev.pImgSize->numBytesPerPixel == 1)
-        weightedVarianceMono(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2, 
-                            _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+        weightedVarianceMono(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
+                             _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
     else
-        weightedVarianceColor(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2, 
-                            _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+        weightedVarianceColor(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
+                              _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
 }
 
 inline void calcWeightedVarianceMono(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
-                                     uint8_t *const o, const WeightedMovingVarianceParams &_params)
+                                     uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
-    const float dI[]{(float)*i1, (float)*i2, (float)*i3};
-    const float mean{(dI[0] * _params.weight[0]) + (dI[1] * _params.weight[1]) + (dI[2] * _params.weight[2])};
-    const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
-    *o = std::sqrt(((value[0] * value[0]) * _params.weight[0]) 
-                    + ((value[1] * value[1]) * _params.weight[1]) 
-                    + ((value[2] * value[2]) * _params.weight[2]));
+    for (uint32_t i{0}; i < totalPixels; ++i)
+    {
+        const float dI[]{(float)i1[i], (float)i2[i], (float)i3[i]};
+        const float mean{(dI[0] * _params.weight[0]) + (dI[1] * _params.weight[1]) + (dI[2] * _params.weight[2])};
+        const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
+        o[i] = std::sqrt(((value[0] * value[0]) * _params.weight[0]) + ((value[1] * value[1]) * _params.weight[1]) + ((value[2] * value[2]) * _params.weight[2]));
+    }
 }
 
 inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
-                                     uint8_t *const o, const WeightedMovingVarianceParams &_params)
+                                              uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
-    const float dI[]{(float)*i1, (float)*i2, (float)*i3};
-    const float mean{(dI[0] * _params.weight[0]) + (dI[1] * _params.weight[1]) + (dI[2] * _params.weight[2])};
-    const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
-    const float result{((value[0] * value[0]) * _params.weight[0]) 
-                        + ((value[1] * value[1]) * _params.weight[1]) 
-                        + ((value[2] * value[2]) * _params.weight[2])};
-    *o = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
+    for (uint32_t i{0}; i < totalPixels; ++i)
+    {
+        const float dI[]{(float)i1[i], (float)i2[i], (float)i3[i]};
+        const float mean{(dI[0] * _params.weight[0]) + (dI[1] * _params.weight[1]) + (dI[2] * _params.weight[2])};
+        const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
+        const float result{((value[0] * value[0]) * _params.weight[0]) + ((value[1] * value[1]) * _params.weight[1]) + ((value[2] * value[2]) * _params.weight[2])};
+        o[i] = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
+    }
 }
 
+inline float convertGrey(const uint8_t *const pPix)
+{
+    return  0.299f * pPix[0] + 0.587f * pPix[1] + 0.114f * pPix[2];
+}
+
+inline void calcWeightedVarianceConvertMonoThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+                                              uint8_t *const oMask, uint8_t *const oImg, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
+{
+    for (uint32_t j{0}, j3{0}; j < totalPixels; ++j, j3 += 3)
+    {
+        const float dI[]{(float)convertGrey(i1 + j3), (float)i2[j], (float)i3[j]};
+        const float mean{(dI[0] * _params.weight[0]) + (dI[1] * _params.weight[1]) + (dI[2] * _params.weight[2])};
+        const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
+        const float result{((value[0] * value[0]) * _params.weight[0]) + ((value[1] * value[1]) * _params.weight[1]) + ((value[2] * value[2]) * _params.weight[2])};
+        oMask[j] = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
+    }
+}
 
 inline void calcWeightedVarianceColor(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
-                                      uint8_t *const o, const WeightedMovingVarianceParams &_params)
+                                      uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
-    const float dI1[]{(float)*i1, (float)*i1 + 1, (float)*i1 + 2};
-    const float dI2[]{(float)*i2, (float)*i2 + 1, (float)*i2 + 2};
-    const float dI3[]{(float)*i3, (float)*i3 + 1, (float)*i3 + 2};
-    const float meanR{(dI1[0] * _params.weight[0]) + (dI2[0] * _params.weight[1]) + (dI3[0] * _params.weight[2])};
-    const float meanG{(dI1[1] * _params.weight[0]) + (dI2[1] * _params.weight[1]) + (dI3[1] * _params.weight[2])};
-    const float meanB{(dI1[2] * _params.weight[0]) + (dI2[2] * _params.weight[1]) + (dI3[2] * _params.weight[2])};
-    const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI2[0] - meanR};
-    const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI2[1] - meanG};
-    const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI2[2] - meanB};
-    const float r{std::sqrt(((valueR[0] * valueR[0]) * _params.weight[0]) 
-                            + ((valueR[1] * valueR[1]) * _params.weight[1]) 
-                            + ((valueR[2] * valueR[2]) * _params.weight[2]))};
-    const float g{std::sqrt(((valueG[0] * valueG[0]) * _params.weight[0]) 
-                            + ((valueG[1] * valueG[1]) * _params.weight[1]) 
-                            + ((valueG[2] * valueG[2]) * _params.weight[2]))};
-    const float b{std::sqrt(((valueB[0] * valueB[0]) * _params.weight[0]) 
-                            + ((valueB[1] * valueB[1]) * _params.weight[1]) 
-                            + ((valueB[2] * valueB[2]) * _params.weight[2]))};
-    *o = 0.299f * r + 0.587f * g + 0.114f * b;
+    for (uint32_t j{0}, j3{0}; j < totalPixels; ++j, j3 += 3)
+    {
+        const float dI1[]{(float)i1[j3], (float)i1[j3 + 1], (float)i1[j3 + 2]};
+        const float dI2[]{(float)i2[j3], (float)i2[j3 + 1], (float)i2[j3 + 2]};
+        const float dI3[]{(float)i3[j3], (float)i3[j3 + 1], (float)i3[j3 + 2]};
+        const float meanR{(dI1[0] * _params.weight[0]) + (dI2[0] * _params.weight[1]) + (dI3[0] * _params.weight[2])};
+        const float meanG{(dI1[1] * _params.weight[0]) + (dI2[1] * _params.weight[1]) + (dI3[1] * _params.weight[2])};
+        const float meanB{(dI1[2] * _params.weight[0]) + (dI2[2] * _params.weight[1]) + (dI3[2] * _params.weight[2])};
+        const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI2[0] - meanR};
+        const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI2[1] - meanG};
+        const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI2[2] - meanB};
+        const float r{std::sqrt(((valueR[0] * valueR[0]) * _params.weight[0]) + ((valueR[1] * valueR[1]) * _params.weight[1]) + ((valueR[2] * valueR[2]) * _params.weight[2]))};
+        const float g{std::sqrt(((valueG[0] * valueG[0]) * _params.weight[0]) + ((valueG[1] * valueG[1]) * _params.weight[1]) + ((valueG[2] * valueG[2]) * _params.weight[2]))};
+        const float b{std::sqrt(((valueB[0] * valueB[0]) * _params.weight[0]) + ((valueB[1] * valueB[1]) * _params.weight[1]) + ((valueB[2] * valueB[2]) * _params.weight[2]))};
+        o[j] = 0.299f * r + 0.587f * g + 0.114f * b;
+    }
 }
 
 inline void calcWeightedVarianceColorThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
-                                      uint8_t *const o, const WeightedMovingVarianceParams &_params)
+                                               uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
-    const float dI1[]{(float)*i1, (float)*i1 + 1, (float)*i1 + 2};
-    const float dI2[]{(float)*i2, (float)*i2 + 1, (float)*i2 + 2};
-    const float dI3[]{(float)*i3, (float)*i3 + 1, (float)*i3 + 2};
-    const float meanR{(dI1[0] * _params.weight[0]) + (dI2[0] * _params.weight[1]) + (dI3[0] * _params.weight[2])};
-    const float meanG{(dI1[1] * _params.weight[0]) + (dI2[1] * _params.weight[1]) + (dI3[1] * _params.weight[2])};
-    const float meanB{(dI1[2] * _params.weight[0]) + (dI2[2] * _params.weight[1]) + (dI3[2] * _params.weight[2])};
-    const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI2[0] - meanR};
-    const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI2[1] - meanG};
-    const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI2[2] - meanB};
-    const float r2{((valueR[0] * valueR[0]) * _params.weight[0]) 
-                    + ((valueR[1] * valueR[1]) * _params.weight[1]) 
-                    + ((valueR[2] * valueR[2]) * _params.weight[2])};
-    const float g2{((valueG[0] * valueG[0]) * _params.weight[0]) 
-                    + ((valueG[1] * valueG[1]) * _params.weight[1]) 
-                    + ((valueG[2] * valueG[2]) * _params.weight[2])};
-    const float b2{((valueB[0] * valueB[0]) * _params.weight[0]) 
-                    + ((valueB[1] * valueB[1]) * _params.weight[1]) 
-                    + ((valueB[2] * valueB[2]) * _params.weight[2])};
-    const float result{0.299f * r2 + 0.587f * g2 + 0.114f * b2};
-    *o = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
+    for (uint32_t j{0}, j3{0}; j < totalPixels; ++j, j3 += 3)
+    {
+        const float dI1[]{(float)i1[j3], (float)i1[j3 + 1], (float)i1[j3 + 2]};
+        const float dI2[]{(float)i2[j3], (float)i2[j3 + 1], (float)i2[j3 + 2]};
+        const float dI3[]{(float)i3[j3], (float)i3[j3 + 1], (float)i3[j3 + 2]};
+        const float meanR{(dI1[0] * _params.weight[0]) + (dI2[0] * _params.weight[1]) + (dI3[0] * _params.weight[2])};
+        const float meanG{(dI1[1] * _params.weight[0]) + (dI2[1] * _params.weight[1]) + (dI3[1] * _params.weight[2])};
+        const float meanB{(dI1[2] * _params.weight[0]) + (dI2[2] * _params.weight[1]) + (dI3[2] * _params.weight[2])};
+        const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI2[0] - meanR};
+        const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI2[1] - meanG};
+        const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI2[2] - meanB};
+        const float r2{((valueR[0] * valueR[0]) * _params.weight[0]) + ((valueR[1] * valueR[1]) * _params.weight[1]) + ((valueR[2] * valueR[2]) * _params.weight[2])};
+        const float g2{((valueG[0] * valueG[0]) * _params.weight[0]) + ((valueG[1] * valueG[1]) * _params.weight[1]) + ((valueG[2] * valueG[2]) * _params.weight[2])};
+        const float b2{((valueB[0] * valueB[0]) * _params.weight[0]) + ((valueB[1] * valueB[1]) * _params.weight[1]) + ((valueB[2] * valueB[2]) * _params.weight[2])};
+        const float result{0.299f * r2 + 0.587f * g2 + 0.114f * b2};
+        o[j] = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
+    }
 }
 
 void WeightedMovingVariance::weightedVarianceMono(
@@ -164,11 +177,9 @@ void WeightedMovingVariance::weightedVarianceMono(
     const WeightedMovingVarianceParams &_params)
 {
     if (_params.enableThreshold)
-        for (size_t i{0}; i < totalPixels; ++i)
-            calcWeightedVarianceMonoThreshold(img1 + i, img2 + i, img3 + i, outImg + i, _params);
+        calcWeightedVarianceMonoThreshold(img1, img2, img3, outImg, totalPixels, _params);
     else
-        for (size_t i{0}; i < totalPixels; ++i)
-            calcWeightedVarianceMono(img1 + i, img2 + i, img3 + i, outImg + i, _params);
+        calcWeightedVarianceMono(img1, img2, img3, outImg, totalPixels, _params);
 }
 
 void WeightedMovingVariance::weightedVarianceColor(
@@ -180,9 +191,7 @@ void WeightedMovingVariance::weightedVarianceColor(
     const WeightedMovingVarianceParams &_params)
 {
     if (_params.enableThreshold)
-        for (size_t i{0}, i3{0}; i < totalPixels; ++i, i3 += 3)
-            calcWeightedVarianceColorThreshold(img1 + i3, img2 + i3, img3 + i3, outImg + i, _params);
+        calcWeightedVarianceColorThreshold(img1, img2, img3, outImg, totalPixels, _params);
     else
-        for (size_t i{0}, i3{0}; i < totalPixels; ++i, i3 += 3)
-            calcWeightedVarianceColor(img1 + i3, img2 + i3, img3 + i3, outImg + i, _params);
+        calcWeightedVarianceColor(img1, img2, img3, outImg, totalPixels, _params);
 }

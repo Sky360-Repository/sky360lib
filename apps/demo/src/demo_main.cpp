@@ -58,6 +58,7 @@ int main(int argc, const char **argv)
 {
     const auto concurrentThreads = std::thread::hardware_concurrency();
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
+
     EASY_PROFILER_ENABLE;
 
     bgsPtr = createBGS(BGSType::WMV);
