@@ -117,11 +117,13 @@ inline void calcWeightedVarianceConvertMonoThreshold(const uint8_t *const i1, co
 {
     for (uint32_t j{0}, j3{0}; j < totalPixels; ++j, j3 += 3)
     {
-        const float dI[]{(float)convertGrey(i1 + j3), (float)i2[j], (float)i3[j]};
+        const float convImg = convertGrey(i1 + j3);
+        const float dI[]{convImg, (float)i2[j], (float)i3[j]};
         const float mean{(dI[0] * _params.weight[0]) + (dI[1] * _params.weight[1]) + (dI[2] * _params.weight[2])};
         const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
         const float result{((value[0] * value[0]) * _params.weight[0]) + ((value[1] * value[1]) * _params.weight[1]) + ((value[2] * value[2]) * _params.weight[2])};
         oMask[j] = result > _params.thresholdSquared ? UCHAR_MAX : ZERO_UC;
+        oImg[j] = (uint8_t)convImg;
     }
 }
 

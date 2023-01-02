@@ -21,7 +21,7 @@
 // Default parameters
 int blur_radius{3};
 bool applyGreyscale{true};
-bool applyNoiseReduction{true};
+bool applyNoiseReduction{false};
 int sensitivity{1};
 
 /////////////////////////////////////////////////////////////
@@ -48,9 +48,10 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
 inline void appyBGS(const cv::Mat &input, cv::Mat &output);
 inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
-inline void drawBlobs(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
+inline void drawBboxes(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
-inline void drawBlobs(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
+inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
+inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -89,8 +90,9 @@ int main(int argc, const char **argv)
     cv::namedWindow("Live Video", 0);
 
     cv::Mat frame, processedFrame;
-    long numFrames = 0;
-    double totalTime = 0;
+    long numFrames{0};
+    double totalTime{0.0};
+    double totalProcessedTime{0.0};
 
     cap.read(frame);
     if (frame.type() != CV_8UC3)
@@ -108,42 +110,43 @@ int main(int argc, const char **argv)
 
     cv::imshow("BGS Demo", frame);
 
-    std::vector<cv::Rect> blobs;
+    std::vector<cv::Rect> bboxes;
     bool pause = false;
     std::cout << "Enter loop" << std::endl;
     while (true)
     {
+        double startFrameTime = getAbsoluteTime();
+        EASY_BLOCK("Loop pass");
         if (!pause)
         {
+            EASY_BLOCK("Capture");
             cap.read(frame);
             if (frame.empty())
             {
                 std::cout << "No image" << std::endl;
                 break;
             }
-            double startTime = getAbsoluteTime();
-            EASY_BLOCK("Doing process");
+            EASY_END_BLOCK;
+            double startProcessedTime = getAbsoluteTime();
+            EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
-            blobs = findBlobs(bgsMask);
+            bboxes = findBlobs(bgsMask);
             // applyTracker(blobs, processedFrame);
             EASY_END_BLOCK;
-            drawBlobs(blobs, bgsMask);
-            drawBlobs(blobs, frame);
-            double endTime = getAbsoluteTime();
-            totalTime += endTime - startTime;
+            EASY_BLOCK("Drawing bboxes");
+            drawBboxes(bboxes, bgsMask);
+            drawBboxes(bboxes, frame);
+            EASY_END_BLOCK;
+            double endProcessedTime = getAbsoluteTime();
             ++numFrames;
-
-            if (numFrames % 100 == 0)
-            {
-                std::cout << "Framerate: " << (numFrames / totalTime) << " fps" << std::endl;
-                totalTime = 0;
-                numFrames = 0;
-            }
+            totalProcessedTime += endProcessedTime - startProcessedTime;
+            EASY_BLOCK("Show/resize windows");
             cv::imshow("BGS Demo", bgsMask);
             cv::resizeWindow("BGS Demo", 1024, 1024);
             cv::imshow("Live Video", frame);
             cv::resizeWindow("Live Video", 1024, 1024);
+            EASY_END_BLOCK;
         }
         char key = (char)cv::waitKey(1);
         if (key == 27)
@@ -154,12 +157,19 @@ int main(int argc, const char **argv)
         else if (key == 32)
         {
             pause = !pause;
-            std::cout << "Bounding boxes" << std::endl;
-            for (auto kp : blobs)
-            {
-                std::cout << kp << std::endl;
-            }
+            outputBoundingBoxes(bboxes);
         }
+        double endFrameTime = getAbsoluteTime();
+        totalTime += endFrameTime - startFrameTime;
+        if (totalTime > 2.0)
+        {
+            std::cout << "Framerate: " << (numFrames / totalProcessedTime) << " fps" << std::endl;
+            totalTime = 0.0;
+            totalProcessedTime = 0.0;
+            numFrames = 0;
+        }
+
+        EASY_END_BLOCK;
     }
     std::cout << "Exit loop\n"
               << std::endl;
@@ -221,7 +231,16 @@ inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &fr
     videoTracker.create_trackers_from_keypoints(keypoints, frame);
 }
 
-inline void drawBlobs(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
+inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes)
+{
+    std::cout << "Bounding boxes" << std::endl;
+    for (auto bb : bboxes)
+    {
+        std::cout << bb << std::endl;
+    }
+}
+
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
 {
     for (auto bb : bboxes)
     {
