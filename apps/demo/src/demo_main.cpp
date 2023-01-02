@@ -62,11 +62,11 @@ int main(int argc, const char **argv)
 
     EASY_PROFILER_ENABLE;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    bgsPtr = createBGS(BGSType::Vibe);
 
     cv::VideoCapture cap;
 
-    //cv::setUseOpenVX(true);
+    // cv::setUseOpenVX(true);
     cv::ocl::setUseOpenCL(true);
     if (cv::ocl::haveOpenCL())
         std::cout << "Has OpenCL support, using: " << cv::ocl::useOpenCL() << std::endl;
@@ -127,18 +127,18 @@ int main(int argc, const char **argv)
                 break;
             }
             EASY_END_BLOCK;
-            double startProcessedTime = getAbsoluteTime();
             EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
+            double startProcessedTime = getAbsoluteTime();
             appyBGS(processedFrame, bgsMask);
-            bboxes = findBlobs(bgsMask);
             // applyTracker(blobs, processedFrame);
+            double endProcessedTime = getAbsoluteTime();
+            bboxes = findBlobs(bgsMask);
             EASY_END_BLOCK;
             EASY_BLOCK("Drawing bboxes");
             drawBboxes(bboxes, bgsMask);
             drawBboxes(bboxes, frame);
             EASY_END_BLOCK;
-            double endProcessedTime = getAbsoluteTime();
             ++numFrames;
             totalProcessedTime += endProcessedTime - startProcessedTime;
             EASY_BLOCK("Show/resize windows");
@@ -168,7 +168,6 @@ int main(int argc, const char **argv)
             totalProcessedTime = 0.0;
             numFrames = 0;
         }
-
         EASY_END_BLOCK;
     }
     std::cout << "Exit loop\n"
@@ -188,7 +187,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
     switch (_type)
     {
     case BGSType::Vibe:
-        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(120, 24, 1, 2));
+        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 24, 1, 2));
     case BGSType::WMV:
         return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     case BGSType::WMVHalide:

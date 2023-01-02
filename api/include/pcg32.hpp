@@ -33,7 +33,7 @@ namespace sky360lib
 		}
 
 	private:
-		static uint32_t const tableSize = 65536;
+		static uint32_t const tableSize = 32768;
 		static uint64_t const multiplier = 6364136223846793005u;
 
 		uint64_t mcg_state{0xcafef00dd15ea5e5u}; // Must be odd

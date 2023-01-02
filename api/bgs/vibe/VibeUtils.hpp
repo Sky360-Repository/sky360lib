@@ -21,7 +21,7 @@ namespace sky360lib::bgs
     }
 
     /// returns the neighbor location for the specified random index & original pixel location; also guards against out-of-bounds values via image/border size check
-    static inline int getNeighborPosition_3x3(const int pix, const ImgSize &oImageSize, const uint32_t nRandIdx)
+    static inline int getNeighborPosition_3x3_pos(const int pix, const ImgSize &oImageSize, const uint32_t nRandIdx)
     {
         typedef std::array<int, 2> Nb;
         static const std::array<std::array<int, 2>, 8> s_anNeighborPattern = {
@@ -37,6 +37,25 @@ namespace sky360lib::bgs
         const size_t r{nRandIdx & 0x7};
         int nNeighborCoord_X{std::max(std::min((pix % oImageSize.width) + s_anNeighborPattern[r][0], oImageSize.width - 1), 0)};
         int nNeighborCoord_Y{std::max(std::min((pix / oImageSize.width) + s_anNeighborPattern[r][1], oImageSize.height - 1), 0)};
+        return (nNeighborCoord_Y * oImageSize.width + nNeighborCoord_X);
+    }
+
+    static inline int getNeighborPosition_3x3(const int x, const int y, const ImgSize &oImageSize, const uint32_t nRandIdx)
+    {
+        typedef std::array<int, 2> Nb;
+        static const std::array<Nb, 8> s_anNeighborPattern = {
+            Nb{-1, 1},
+            Nb{0, 1},
+            Nb{1, 1},
+            Nb{-1, 0},
+            Nb{1, 0},
+            Nb{-1, -1},
+            Nb{0, -1},
+            Nb{1, -1},
+        };
+        const size_t r{nRandIdx & 0x7};
+        const int nNeighborCoord_X{std::max(std::min(x + s_anNeighborPattern[r][0], oImageSize.width - 1), 0)};
+        const int nNeighborCoord_Y{std::max(std::min(y + s_anNeighborPattern[r][1], oImageSize.height - 1), 0)};
         return (nNeighborCoord_Y * oImageSize.width + nNeighborCoord_X);
     }
 
@@ -187,10 +206,10 @@ namespace sky360lib::bgs
         {
         }
 
-        VibeParams(size_t nColorDistThreshold,
-                   size_t nBGSamples,
-                   size_t nRequiredBGSamples,
-                   size_t learningRate)
+        VibeParams(uint32_t nColorDistThreshold,
+                   uint32_t nBGSamples,
+                   uint32_t nRequiredBGSamples,
+                   uint32_t learningRate)
             : NBGSamples(nBGSamples),
               NRequiredBGSamples(nRequiredBGSamples),
               NColorDistThreshold(nColorDistThreshold),
@@ -201,14 +220,14 @@ namespace sky360lib::bgs
         }
 
         /// number of different samples per pixel/block to be taken from input frames to build the background model ('N' in the original ViBe paper)
-        const size_t NBGSamples;
+        const uint32_t NBGSamples;
         /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
-        const size_t NRequiredBGSamples;
+        const uint32_t NRequiredBGSamples;
         /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)
-        const size_t NColorDistThreshold;
+        const uint32_t NColorDistThreshold;
         const size_t NColorDistThresholdSquared;
         /// should be > 0 and factor of 2 (smaller values == faster adaptation)
-        const size_t LearningRate;
-        const size_t ANDlearningRate;        
+        const uint32_t LearningRate;
+        const uint32_t ANDlearningRate;
     };
 }
