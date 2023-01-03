@@ -4,17 +4,17 @@
 
 namespace sky360lib
 {
-	class Pcg32
+	class Pcg32 final
 	{
 	public:
 		Pcg32()
 		{
 			for (size_t i{0}; i < tableSize; ++i)
-				fixedTable[i] = fast2() % tableSize;
+				fixedTable[i] = fastRT() % tableSize;
 		}
 
 		// The actual algorithm
-		inline uint32_t fast2()
+		inline uint32_t fastRT()
 		{
 			uint64_t x = mcg_state;
 			unsigned count = (unsigned)(x >> 61); // 61 = 64 - 3

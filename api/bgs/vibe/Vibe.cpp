@@ -106,7 +106,6 @@ void Vibe::apply3(const Img &_image,
                 }
                 if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
                 {
-                    // const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, _rndGen.fast()) * 3};
                     const int neighData{getNeighborPosition_3x3(x, y, _image.size, _rndGen.fast()) * 3};
                     uint8_t *const xyRandData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData]};
                     xyRandData[0] = pixData[0];
@@ -156,14 +155,12 @@ void Vibe::apply1(const Img &_image,
             {
                 if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
                 {
-                    uint8_t *const bgImgPixData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[pixOffset]};
-                    *bgImgPixData = pixData;
+                    _bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[pixOffset] = pixData;
                 }
                 if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
                 {
                     const int neighData{getNeighborPosition_3x3(x, y, _image.size, _rndGen.fast())};
-                    uint8_t *const xyRandData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData]};
-                    *xyRandData = pixData;
+                    _bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData] = pixData;
                 }
             }
         }

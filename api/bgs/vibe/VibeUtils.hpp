@@ -7,24 +7,19 @@
 
 namespace sky360lib::bgs
 {
-    static inline size_t L2dist3Squared(const uint8_t *const a, const uint8_t *const b)
+    static inline int64_t L2dist3Squared(const uint8_t *const a, const uint8_t *const b)
     {
-        const long r0{a[0] - b[0]};
-        const long r1{a[1] - b[1]};
-        const long r2{a[2] - b[2]};
+        const int64_t r0{(int64_t)a[0] - (int64_t)b[0]};
+        const int64_t r1{(int64_t)a[1] - (int64_t)b[1]};
+        const int64_t r2{(int64_t)a[2] - (int64_t)b[2]};
         return (r0 * r0) + (r1 * r1) + (r2 * r2);
-    }
-
-    static inline size_t L1dist(const uint8_t *const a, const uint8_t *const b)
-    {
-        return std::abs((*(char *)a) - (*(char *)b));
     }
 
     /// returns the neighbor location for the specified random index & original pixel location; also guards against out-of-bounds values via image/border size check
     static inline int getNeighborPosition_3x3_pos(const int pix, const ImgSize &oImageSize, const uint32_t nRandIdx)
     {
         typedef std::array<int, 2> Nb;
-        static const std::array<std::array<int, 2>, 8> s_anNeighborPattern = {
+        static const std::array<Nb, 8> s_anNeighborPattern = {
             Nb{-1, 1},
             Nb{0, 1},
             Nb{1, 1},
@@ -224,8 +219,8 @@ namespace sky360lib::bgs
         /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
         const uint32_t NRequiredBGSamples;
         /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)
-        const uint32_t NColorDistThreshold;
-        const size_t NColorDistThresholdSquared;
+        const int32_t NColorDistThreshold;
+        const int64_t NColorDistThresholdSquared;
         /// should be > 0 and factor of 2 (smaller values == faster adaptation)
         const uint32_t LearningRate;
         const uint32_t ANDlearningRate;
