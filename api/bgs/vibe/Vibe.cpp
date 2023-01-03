@@ -170,54 +170,6 @@ void Vibe::apply1(const Img &_image,
     }
 }
 
-// void Vibe::apply1(const Img &_image,
-//                   std::vector<std::unique_ptr<Img>> &_bgImg,
-//                   Img &_fgmask,
-//                   const VibeParams &_params,
-//                   Pcg32 &_rndGen)
-// {
-//     _fgmask.clear();
-
-//     for (size_t pixOffset{0}; pixOffset < _image.size.numPixels; ++pixOffset)
-//     {
-//         uint32_t nGoodSamplesCount{0},
-//             nSampleIdx{0};
-
-//         const uint8_t pixData{_image.data[pixOffset]};
-
-//         while (nSampleIdx < _params.NBGSamples)
-//         {
-//             if (std::abs((int32_t)_bgImg[nSampleIdx]->data[pixOffset] - (int32_t)pixData) < _params.NColorDistThreshold)
-//             {
-//                 ++nGoodSamplesCount;
-//                 if (nGoodSamplesCount >= _params.NRequiredBGSamples)
-//                 {
-//                     break;
-//                 }
-//             }
-//             ++nSampleIdx;
-//         }
-//         if (nGoodSamplesCount < _params.NRequiredBGSamples)
-//         {
-//             _fgmask.data[pixOffset] = UCHAR_MAX;
-//         }
-//         else
-//         {
-//             if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
-//             {
-//                 uint8_t *const bgImgPixData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[pixOffset]};
-//                 *bgImgPixData = pixData;
-//             }
-//             if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
-//             {
-//                 const int neighData{getNeighborPosition_3x3(pixOffset, _image.size, _rndGen.fast())};
-//                 uint8_t *const xyRandData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData]};
-//                 *xyRandData = pixData;
-//             }
-//         }
-//     }
-// }
-
 void Vibe::getBackgroundImage(cv::Mat &backgroundImage)
 {
     cv::Mat oAvgBGImg(m_origImgSize->height, m_origImgSize->width, CV_32FC(m_origImgSize->numBytesPerPixel));

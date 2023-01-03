@@ -24,6 +24,10 @@ PYBIND11_MODULE(pysky360, m)
     py::object version = py::cast("1.0.0");
     m.attr("__version__") = version;
 
+    py::class_<Vibe>(m, "Vibe")
+        .def(py::init<>())
+        .def("apply", &Vibe::applyRet)
+        .def("getBackgroundImage", &Vibe::getBackgroundImage);
     py::class_<WeightedMovingVariance>(m, "WeightedMovingVariance")
         .def(py::init<>())
         .def("apply", &WeightedMovingVariance::applyRet)
