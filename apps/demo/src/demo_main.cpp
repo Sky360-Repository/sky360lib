@@ -91,8 +91,10 @@ int main(int argc, const char **argv)
 
     cv::Mat frame, processedFrame;
     long numFrames{0};
+    long totalNumFrames{0};
     double totalTime{0.0};
     double totalProcessedTime{0.0};
+    double totalMeanProcessedTime{0.0};
 
     cap.read(frame);
     if (frame.type() != CV_8UC3)
@@ -119,6 +121,7 @@ int main(int argc, const char **argv)
         EASY_BLOCK("Loop pass");
         if (!pause)
         {
+            double startProcessedTime = getAbsoluteTime();
             EASY_BLOCK("Capture");
             cap.read(frame);
             if (frame.empty())
@@ -129,11 +132,10 @@ int main(int argc, const char **argv)
             EASY_END_BLOCK;
             EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
-            double startProcessedTime = getAbsoluteTime();
             appyBGS(processedFrame, bgsMask);
             // applyTracker(blobs, processedFrame);
-            double endProcessedTime = getAbsoluteTime();
             bboxes = findBlobs(bgsMask);
+            double endProcessedTime = getAbsoluteTime();
             EASY_END_BLOCK;
             EASY_BLOCK("Drawing bboxes");
             drawBboxes(bboxes, bgsMask);
@@ -141,6 +143,8 @@ int main(int argc, const char **argv)
             EASY_END_BLOCK;
             ++numFrames;
             totalProcessedTime += endProcessedTime - startProcessedTime;
+            totalMeanProcessedTime += endProcessedTime - startProcessedTime;
+            ++totalNumFrames;
             EASY_BLOCK("Show/resize windows");
             cv::imshow("BGS Demo", bgsMask);
             cv::resizeWindow("BGS Demo", 1024, 1024);
@@ -172,6 +176,8 @@ int main(int argc, const char **argv)
     }
     std::cout << "Exit loop\n"
               << std::endl;
+    std::cout << std::endl
+              << "Mean Framerate: " << (totalNumFrames / totalMeanProcessedTime) << " fps" << std::endl;
 
     cap.release();
 
