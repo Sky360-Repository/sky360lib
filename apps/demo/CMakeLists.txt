@@ -1,4 +1,7 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories($ENV{OpenCL_INCLUDE_DIRS})
+message(STATUS "OpenCL_INCLUDE_DIRS = $ENV{OpenCL_INCLUDE_DIRS}")
+find_package(OpenCL REQUIRED)
 
 add_executable(
     sky360lib_demo
@@ -18,6 +21,7 @@ target_link_libraries(
             "${OpenCV_LIBS}"
             sky360lib_api
             easy_profiler
+            OpenCL::OpenCL
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

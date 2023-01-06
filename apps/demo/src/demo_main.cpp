@@ -1,3 +1,5 @@
+#include <CL/opencl.hpp>
+
 #include <iostream>
 #include <string>
 #include <algorithm>
@@ -53,10 +55,14 @@ inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 
+void testOpenCL();
+
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
+    testOpenCL();
+    return 0;
     const auto concurrentThreads = std::thread::hardware_concurrency();
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
 
@@ -262,4 +268,84 @@ inline std::vector<cv::Rect> findBlobs(const cv::Mat &image)
     blobDetector.detect(image, blobs);
 
     return blobs;
+}
+
+void testOpenCL()
+{
+    // Get the platform and device
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.size() == 0)
+    {
+        std::cout << "No OpenCL supported." << std::endl;
+        return;
+    }
+    cl::Platform platform = platforms[0];
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+    cl::Device device = devices[0];
+
+    // Print the device type
+    cl_device_type deviceType;
+    device.getInfo(CL_DEVICE_TYPE, &deviceType);
+    if (deviceType & CL_DEVICE_TYPE_GPU)
+    {
+        std::cout << "Running on GPU" << std::endl;
+    }
+    else if (deviceType & CL_DEVICE_TYPE_CPU)
+    {
+        std::cout << "Running on CPU" << std::endl;
+    }
+    else
+    {
+        std::cout << "Running on unknown device type" << std::endl;
+    }
+
+    // Create the context and command queue
+    cl::Context context({device});
+    cl::CommandQueue queue(context, device);
+
+    // Create the program and kernel
+    std::string kernelSource = R"(
+    __kernel void add(__global int* a, __global int* b, __global int* c) {
+      int gid = get_global_id(0);
+      c[gid] = a[gid] + b[gid];
+    }
+  )";
+    cl::Program program(context, kernelSource);
+    program.build({device});
+    cl::Kernel add(program, "add");
+
+    // Create the input and output arrays
+    const int N = 1024;
+    int a[N], b[N], c[N];
+    for (int i = 0; i < N; i++)
+    {
+        a[i] = i;
+        b[i] = i * 2;
+    }
+    cl::Buffer A(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(int) * N, a);
+    cl::Buffer B(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(int) * N, b);
+    cl::Buffer C(context, CL_MEM_WRITE_ONLY, sizeof(int) * N);
+
+    // Set the kernel arguments and run the kernel
+    add.setArg(0, A);
+    add.setArg(1, B);
+    add.setArg(2, C);
+    queue.enqueueNDRangeKernel(add, cl::NullRange, cl::NDRange(N), cl::NullRange);
+
+    // Copy the result from the device to the host
+    queue.enqueueReadBuffer(C, CL_TRUE, 0, sizeof(int) * N, c);
+
+    // Check the result
+    bool correct = true;
+    for (int i = 0; i < N; i++)
+    {
+        if (c[i] != a[i] + b[i])
+        {
+            correct = false;
+            break;
+        }
+    }
+    std::cout << (correct ? "Success" : "Failure") << std::endl;
 }
