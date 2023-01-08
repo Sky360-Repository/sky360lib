@@ -9,7 +9,9 @@
 using namespace sky360lib::blobs;
 
 ConnectedBlobDetection::ConnectedBlobDetection(size_t _numProcessesParallel)
-    : m_numProcessesParallel{_numProcessesParallel},
+    : m_sizeThreshold{DEFAULT_SIZE_THRESHOLD},
+      m_areaThreshold{DEFAULT_AREA_THRESHOLD},
+      m_numProcessesParallel{_numProcessesParallel},
       m_initialized{false}
 {
     if (m_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
@@ -72,6 +74,17 @@ inline static void joinBBoxes(std::vector<cv::Rect> &_bboxes)
     } while (bboxOverlap);
 }
 
+inline static void applySizeCut(std::vector<cv::Rect> &_bboxes, const int _sizeThreshold, const int _areaThreshold)
+{
+    for (size_t i{0}; i < _bboxes.size() - 1; ++i)
+    {
+        if ((_bboxes[i].width < _sizeThreshold) || (_bboxes[i].height < _sizeThreshold) || (_bboxes[i].area() < _areaThreshold))
+        {
+            _bboxes.erase(_bboxes.begin() + i);
+        }
+    }
+}
+
 inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bboxes)
 {
     const size_t numLabels = _bboxes.size();
@@ -103,6 +116,9 @@ inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bbo
 
     // Joining bboxes that are overlaping each other
     joinBBoxes(_bboxes);
+
+    // Removing bboxes that are below threshold
+    applySizeCut(_bboxes, m_sizeThreshold, m_areaThreshold);
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes
@@ -136,7 +152,7 @@ bool ConnectedBlobDetection::detectOld(const cv::Mat &_image, std::vector<cv::Re
             _bboxes[j].height = stats.at<int>(label, cv::CC_STAT_HEIGHT);
         }
 
-        //posProcessBboxes(_bboxes);
+        // posProcessBboxes(_bboxes);
 
         return true;
     }

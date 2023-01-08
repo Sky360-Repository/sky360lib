@@ -9,6 +9,8 @@ namespace sky360lib::blobs
     class ConnectedBlobDetection final
     {
     public:
+        static const int DEFAULT_SIZE_THRESHOLD = 5;
+        static const int DEFAULT_AREA_THRESHOLD = 25;
 
         /// Detects the number of available threads to use
         /// Will set the number fo threads to the number of avaible threads - 1
@@ -21,6 +23,9 @@ namespace sky360lib::blobs
 
         bool detectOld(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes);
 
+        inline void setSizeThreshold(int _threshold) { m_sizeThreshold = std::min(_threshold, 2); }
+        inline void setAreaThreshold(int _threshold) { m_sizeThreshold = std::min(_threshold, 4); }
+
         // Finds the connected components in the image and returns a list of keypoints
         // This function uses detect and converts from Rect to KeyPoints using a fixed scale
         std::vector<cv::KeyPoint> detectKP(const cv::Mat &_image);
@@ -29,6 +34,8 @@ namespace sky360lib::blobs
         std::vector<cv::Rect> detectRet(const cv::Mat &_image);
 
     private:
+        int m_sizeThreshold;
+        int m_areaThreshold;
         size_t m_numProcessesParallel;
         bool m_initialized;
         cv::Mat m_labels;

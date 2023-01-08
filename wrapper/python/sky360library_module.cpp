@@ -44,5 +44,7 @@ PYBIND11_MODULE(pysky360, m)
     py::class_<ConnectedBlobDetection>(m, "ConnectedBlobDetection")
         .def(py::init<>())
         .def("detect", &ConnectedBlobDetection::detectKP)
-        .def("detectBB", &ConnectedBlobDetection::detectRet);
+        .def("detectBB", &ConnectedBlobDetection::detectRet)
+        .def("setSizeThreshold", &ConnectedBlobDetection::setSizeThreshold)
+        .def("setAreaThreshold", &ConnectedBlobDetection::setAreaThreshold);
 }
