@@ -23,8 +23,8 @@ namespace sky360lib::blobs
 
         bool detectOld(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes);
 
-        inline void setSizeThreshold(int _threshold) { m_sizeThreshold = std::min(_threshold, 2); }
-        inline void setAreaThreshold(int _threshold) { m_sizeThreshold = std::min(_threshold, 4); }
+        inline void setSizeThreshold(int _threshold) { m_sizeThreshold = std::max(_threshold, 2); }
+        inline void setAreaThreshold(int _threshold) { m_sizeThreshold = std::max(_threshold, 4); }
 
         // Finds the connected components in the image and returns a list of keypoints
         // This function uses detect and converts from Rect to KeyPoints using a fixed scale
