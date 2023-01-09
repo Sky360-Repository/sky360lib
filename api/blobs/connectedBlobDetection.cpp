@@ -56,7 +56,7 @@ inline static void joinBBoxes(std::vector<cv::Rect> &_bboxes)
         bboxOverlap = false;
         for (size_t i{0}; i < _bboxes.size() - 1; ++i)
         {
-            for (size_t j{i + 1}; j < _bboxes.size(); ++j)
+            for (size_t j{i + 1}; j < _bboxes.size();)
             {
                 if (sky360lib::rectsOverlap(_bboxes[i], _bboxes[j]))
                 {
@@ -69,6 +69,10 @@ inline static void joinBBoxes(std::vector<cv::Rect> &_bboxes)
                     _bboxes[i].height = ymax - _bboxes[i].y;
                     _bboxes.erase(_bboxes.begin() + j);
                 }
+                else
+                {
+                    ++j;
+                }
             }
         }
     } while (bboxOverlap);
@@ -76,11 +80,15 @@ inline static void joinBBoxes(std::vector<cv::Rect> &_bboxes)
 
 inline static void applySizeCut(std::vector<cv::Rect> &_bboxes, const int _sizeThreshold, const int _areaThreshold)
 {
-    for (size_t i{0}; i < _bboxes.size() - 1; ++i)
+    for (size_t i{0}; i < _bboxes.size();)
     {
         if ((_bboxes[i].width < _sizeThreshold) || (_bboxes[i].height < _sizeThreshold) || (_bboxes[i].area() < _areaThreshold))
         {
             _bboxes.erase(_bboxes.begin() + i);
+        }
+        else
+        {
+            ++i;
         }
     }
 }
