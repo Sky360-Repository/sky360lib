@@ -36,11 +36,12 @@ namespace sky360lib::bgs
             size_t currentRollingIdx;
             int firstPhase;
             ImgSize* pImgSize;
-            uint8_t* pImgInput;
-            uint8_t* pImgInputPrev1;
-            uint8_t* pImgInputPrev2;
-            std::unique_ptr<uint8_t[]> pImgOutput;
-            std::array<std::unique_ptr<uint8_t[]>, 3> pImgMem;
+            cl::Buffer* pImgInput;
+            cl::Buffer* pImgInputPrev1;
+            cl::Buffer* pImgInputPrev2;
+            cl::Buffer bImgOutput;
+            cl::Buffer bWeight;
+            std::array<cl::Buffer, 3> pImgMem;
         };
         std::vector<RollingImages> imgInputPrev;
 

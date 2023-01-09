@@ -63,7 +63,7 @@ int main(int argc, const char **argv)
 
     EASY_PROFILER_ENABLE;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    bgsPtr = createBGS(BGSType::WMVCL);
 
     cv::VideoCapture cap;
 
@@ -122,8 +122,8 @@ int main(int argc, const char **argv)
         EASY_BLOCK("Loop pass");
         if (!pause)
         {
-            double startProcessedTime = getAbsoluteTime();
             EASY_BLOCK("Capture");
+            double startProcessedTime = getAbsoluteTime();
             cap.read(frame);
             if (frame.empty())
             {

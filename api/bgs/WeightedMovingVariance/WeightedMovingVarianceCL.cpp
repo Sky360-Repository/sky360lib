@@ -96,10 +96,12 @@ void WeightedMovingVarianceCL::initialize(const cv::Mat &)
         imgInputPrev[i].pImgInput = nullptr;
         imgInputPrev[i].pImgInputPrev1 = nullptr;
         imgInputPrev[i].pImgInputPrev2 = nullptr;
-        imgInputPrev[i].pImgMem[0] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
-        imgInputPrev[i].pImgMem[1] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
-        imgInputPrev[i].pImgMem[2] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
-        imgInputPrev[i].pImgOutput = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->numPixels);
+
+        imgInputPrev[i].pImgMem[0] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->size);
+        imgInputPrev[i].pImgMem[1] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->size);
+        imgInputPrev[i].pImgMem[2] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->size);
+        imgInputPrev[i].bImgOutput = cl::Buffer(m_context, CL_MEM_WRITE_ONLY, imgInputPrev[i].pImgSize->numPixels);
+        imgInputPrev[i].bWeight = cl::Buffer(m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 4 * sizeof(float), (void*)m_params.weight);
         rollImages(imgInputPrev[i]);
     }
 }
@@ -107,9 +109,9 @@ void WeightedMovingVarianceCL::initialize(const cv::Mat &)
 void WeightedMovingVarianceCL::rollImages(RollingImages &rollingImages)
 {
     const auto rollingIdx = ROLLING_BG_IDX[rollingImages.currentRollingIdx % 3];
-    rollingImages.pImgInput = rollingImages.pImgMem[rollingIdx[0]].get();
-    rollingImages.pImgInputPrev1 = rollingImages.pImgMem[rollingIdx[1]].get();
-    rollingImages.pImgInputPrev2 = rollingImages.pImgMem[rollingIdx[2]].get();
+    rollingImages.pImgInput = &rollingImages.pImgMem[rollingIdx[0]];
+    rollingImages.pImgInputPrev1 = &rollingImages.pImgMem[rollingIdx[1]];
+    rollingImages.pImgInputPrev2 = &rollingImages.pImgMem[rollingIdx[2]];
 
     ++rollingImages.currentRollingIdx;
 }
@@ -129,7 +131,8 @@ void WeightedMovingVarianceCL::process(const cv::Mat &_imgInput,
                                          RollingImages &_imgInputPrev)
 {
     const size_t numPixels = _imgInput.size().area();
-    memcpy(_imgInputPrev.pImgInput, _imgInput.data, _imgInputPrev.pImgSize->size);
+    //memcpy(_imgInputPrev.pImgInput, _imgInput.data, _imgInputPrev.pImgSize->size);
+    m_queue.enqueueWriteBuffer(*_imgInputPrev.pImgInput, CL_TRUE, 0, _imgInputPrev.pImgSize->size, _imgInput.data);
 
     if (_imgInputPrev.firstPhase < 2)
     {
@@ -137,24 +140,18 @@ void WeightedMovingVarianceCL::process(const cv::Mat &_imgInput,
         return;
     }
 
-    cl::Buffer i1(m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _imgInputPrev.pImgSize->size, _imgInputPrev.pImgInput);
-    cl::Buffer i2(m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _imgInputPrev.pImgSize->size, _imgInputPrev.pImgInputPrev1);
-    cl::Buffer i3(m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _imgInputPrev.pImgSize->size, _imgInputPrev.pImgInputPrev2);
-    cl::Buffer o(m_context, CL_MEM_WRITE_ONLY, numPixels);
-    cl::Buffer w(m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 4 * sizeof(float), (void*)m_params.weight);
-
     // Set the kernel arguments and run the kernel
-    m_wmvKernel.setArg(0, i1);
-    m_wmvKernel.setArg(1, i2);
-    m_wmvKernel.setArg(2, i3);
-    m_wmvKernel.setArg(3, o);
-    m_wmvKernel.setArg(4, w);
+    m_wmvKernel.setArg(0, *_imgInputPrev.pImgInput);
+    m_wmvKernel.setArg(1, *_imgInputPrev.pImgInputPrev1);
+    m_wmvKernel.setArg(2, *_imgInputPrev.pImgInputPrev2);
+    m_wmvKernel.setArg(3, _imgInputPrev.bImgOutput);
+    m_wmvKernel.setArg(4, _imgInputPrev.bWeight);
     m_wmvKernel.setArg(5, m_params.thresholdSquared);
 
     m_queue.enqueueNDRangeKernel(m_wmvKernel, cl::NullRange, cl::NDRange(numPixels), cl::NullRange);
 
     // Copy the result from the device to the host
-    m_queue.enqueueReadBuffer(o, CL_TRUE, 0, numPixels, _imgOutput.data);
+    m_queue.enqueueReadBuffer(_imgInputPrev.bImgOutput, CL_TRUE, 0, numPixels, _imgOutput.data);
 }
 
 void testOpenCL()
