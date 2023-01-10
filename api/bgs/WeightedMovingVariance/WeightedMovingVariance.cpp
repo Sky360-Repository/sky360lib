@@ -107,6 +107,19 @@ inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uin
     }
 }
 
+inline void calcWeightedVarianceMonoThresholdINT(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+                                              uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
+{
+    for (uint32_t i{0}; i < totalPixels; ++i)
+    {
+        const int32_t dI[]{(int32_t)i1[i], (int32_t)i2[i], (int32_t)i3[i]};
+        const int32_t mean{(dI[0] >> 1) + (dI[1] >> 2) + (dI[2] >> 2)};
+        const int32_t value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
+        const int32_t result{((value[0] * value[0]) >> 1) + ((value[1] * value[1]) >> 2) + ((value[2] * value[2]) >> 2)};
+        o[i] = result > 900 ? UCHAR_MAX : ZERO_UC;
+    }
+}
+
 inline float convertGrey(const uint8_t *const pPix)
 {
     return  0.299f * pPix[0] + 0.587f * pPix[1] + 0.114f * pPix[2];

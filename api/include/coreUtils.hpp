@@ -88,4 +88,17 @@ namespace sky360lib
 
         return true;
     }
+
+    inline float rectsDistanceSquared(const cv::Rect &r1, const cv::Rect &r2)
+    {
+        if (rectsOverlap(r1, r2))
+            return 0;
+            
+        // compute distance on x axis
+        const int xDistance = std::max(0, std::max(r1.x, r2.x) - std::min(r1.x + r1.width, r2.x + r2.width));
+        // compute distance on y axis
+        const int yDistance = std::max(0, std::max(r1.y, r2.y) - std::min(r1.y + r1.height, r2.y + r2.height));
+
+        return (xDistance * xDistance) + (yDistance * yDistance);
+    }
 }

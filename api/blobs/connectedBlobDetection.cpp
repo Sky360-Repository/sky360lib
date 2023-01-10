@@ -8,11 +8,10 @@
 
 using namespace sky360lib::blobs;
 
-ConnectedBlobDetection::ConnectedBlobDetection(size_t _numProcessesParallel)
-    : m_sizeThreshold{DEFAULT_SIZE_THRESHOLD},
-      m_areaThreshold{DEFAULT_AREA_THRESHOLD},
-      m_numProcessesParallel{_numProcessesParallel},
-      m_initialized{false}
+ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams& _params, size_t _numProcessesParallel)
+    : m_params{_params}
+    , m_numProcessesParallel{_numProcessesParallel}
+    , m_initialized{false}
 {
     if (m_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
     {
@@ -20,7 +19,7 @@ ConnectedBlobDetection::ConnectedBlobDetection(size_t _numProcessesParallel)
     }
 }
 
-inline cv::KeyPoint convertFromRect(const cv::Rect &rect)
+static inline cv::KeyPoint convertFromRect(const cv::Rect &rect)
 {
     static const float scale = 6.0f;
     const float size = (float)std::max(rect.width, rect.height) / scale;
@@ -48,7 +47,7 @@ std::vector<cv::Rect> ConnectedBlobDetection::detectRet(const cv::Mat &_image)
 }
 
 // Joining bboxes together if they overlap
-inline static void joinBBoxes(std::vector<cv::Rect> &_bboxes)
+static inline void joinBBoxes(std::vector<cv::Rect> &_bboxes, int minDistanceSquared)
 {
     bool bboxOverlap;
     do
@@ -58,7 +57,7 @@ inline static void joinBBoxes(std::vector<cv::Rect> &_bboxes)
         {
             for (size_t j{i + 1}; j < _bboxes.size();)
             {
-                if (sky360lib::rectsOverlap(_bboxes[i], _bboxes[j]))
+                if (sky360lib::rectsDistanceSquared(_bboxes[i], _bboxes[j]) < minDistanceSquared)
                 {
                     bboxOverlap = true;
                     const int xmax = std::max(_bboxes[i].x + _bboxes[i].width, _bboxes[j].x + _bboxes[j].width);
@@ -123,10 +122,10 @@ inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bbo
     }
 
     // Joining bboxes that are overlaping each other
-    joinBBoxes(_bboxes);
+    joinBBoxes(_bboxes, m_params.minDistanceSquared);
 
     // Removing bboxes that are below threshold
-    applySizeCut(_bboxes, m_sizeThreshold, m_areaThreshold);
+    applySizeCut(_bboxes, m_params.sizeThreshold, m_params.areaThreshold);
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes

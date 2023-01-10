@@ -46,5 +46,6 @@ PYBIND11_MODULE(pysky360, m)
         .def("detect", &ConnectedBlobDetection::detectKP)
         .def("detectBB", &ConnectedBlobDetection::detectRet)
         .def("setSizeThreshold", &ConnectedBlobDetection::setSizeThreshold)
-        .def("setAreaThreshold", &ConnectedBlobDetection::setAreaThreshold);
+        .def("setAreaThreshold", &ConnectedBlobDetection::setAreaThreshold)
+        .def("setMinDistance", &ConnectedBlobDetection::setMinDistance);
 }

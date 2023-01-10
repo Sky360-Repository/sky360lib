@@ -52,30 +52,51 @@ inline void drawBboxes(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &fram
 inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
+int getIntArg(std::string arg);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    const auto concurrentThreads = std::thread::hardware_concurrency();
-    std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
-
     EASY_PROFILER_ENABLE;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    std::string videoFile{"Dahua-20220901-184734.mp4"};
+    //std::string videoFile{"birds_and_plane.mp4"};
+    //std::string videoFile{"brad_drone_1.mp4"};
 
-    cv::VideoCapture cap;
-
-    // cv::setUseOpenVX(true);
+    // Setting some initial configurations
     cv::ocl::setUseOpenCL(true);
     if (cv::ocl::haveOpenCL())
-        std::cout << "Has OpenCL support, using: " << cv::ocl::useOpenCL() << std::endl;
+    {
+        std::cout << "Has OpenCL support, using: " << (cv::ocl::useOpenCL() ? "Yes" : "No") << std::endl;
+    }
 
     initFrequency();
 
+    std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
+
+    bgsPtr = createBGS(BGSType::WMV);
+    cv::VideoCapture cap;
+
+    if (argc > 1)
+    {
+        int camNum = getIntArg(argv[1]);
+        if (camNum >= 0)
+        {
+            cap.open(camNum);
+        }
+        else
+        {
+            cap.open(argv[1]);
+        }
+    }
+    else
+    {
+        cap.open(videoFile);
+    }
+
     // int camNum = std::stoi(argv[1]);
     // cap.open(camNum);
-    cap.open("Dahua-20220901-184734.mp4");
     if (!cap.isOpened())
     {
         std::cout << "***Could not initialize capturing...***" << std::endl;
@@ -262,4 +283,18 @@ inline std::vector<cv::Rect> findBlobs(const cv::Mat &image)
     blobDetector.detect(image, blobs);
 
     return blobs;
+}
+
+int getIntArg(std::string arg)
+{
+    std::size_t pos{};
+    try
+    {
+        const int argNum {std::stoi(arg, &pos)};
+        return pos == arg.size() ? argNum : -1;
+    }
+    catch(std::exception const& ex)
+    {
+        return -1;
+    }
 }
