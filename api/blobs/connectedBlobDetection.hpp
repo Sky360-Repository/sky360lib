@@ -14,19 +14,18 @@ namespace sky360lib::blobs
 
         ConnectedBlobDetectionParams()
             : ConnectedBlobDetectionParams(DEFAULT_SIZE_THRESHOLD, DEFAULT_AREA_THRESHOLD, DEFAULT_MIN_DISTANCE)
-        {}
+        {
+        }
 
         ConnectedBlobDetectionParams(int _sizeThreshold, int _areaThreshold, int _minDistance)
-            : sizeThreshold{_sizeThreshold}
-            , areaThreshold{_areaThreshold}
-            , minDistance{_minDistance}
-            , minDistanceSquared{_minDistance * _minDistance}
-        {}
+            : sizeThreshold{_sizeThreshold}, areaThreshold{_areaThreshold}, minDistance{_minDistance}, minDistanceSquared{_minDistance * _minDistance}
+        {
+        }
 
         inline void setSizeThreshold(int _threshold) { sizeThreshold = std::max(_threshold, 2); }
         inline void setAreaThreshold(int _threshold) { areaThreshold = std::max(_threshold, sizeThreshold * sizeThreshold); }
-        inline void setMinDistance(int _minDistance) 
-        { 
+        inline void setMinDistance(int _minDistance)
+        {
             minDistance = std::max(_minDistance, 2);
             minDistanceSquared = minDistance * minDistance;
         }
@@ -44,13 +43,11 @@ namespace sky360lib::blobs
         /// Will set the number fo threads to the number of avaible threads - 1
         static const size_t DETECT_NUMBER_OF_THREADS{0};
 
-        ConnectedBlobDetection(const ConnectedBlobDetectionParams& _params = ConnectedBlobDetectionParams(),
-                            size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
+        ConnectedBlobDetection(const ConnectedBlobDetectionParams &_params = ConnectedBlobDetectionParams(),
+                               size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
         // Finds the connected components in the image and returns a list of bounding boxes
-        bool detect(const cv::Mat &_image, std::vector<cv::Rect>& _bboxes);
-
-        bool detectOld(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes);
+        bool detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes);
 
         inline void setSizeThreshold(int _threshold) { m_params.setSizeThreshold(_threshold); }
         inline void setAreaThreshold(int _threshold) { m_params.setSizeThreshold(_threshold); }
@@ -73,7 +70,7 @@ namespace sky360lib::blobs
         std::vector<std::vector<cv::Rect>> m_bboxesParallel;
 
         void prepareParallel(const cv::Mat &_image);
-        static void applyDetectBBoxes(const cv::Mat& _labels, std::vector<cv::Rect> &_bboxes);
+        static void applyDetectBBoxes(const cv::Mat &_labels, std::vector<cv::Rect> &_bboxes);
         inline void posProcessBboxes(std::vector<cv::Rect> &_bboxes);
     };
 }

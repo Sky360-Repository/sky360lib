@@ -8,10 +8,8 @@
 
 using namespace sky360lib::blobs;
 
-ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams& _params, size_t _numProcessesParallel)
-    : m_params{_params}
-    , m_numProcessesParallel{_numProcessesParallel}
-    , m_initialized{false}
+ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams &_params, size_t _numProcessesParallel)
+    : m_params{_params}, m_numProcessesParallel{_numProcessesParallel}, m_initialized{false}
 {
     if (m_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
     {
@@ -129,45 +127,6 @@ inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bbo
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes
-bool ConnectedBlobDetection::detectOld(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes)
-{
-    if (!m_initialized)
-    {
-        prepareParallel(_image);
-        // Create a labels image to store the labels for each connected component
-        m_initialized = true;
-    }
-
-    cv::Mat stats;
-    cv::Mat centroids;
-
-    // Use connected component analysis to find the blobs in the image, subtract 1 because the background is consured as label
-    // CCL_SAUF        = 0,  //!< SAUF @cite Wu2009 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for SAUF.
-    // CCL_BBDT     = 1,  //!< BBDT @cite Grana2010 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both BBDT and SAUF.
-    // CCL_SPAGHETTI   = 2,  //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
-    const int numLabels = cv::connectedComponentsWithStats(_image, m_labels, stats, centroids, 8, CV_32S, cv::CCL_SPAGHETTI) - 1;
-
-    _bboxes.resize(numLabels);
-    if (numLabels > 0)
-    {
-        for (int j{0}; j < numLabels; ++j)
-        {
-            const int label = j + 1;
-            _bboxes[j].x = stats.at<int>(label, cv::CC_STAT_LEFT);
-            _bboxes[j].y = stats.at<int>(label, cv::CC_STAT_TOP);
-            _bboxes[j].width = stats.at<int>(label, cv::CC_STAT_WIDTH);
-            _bboxes[j].height = stats.at<int>(label, cv::CC_STAT_HEIGHT);
-        }
-
-        // posProcessBboxes(_bboxes);
-
-        return true;
-    }
-
-    return false;
-}
-
-// Finds the connected components in the image and returns a list of bounding boxes
 bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes)
 {
     if (!m_initialized)
@@ -177,11 +136,11 @@ bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect>
         m_initialized = true;
     }
 
-    // Use connected component analysis to find the blobs in the image, subtract 1 because the background is consured as label
-    // CCL_SAUF        = 0,  //!< SAUF @cite Wu2009 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for SAUF.
-    // CCL_BBDT     = 1,  //!< BBDT @cite Grana2010 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both BBDT and SAUF.
-    // CCL_SPAGHETTI   = 2,  //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
-    const int numLabels = cv::connectedComponents(_image, m_labels, 8, CV_32S, cv::CCL_BOLELLI) - 1;
+    // Use connected component analysis to find the blobs in the image, subtract 1 because the background is considered as label 0
+    // CCL_SAUF      = 0, //!< SAUF @cite Wu2009 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for SAUF.
+    // CCL_BBDT      = 1, //!< BBDT @cite Grana2010 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both BBDT and SAUF.
+    // CCL_SPAGHETTI = 2, //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
+    const int numLabels = cv::connectedComponents(_image, m_labels, 8, CV_32S, cv::CCL_SPAGHETTI) - 1;
 
     _bboxes.resize(numLabels);
     if (numLabels > 0)

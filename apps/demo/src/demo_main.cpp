@@ -49,7 +49,7 @@ inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
 inline void appyBGS(const cv::Mat &input, cv::Mat &output);
 inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline void drawBboxes(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
-inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
+inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 int getIntArg(std::string arg);
@@ -61,8 +61,8 @@ int main(int argc, const char **argv)
     EASY_PROFILER_ENABLE;
 
     std::string videoFile{"Dahua-20220901-184734.mp4"};
-    //std::string videoFile{"birds_and_plane.mp4"};
-    //std::string videoFile{"brad_drone_1.mp4"};
+    // std::string videoFile{"birds_and_plane.mp4"};
+    // std::string videoFile{"brad_drone_1.mp4"};
 
     // Setting some initial configurations
     cv::ocl::setUseOpenCL(true);
@@ -129,7 +129,6 @@ int main(int argc, const char **argv)
     // Applying first time for initialization of algo
     appyPreProcess(frame, processedFrame);
     appyBGS(processedFrame, bgsMask);
-    // detector = createBlobDetector(bgsMask);
 
     cv::imshow("BGS Demo", frame);
 
@@ -154,8 +153,8 @@ int main(int argc, const char **argv)
             EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
+            findBlobs(bgsMask, bboxes);
             // applyTracker(blobs, processedFrame);
-            bboxes = findBlobs(bgsMask);
             double endProcessedTime = getAbsoluteTime();
             EASY_END_BLOCK;
             EASY_BLOCK("Drawing bboxes");
@@ -275,14 +274,11 @@ inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes
-inline std::vector<cv::Rect> findBlobs(const cv::Mat &image)
+inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs)
 {
     EASY_FUNCTION(profiler::colors::Blue);
 
-    std::vector<cv::Rect> blobs;
     blobDetector.detect(image, blobs);
-
-    return blobs;
 }
 
 int getIntArg(std::string arg)
@@ -290,10 +286,10 @@ int getIntArg(std::string arg)
     std::size_t pos{};
     try
     {
-        const int argNum {std::stoi(arg, &pos)};
+        const int argNum{std::stoi(arg, &pos)};
         return pos == arg.size() ? argNum : -1;
     }
-    catch(std::exception const& ex)
+    catch (std::exception const &ex)
     {
         return -1;
     }

@@ -188,13 +188,13 @@ namespace sky360lib::bgs
     struct VibeParams
     {
         /// defines the default value for ColorDistThreshold
-        static const size_t DEFAULT_COLOR_DIST_THRESHOLD{32};
+        static const size_t DEFAULT_COLOR_DIST_THRESHOLD{50}; //{32};
         /// defines the default value for BGSamples
-        static const size_t DEFAULT_NB_BG_SAMPLES{8};
+        static const size_t DEFAULT_NB_BG_SAMPLES{20}; //{8};
         /// defines the default value for RequiredBGSamples
-        static const size_t DEFAULT_REQUIRED_NB_BG_SAMPLES{2};
+        static const size_t DEFAULT_REQUIRED_NB_BG_SAMPLES{1}; //{2};
         /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
-        static const size_t DEFAULT_LEARNING_RATE{8};
+        static const size_t DEFAULT_LEARNING_RATE{2}; //{8};
 
         VibeParams()
             : VibeParams(DEFAULT_COLOR_DIST_THRESHOLD, DEFAULT_NB_BG_SAMPLES, DEFAULT_REQUIRED_NB_BG_SAMPLES, DEFAULT_LEARNING_RATE)

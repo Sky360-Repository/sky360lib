@@ -93,7 +93,7 @@ namespace sky360lib
     {
         if (rectsOverlap(r1, r2))
             return 0;
-            
+
         // compute distance on x axis
         const int xDistance = std::max(0, std::max(r1.x, r2.x) - std::min(r1.x + r1.width, r2.x + r2.width));
         // compute distance on y axis

@@ -108,7 +108,7 @@ inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uin
 }
 
 inline void calcWeightedVarianceMonoThresholdINT(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
-                                              uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
+                                              uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &)
 {
     for (uint32_t i{0}; i < totalPixels; ++i)
     {
