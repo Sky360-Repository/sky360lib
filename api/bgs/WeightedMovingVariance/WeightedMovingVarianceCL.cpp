@@ -135,7 +135,7 @@ void WeightedMovingVarianceCL::process(const cv::Mat &_imgInput,
     m_queue.enqueueWriteBuffer(*_imgInputPrev.pImgInput, CL_TRUE, 0, _imgInputPrev.pImgSize->size, _imgInput.data);
 
     if (_imgInputPrev.firstPhase < 2)
-    {
+    { 
         ++_imgInputPrev.firstPhase;
         return;
     }

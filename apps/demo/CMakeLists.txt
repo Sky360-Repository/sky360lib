@@ -1,7 +1,11 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories($ENV{OpenCL_INCLUDE_DIRS})
-message(STATUS "OpenCL_INCLUDE_DIRS = $ENV{OpenCL_INCLUDE_DIRS}")
+# message(STATUS "OpenCL_INCLUDE_DIRS = $ENV{OpenCL_INCLUDE_DIRS}")
+
 find_package(OpenCL REQUIRED)
+
+# LIST(APPEND CMAKE_MODULE_PATH "~/sdk_Arm64_22.10.14/usr/local/cmake_modules/")
+# find_package(QHY REQUIRED)
 
 add_executable(
     sky360lib_demo

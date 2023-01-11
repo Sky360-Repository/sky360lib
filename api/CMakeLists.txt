@@ -100,6 +100,14 @@ target_sources(
             "tracking/tracker.hpp"
 )
 
+target_sources(
+    sky360lib_api
+        PRIVATE
+            "camera/qhyCamera.cpp"
+        PUBLIC
+            "camera/qhyCamera.hpp"
+)
+
 target_link_libraries(sky360lib_api
                     PRIVATE
                         "${OpenCV_LIBS}"
@@ -113,6 +121,7 @@ target_link_libraries(sky360lib_api
                         # wmv_color_threshold
                         # wmv_color_threshold_auto_schedule
                         easy_profiler
+                        qhyccd
                         )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -129,4 +138,5 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/api/bgs" 
             "${CMAKE_SOURCE_DIR}/api/tracking"
             "${CMAKE_SOURCE_DIR}/api/blobs" 
+            "${CMAKE_SOURCE_DIR}/api/camera" 
 )

@@ -5,6 +5,8 @@
 
 #include <easy/profiler.h>
 
+#include "qhyCamera.hpp"
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/videoio.hpp>
@@ -58,6 +60,46 @@ inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
+    sky360lib::camera::QHYCamera qhyCamera;
+
+    cv::namedWindow("QHY", 0);
+
+    if (!qhyCamera.init())
+    {
+        return -1;
+    }
+    qhyCamera.open();
+    int exposure = 80000;
+
+    while (true)
+    {
+        auto qhyframe = qhyCamera.getFrame();
+        const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
+        cv::imshow("QHY", imgQHY);
+        cv::resizeWindow("QHY", 1024, 1024);
+
+        char key = (char)cv::waitKey(1);
+        if (key == 27)
+        {
+            std::cout << "Escape key pressed" << std::endl;
+            break;
+        } 
+        else if (key == '+')
+        {
+            exposure += 10000;
+            std::cout << "Setting exposure to: " << exposure << std::endl;
+            qhyCamera.setExposure(exposure);
+        }
+        else if (key == '-')
+        {
+            exposure -= 10000;
+            std::cout << "Setting exposure to: " << exposure << std::endl;
+            qhyCamera.setExposure(exposure);
+        }
+    }
+    qhyCamera.close();
+    return 0;
+
     const auto concurrentThreads = std::thread::hardware_concurrency();
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
 
