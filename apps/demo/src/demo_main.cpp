@@ -69,8 +69,9 @@ int main(int argc, const char **argv)
         return -1;
     }
     qhyCamera.open();
-    int exposure = 80000;
+    double exposure = 400;
 
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
     while (true)
     {
         auto qhyframe = qhyCamera.getFrame();
@@ -86,15 +87,15 @@ int main(int argc, const char **argv)
         } 
         else if (key == '+')
         {
-            exposure += 10000;
+            exposure += 100;
             std::cout << "Setting exposure to: " << exposure << std::endl;
-            qhyCamera.setExposure(exposure);
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
         }
         else if (key == '-')
         {
-            exposure -= 10000;
+            exposure -= 100;
             std::cout << "Setting exposure to: " << exposure << std::endl;
-            qhyCamera.setExposure(exposure);
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
         }
     }
     qhyCamera.close();

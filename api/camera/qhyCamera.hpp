@@ -77,6 +77,16 @@ namespace sky360lib::camera
             uint32_t transferBits;
         };
 
+        enum ControlParam
+        {
+            Exposure = CONTROL_EXPOSURE,
+            UsbTraffic = CONTROL_USBTRAFFIC,
+            UsbSpeed = CONTROL_SPEED,
+            Gain = CONTROL_GAIN,
+            Offset = CONTROL_OFFSET,
+            TransferBits = CONTROL_TRANSFERBIT
+        };
+
         ~QHYCamera();
 
         const uint8_t* getFrame();
@@ -89,12 +99,8 @@ namespace sky360lib::camera
 
         void close();
 
-        bool setExposure(uint32_t exposure);
-        bool setUSBTraffic(uint32_t traffic);
-        bool setUSBSpeed(uint32_t speed);
-        bool setGain(uint32_t gain);
-        bool setOffset(uint32_t offset);
-        bool setTransferBit(uint32_t numBits);
+        bool setControl(ControlParam controlParam, double value);
+
         bool setBinMode(uint32_t binX, uint32_t binY);
         bool setResolution(uint32_t startX, uint32_t startY, uint32_t width, uint32_t height);
 

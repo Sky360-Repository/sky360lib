@@ -164,86 +164,15 @@ bool QHYCamera::scanCameras()
     return true;
 }
 
-bool QHYCamera::setExposure(uint32_t exposure)
+bool QHYCamera::setControl(ControlParam controlParam, double value)
 {
-    int rc = SetQHYCCDParam(pCamHandle, CONTROL_EXPOSURE, exposure);
-    if (QHYCCD_SUCCESS != rc)
-    {
-        std::cerr << "SetQHYCCDParam CONTROL_EXPOSURE failure, error: " << rc << std::endl;
-        return false;
-    }
-    return true;
-}
-
-bool QHYCamera::setUSBTraffic(uint32_t traffic)
-{
-    int rc = IsQHYCCDControlAvailable(pCamHandle, CONTROL_USBTRAFFIC);
+    int rc = IsQHYCCDControlAvailable(pCamHandle, (CONTROL_ID)controlParam);
     if (rc == QHYCCD_SUCCESS)
     {
-        rc = SetQHYCCDParam(pCamHandle, CONTROL_USBTRAFFIC, traffic);
+        rc = SetQHYCCDParam(pCamHandle, (CONTROL_ID)controlParam, value);
         if (rc != QHYCCD_SUCCESS)
         {
-            std::cerr << "SetQHYCCDParam CONTROL_USBTRAFFIC failure, error: " << rc << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
-bool QHYCamera::setUSBSpeed(uint32_t speed)
-{
-    int rc = IsQHYCCDControlAvailable(pCamHandle, CONTROL_SPEED);
-    if (rc == QHYCCD_SUCCESS)
-    {
-        rc = SetQHYCCDParam(pCamHandle, CONTROL_SPEED, speed);
-        if (rc != QHYCCD_SUCCESS)
-        {
-            std::cerr << "SetQHYCCDParam CONTROL_SPEED failure, error: " << rc << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
-bool QHYCamera::setGain(uint32_t gain)
-{
-    int rc = IsQHYCCDControlAvailable(pCamHandle, CONTROL_GAIN);
-    if (rc == QHYCCD_SUCCESS)
-    {
-        rc = SetQHYCCDParam(pCamHandle, CONTROL_GAIN, gain);
-        if (rc != QHYCCD_SUCCESS)
-        {
-            std::cerr << "SetQHYCCDParam CONTROL_GAIN failure, error: " << rc << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
-bool QHYCamera::setOffset(uint32_t offset)
-{
-    int rc = IsQHYCCDControlAvailable(pCamHandle, CONTROL_OFFSET);
-    if (rc == QHYCCD_SUCCESS)
-    {
-        rc = SetQHYCCDParam(pCamHandle, CONTROL_OFFSET, offset);
-        if (rc != QHYCCD_SUCCESS)
-        {
-            std::cerr << "SetQHYCCDParam CONTROL_OFFSET failure, error: " << rc << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
-bool QHYCamera::setTransferBit(uint32_t numBits)
-{
-    int rc = IsQHYCCDControlAvailable(pCamHandle, CONTROL_TRANSFERBIT);
-    if (rc == QHYCCD_SUCCESS)
-    {
-        rc = SetQHYCCDParam(pCamHandle, CONTROL_TRANSFERBIT, numBits);
-        if (rc != QHYCCD_SUCCESS)
-        {
-            std::cerr << "SetQHYCCDParam CONTROL_TRANSFERBIT failure, error: " << rc << std::endl;
+            std::cerr << "setControl failed: " << controlParam << std::endl;
             return false;
         }
     }
@@ -311,8 +240,8 @@ bool QHYCamera::init()
     }
 
     // set exposure time
-    int EXPOSURE_TIME = 82500;
-    if (!setExposure(EXPOSURE_TIME))
+    int EXPOSURE_TIME = 2000;
+    if (!setControl(Exposure, EXPOSURE_TIME))
     {
         return false;
     }
@@ -341,28 +270,28 @@ bool QHYCamera::init()
 
     // check traffic
     int USB_TRAFFIC = 0;
-    if (!setUSBTraffic(USB_TRAFFIC))
+    if (!setControl(UsbTraffic, USB_TRAFFIC))
     {
         return false;
     }
 
     // check speed
     int USB_SPEED = 1;
-    if (!setUSBSpeed(USB_SPEED))
+    if (!setControl(UsbSpeed, USB_SPEED))
     {
         return false;
     }
 
     // check gain
     int CHIP_GAIN = 30;
-    if (!setGain(CHIP_GAIN))
+    if (!setControl(Gain, CHIP_GAIN))
     {
         return false;
     }
 
     // check offset
     int CHIP_OFFSET = 0;
-    if (!setOffset(CHIP_OFFSET))
+    if (!setControl(Offset, CHIP_OFFSET))
     {
         return false;
     }
@@ -377,7 +306,7 @@ bool QHYCamera::init()
         return false;
     }
 
-    if (!setTransferBit(8))
+    if (!setControl(TransferBits, 8))
     {
         return false;
     }
