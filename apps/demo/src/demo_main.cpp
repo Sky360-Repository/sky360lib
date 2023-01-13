@@ -69,13 +69,15 @@ int main(int argc, const char **argv)
         return -1;
     }
     qhyCamera.open();
-    double exposure = 400;
+    double exposure = 20000;
+    double usbSpeed = 0;
 
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
     while (true)
     {
         auto qhyframe = qhyCamera.getFrame();
-        const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
+        // const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
+        const cv::Mat imgQHY(2048, 3056, CV_16UC1, (int8_t*)qhyframe);
         cv::imshow("QHY", imgQHY);
         cv::resizeWindow("QHY", 1024, 1024);
 
@@ -87,15 +89,27 @@ int main(int argc, const char **argv)
         } 
         else if (key == '+')
         {
-            exposure += 100;
+            exposure += 1000;
             std::cout << "Setting exposure to: " << exposure << std::endl;
             qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
         }
         else if (key == '-')
         {
-            exposure -= 100;
+            exposure -= 1000;
             std::cout << "Setting exposure to: " << exposure << std::endl;
             qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+        }
+        else if (key == '1')
+        {
+            usbSpeed += 1;
+            std::cout << "Setting usbSpeed to: " << usbSpeed << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::UsbSpeed, usbSpeed);
+        }
+        else if (key == '2')
+        {
+            usbSpeed -= 1;
+            std::cout << "Setting usbSpeed to: " << usbSpeed << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::UsbSpeed, usbSpeed);
         }
     }
     qhyCamera.close();

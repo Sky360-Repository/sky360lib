@@ -79,12 +79,19 @@ namespace sky360lib::camera
 
         enum ControlParam
         {
-            Exposure = CONTROL_EXPOSURE,
-            UsbTraffic = CONTROL_USBTRAFFIC,
-            UsbSpeed = CONTROL_SPEED,
-            Gain = CONTROL_GAIN,
-            Offset = CONTROL_OFFSET,
-            TransferBits = CONTROL_TRANSFERBIT
+            Brightness = CONTROL_BRIGHTNESS, //!< image brightness
+            Contrast = CONTROL_CONTRAST, //!< image contrast
+            Exposure = CONTROL_EXPOSURE, //!< expose time (us)
+            UsbTraffic = CONTROL_USBTRAFFIC, //!< hblank
+            UsbSpeed = CONTROL_SPEED, //!< transfer speed
+            Gain = CONTROL_GAIN, //!< camera gain
+            Offset = CONTROL_OFFSET, //!< camera offset
+            TransferBits = CONTROL_TRANSFERBIT, //!< image depth bits
+            RedWB = CONTROL_WBR, //!< red of white balance
+            BlueWB = CONTROL_WBB, //!< blue of white balance
+            GreenWB = CONTROL_WBG, //!< the green of white balance
+            Gamma = CONTROL_GAMMA, //!< screen gamma
+            Channels = CONTROL_CHANNELS //!< image channels
         };
 
         ~QHYCamera();
@@ -92,17 +99,17 @@ namespace sky360lib::camera
         const uint8_t* getFrame();
 
         bool init();
-
         void release();
 
-        void open();
-
+        bool open();
         void close();
 
         bool setControl(ControlParam controlParam, double value);
-
+        bool debayer(bool enable);
         bool setBinMode(uint32_t binX, uint32_t binY);
         bool setResolution(uint32_t startX, uint32_t startY, uint32_t width, uint32_t height);
+
+        uint32_t getMemoryNeededForFrame();
 
     private:
         qhyccd_handle *pCamHandle{nullptr};
