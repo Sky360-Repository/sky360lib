@@ -45,6 +45,8 @@ sky360lib::blobs::ConnectedBlobDetection blobDetector;
 // Video Tracker
 DemoVideoTracker videoTracker;
 
+sky360lib::camera::QHYCamera qhyCamera;
+
 /////////////////////////////////////////////////////////////
 // Function Definitions
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
@@ -56,29 +58,72 @@ inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 
+bool openQQYCamera()
+{
+    qhyCamera.init();
+    auto cameras = qhyCamera.getCameras();
+    if (cameras.size() == 0)
+    {
+        return false;
+    }
+    if (!qhyCamera.open(cameras[0].id))
+    {
+        std::cout << "Error opening camera" << std::endl;
+        return false;
+    }
+
+    // check color camera
+    if (cameras[0].isColor)
+    {
+        qhyCamera.debayer(false);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::RedWB, 76.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::GreenWB, 58.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::BlueWB, 64.0);
+    }
+    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, 30))
+    {
+        return false;
+    }
+    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Offset, 0))
+    {
+        return false;
+    }
+    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16))
+    {
+        return false;
+    }
+    if (!qhyCamera.setBinMode(1, 1))
+    {
+        return false;
+    }
+    return true;
+}
+
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    sky360lib::camera::QHYCamera qhyCamera;
-
     cv::namedWindow("QHY", 0);
 
-    if (!qhyCamera.init())
+    if (!openQQYCamera())
     {
         return -1;
     }
-    qhyCamera.open();
-    double exposure = 20000;
-    double usbSpeed = 0;
+    double exposure = 80000;
 
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
     while (true)
     {
         auto qhyframe = qhyCamera.getFrame();
+        if (qhyframe == nullptr)
+        {
+            return -1;
+        }
         // const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
         const cv::Mat imgQHY(2048, 3056, CV_16UC1, (int8_t*)qhyframe);
-        cv::imshow("QHY", imgQHY);
+        cv::Mat bayered;
+        cv::cvtColor(imgQHY, bayered, cv::COLOR_BayerGB2BGR);
+        cv::imshow("QHY", bayered);
         cv::resizeWindow("QHY", 1024, 1024);
 
         char key = (char)cv::waitKey(1);
@@ -98,18 +143,6 @@ int main(int argc, const char **argv)
             exposure -= 1000;
             std::cout << "Setting exposure to: " << exposure << std::endl;
             qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
-        }
-        else if (key == '1')
-        {
-            usbSpeed += 1;
-            std::cout << "Setting usbSpeed to: " << usbSpeed << std::endl;
-            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::UsbSpeed, usbSpeed);
-        }
-        else if (key == '2')
-        {
-            usbSpeed -= 1;
-            std::cout << "Setting usbSpeed to: " << usbSpeed << std::endl;
-            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::UsbSpeed, usbSpeed);
         }
     }
     qhyCamera.close();

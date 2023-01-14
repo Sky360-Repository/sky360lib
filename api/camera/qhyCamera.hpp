@@ -94,14 +94,17 @@ namespace sky360lib::camera
             Channels = CONTROL_CHANNELS //!< image channels
         };
 
+        QHYCamera();
         ~QHYCamera();
+
+        const std::vector<CameraInfo>& getCameras();
 
         const uint8_t* getFrame();
 
         bool init();
         void release();
 
-        bool open();
+        bool open(std::string cameraId);
         void close();
 
         bool setControl(ControlParam controlParam, double value);
@@ -109,7 +112,7 @@ namespace sky360lib::camera
         bool setBinMode(uint32_t binX, uint32_t binY);
         bool setResolution(uint32_t startX, uint32_t startY, uint32_t width, uint32_t height);
 
-        uint32_t getMemoryNeededForFrame();
+        uint32_t getMemoryNeededForFrame() const;
 
     private:
         qhyccd_handle *pCamHandle{nullptr};
@@ -121,5 +124,8 @@ namespace sky360lib::camera
 
         bool getCameraInfo(std::string camId, CameraInfo &ci);
         bool scanCameras();
+        bool allocBufferMemory();
+        void releaseBufferMemory();
+        bool setDefaultParams();
     };
 }
