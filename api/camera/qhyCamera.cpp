@@ -9,14 +9,10 @@ std::string QHYCamera::CameraInfo::bayerFormatToString()
 {
     switch (bayerFormat)
     {
-    case BAYER_GB:
-        return "BAYER_GB";
-    case BAYER_GR:
-        return "BAYER_GR";
-    case BAYER_BG:
-        return "BAYER_BG";
-    case BAYER_RG:
-        return "BAYER_RG";
+    case BAYER_GB: return "BAYER_GB";
+    case BAYER_GR: return "BAYER_GR";
+    case BAYER_BG: return "BAYER_BG";
+    case BAYER_RG: return "BAYER_RG";
     }
     return "MONO";
 }
@@ -32,7 +28,9 @@ std::string QHYCamera::CameraInfo::toString()
     toStr << "Chip      Size width x height: " << chipWidthMM << " x " << chipHeightMM << " [mm]" << std::endl;
     toStr << "Max Image Size width x height: " << maxImageWidth << " x " << maxImageHeight << std::endl;
     toStr << "Pixel     Size width x height: " << pixelWidthUM << " x " << pixelHeightUM << " [um]" << std::endl;
+    toStr << "Bits per Pixel: " << bpp << std::endl;
     toStr << "Camera is color: " << (isColor ? "Yes" : "No") << ", Bayer Pattern: " << bayerFormatToString() << std::endl;
+    toStr << "Bin modes: 1x1: " << (hasBin1x1Mode ? "Yes" : "No") << ", 2x2: " << (hasBin2x2Mode ? "Yes" : "No") << ", 3x3: " << (hasBin3x3Mode ? "Yes" : "No") << ", 4x4: " << (hasBin4x4Mode ? "Yes" : "No") << std::endl;
     return toStr.str();
 }
 
@@ -98,7 +96,6 @@ bool QHYCamera::getCameraInfo(std::string camId, CameraInfo &ci)
     ci.model = ci.id.substr(0, posDash);
     ci.serialNum = ci.id.substr(posDash + 1);
 
-    // get overscan area
     uint32_t rc = GetQHYCCDOverScanArea(camHandle, &ci.overscanStartX, &ci.overscanStartY, &ci.overscanWidth, &ci.overscanHeight);
     if (rc != QHYCCD_SUCCESS)
     {
@@ -113,7 +110,6 @@ bool QHYCamera::getCameraInfo(std::string camId, CameraInfo &ci)
         return false;
     }
 
-    // get chip info
     rc = GetQHYCCDChipInfo(camHandle, &ci.chipWidthMM, &ci.chipHeightMM, &ci.maxImageWidth, &ci.maxImageHeight,
                            &ci.pixelWidthUM, &ci.pixelHeightUM, &ci.bpp);
     if (rc != QHYCCD_SUCCESS)
@@ -122,9 +118,13 @@ bool QHYCamera::getCameraInfo(std::string camId, CameraInfo &ci)
         return false;
     }
 
-    // check color camera
     ci.bayerFormat = IsQHYCCDControlAvailable(camHandle, CAM_COLOR);
     ci.isColor = (ci.bayerFormat == BAYER_GB || ci.bayerFormat == BAYER_GR || ci.bayerFormat == BAYER_BG || ci.bayerFormat == BAYER_RG);
+
+    ci.hasBin1x1Mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN1X1MODE) == QHYCCD_SUCCESS;
+    ci.hasBin2x2Mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN2X2MODE) == QHYCCD_SUCCESS;
+    ci.hasBin3x3Mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN3X3MODE) == QHYCCD_SUCCESS;
+    ci.hasBin4x4Mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN4X4MODE) == QHYCCD_SUCCESS;
 
     rc = CloseQHYCCD(camHandle);
     if (rc != QHYCCD_SUCCESS)
@@ -138,6 +138,8 @@ bool QHYCamera::getCameraInfo(std::string camId, CameraInfo &ci)
 
 bool QHYCamera::scanCameras()
 {
+    init();
+
     m_cameras.clear();
 
     const int camCount = ScanQHYCCD();
@@ -241,122 +243,17 @@ uint32_t QHYCamera::getMemoryNeededForFrame() const
 
 bool QHYCamera::init()
 {
-    // init SDK
-    uint32_t rc = InitQHYCCDResource();
-    if (QHYCCD_SUCCESS != rc)
+    if (!m_camInit)
     {
-        std::cerr << "Cannot initialize SDK resources, error: " << rc << std::endl;
-        return false;
+        // init SDK
+        if (InitQHYCCDResource() != QHYCCD_SUCCESS)
+        {
+            std::cerr << "Cannot initialize SDK resources" << std::endl;
+            m_camInit = false;
+            return false;
+        }
+        m_camInit = true;
     }
-    m_camInit = true;
-
-    // // open camera
-    // pCamHandle = OpenQHYCCD(cameraId);
-    // if (pCamHandle == nullptr)
-    // {
-    //     fprintf(stderr, "Open QHYCCD failure.\n");
-    //     return false;
-    // }
-
-    // // check color camera
-    // if (m_cameras[0].isColor)
-    // {
-    //     debayer(false);
-    //     setControl(RedWB, 76.0);
-    //     setControl(GreenWB, 58.0);
-    //     setControl(BlueWB, 64.0);
-    // }
-
-    // // set exposure time
-    // int EXPOSURE_TIME = 2000;
-    // if (!setControl(Exposure, EXPOSURE_TIME))
-    // {
-    //     return false;
-    // }
-
-    // N.B. SetQHYCCDStreamMode must be called immediately after CONTROL_EXPOSURE is SET
-    // 1. Exposure
-    // 2. Stream Mode
-    // 3. Speed
-    // 4. Traffic
-    // 5. 8-bit
-
-    // rc = SetQHYCCDStreamMode(pCamHandle, 1);
-    // if (rc != QHYCCD_SUCCESS)
-    // {
-    //     fprintf(stderr, "SetQHYCCDStreamMode failed: %d", rc);
-    //     return false;
-    // }
-
-    // initialize camera after setting stream mode
-    // rc = InitQHYCCD(pCamHandle);
-    // if (QHYCCD_SUCCESS != rc)
-    // {
-    //     fprintf(stderr, "InitQHYCCD faililure, error: %d\n", rc);
-    //     return false;
-    // }
-
-    // // check traffic
-    // int USB_TRAFFIC = 0;
-    // if (!setControl(UsbTraffic, USB_TRAFFIC))
-    // {
-    //     return false;
-    // }
-
-    // // check speed
-    // int USB_SPEED = 0;
-    // if (!setControl(UsbSpeed, USB_SPEED))
-    // {
-    //     return false;
-    // }
-
-    // // check gain
-    // int CHIP_GAIN = 30;
-    // if (!setControl(Gain, CHIP_GAIN))
-    // {
-    //     return false;
-    // }
-
-    // // check offset
-    // int CHIP_OFFSET = 0;
-    // if (!setControl(Offset, CHIP_OFFSET))
-    // {
-    //     return false;
-    // }
-
-    // // set image resolution
-    // unsigned int roiStartX = 0;
-    // unsigned int roiStartY = 0;
-    // unsigned int roiWidth = m_cameras[0].maxImageWidth;
-    // unsigned int roiHeight = m_cameras[0].maxImageHeight;
-    // if (!setResolution(roiStartX, roiStartY, roiWidth, roiHeight))
-    // {
-    //     return false;
-    // }
-
-    // if (!setControl(TransferBits, 16))
-    // {
-    //     return false;
-    // }
-
-    // // set binning mode
-    // int camBinX = 1;
-    // int camBinY = 1;
-    // if (!setBinMode(camBinX, camBinY))
-    // {
-    //     return false;
-    // }
-
-    // // get requested memory lenght
-    // uint32_t size = getMemoryNeededForFrame();
-    // if (size == 0)
-    // {
-    //     std::cerr << "Cannot allocate memory for frame." << std::endl;
-    //     return false;
-    // }
-
-    // pImgData = new uint8_t[size];
-    // memset(pImgData, 0, size);
 
     return true;
 }
@@ -371,7 +268,7 @@ bool QHYCamera::setDefaultParams()
     }
 
     // check traffic
-    int USB_TRAFFIC = 0;
+    int USB_TRAFFIC = 1;
     if (!setControl(UsbTraffic, USB_TRAFFIC))
     {
         return false;
@@ -399,11 +296,7 @@ bool QHYCamera::setDefaultParams()
     }
 
     // set image resolution
-    unsigned int roiStartX = 0;
-    unsigned int roiStartY = 0;
-    unsigned int roiWidth = m_cameras[0].maxImageWidth;
-    unsigned int roiHeight = m_cameras[0].maxImageHeight;
-    if (!setResolution(roiStartX, roiStartY, roiWidth, roiHeight))
+    if (!setResolution(0, 0, m_cameras[0].maxImageWidth, m_cameras[0].maxImageHeight))
     {
         return false;
     }
@@ -414,9 +307,7 @@ bool QHYCamera::setDefaultParams()
     }
 
     // set binning mode
-    int camBinX = 1;
-    int camBinY = 1;
-    if (!setBinMode(camBinX, camBinY))
+    if (!setBinMode(1, 1))
     {
         return false;
     }

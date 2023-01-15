@@ -60,7 +60,6 @@ inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 
 bool openQQYCamera()
 {
-    qhyCamera.init();
     auto cameras = qhyCamera.getCameras();
     if (cameras.size() == 0)
     {
@@ -119,10 +118,11 @@ int main(int argc, const char **argv)
         {
             return -1;
         }
-        // const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
+        //const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
         const cv::Mat imgQHY(2048, 3056, CV_16UC1, (int8_t*)qhyframe);
+        //const cv::Mat imgQHY(1024, 1528, CV_16UC1, (int8_t*)qhyframe);
         cv::Mat bayered;
-        cv::cvtColor(imgQHY, bayered, cv::COLOR_BayerGB2BGR);
+        cv::cvtColor(imgQHY, bayered, cv::COLOR_BayerGR2BGR);
         cv::imshow("QHY", bayered);
         cv::resizeWindow("QHY", 1024, 1024);
 

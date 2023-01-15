@@ -41,6 +41,11 @@ namespace sky360lib::camera
             uint32_t bayerFormat;
             bool isColor;
 
+            bool hasBin1x1Mode;
+            bool hasBin2x2Mode;
+            bool hasBin3x3Mode;
+            bool hasBin4x4Mode;
+
             std::string bayerFormatToString();
 
             std::string toString();
