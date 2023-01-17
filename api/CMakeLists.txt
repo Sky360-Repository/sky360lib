@@ -1,4 +1,6 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories($ENV{OpenCL_INCLUDE_DIRS})
+
 #include_directories($ENV{CUDA_PATH}/include)
 #message(STATUS "CUDA_PATH = $ENV{CUDA_PATH}")
 
@@ -71,6 +73,8 @@ if (USE_HALIDE)
     
 endif ()
 
+find_package(OpenCL REQUIRED)
+
 add_library(sky360lib_api STATIC)
 
 target_sources(
@@ -121,6 +125,7 @@ target_link_libraries(sky360lib_api
                         # wmv_color_threshold
                         # wmv_color_threshold_auto_schedule
                         easy_profiler
+                        OpenCL::OpenCL
                         qhyccd
                         )
 

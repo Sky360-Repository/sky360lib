@@ -5,6 +5,8 @@
 
 #include <easy/profiler.h>
 
+#include "qhyCamera.hpp"
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/videoio.hpp>
@@ -28,9 +30,10 @@ int sensitivity{1};
 // Background subtractor to use
 enum BGSType
 {
-    Vibe,
-    WMV,
-    WMVCL
+    Vibe
+    ,WMV
+    ,WMVCL
+    //,WMVHalide
 };
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -42,6 +45,10 @@ sky360lib::blobs::ConnectedBlobDetection blobDetector;
 // Video Tracker
 DemoVideoTracker videoTracker;
 
+sky360lib::camera::QHYCamera qhyCamera;
+cv::VideoWriter videoWriter;
+bool isVideoOpen = false;
+
 /////////////////////////////////////////////////////////////
 // Function Definitions
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
@@ -49,63 +56,96 @@ inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
 inline void appyBGS(const cv::Mat &input, cv::Mat &output);
 inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline void drawBboxes(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
-inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs);
+inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
-int getIntArg(std::string arg);
+
+bool openQQYCamera();
+inline void getQhyCameraImage(cv::Mat & cameraFrame);
+
+bool openVideo(const cv::Mat& frame)
+{
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+    auto name = "vo" + oss.str() + ".mkv";
+    int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
+    return videoWriter.open(name , codec, 10, frame.size(), true);
+}
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    EASY_PROFILER_ENABLE;
+    cv::namedWindow("QHY", 0);
 
-    std::string videoFile{"Dahua-20220901-184734.mp4"};
-    // std::string videoFile{"birds_and_plane.mp4"};
-    // std::string videoFile{"brad_drone_1.mp4"};
-
-    // Setting some initial configurations
-    cv::ocl::setUseOpenCL(true);
-    if (cv::ocl::haveOpenCL())
+    if (!openQQYCamera())
     {
-        std::cout << "Has OpenCL support, using: " << (cv::ocl::useOpenCL() ? "Yes" : "No") << std::endl;
-    }
-
-    initFrequency();
-
-    std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
-
-    bgsPtr = createBGS(BGSType::WMV);
-    cv::VideoCapture cap;
-
-    if (argc > 1)
-    {
-        int camNum = getIntArg(argv[1]);
-        if (camNum >= 0)
-        {
-            cap.open(camNum);
-        }
-        else
-        {
-            cap.open(argv[1]);
-        }
-    }
-    else
-    {
-        cap.open(videoFile);
-    }
-
-    // int camNum = std::stoi(argv[1]);
-    // cap.open(camNum);
-    if (!cap.isOpened())
-    {
-        std::cout << "***Could not initialize capturing...***" << std::endl;
         return -1;
     }
 
-    double frameWidth = cap.get(cv::CAP_PROP_FRAME_WIDTH);
-    double frameHeight = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
-    std::cout << "Capture size: " << (int)frameWidth << " x " << (int)frameHeight << std::endl;
+    double exposure = (argc > 1 ? atoi(argv[1]): 20000);
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+
+    // cv::Mat cameraFrame;
+    // while (true)
+    // {
+    //     getQhyCameraImage(cameraFrame);
+    //     cv::imshow("QHY", cameraFrame);
+    //     cv::resizeWindow("QHY", 1024, 1024);
+
+    //     char key = (char)cv::waitKey(1);
+    //     if (key == 27)
+    //     {
+    //         std::cout << "Escape key pressed" << std::endl;
+    //         break;
+    //     } 
+    //     else if (key == '+')
+    //     {
+    //         exposure += 1000;
+    //         std::cout << "Setting exposure to: " << exposure << std::endl;
+    //         qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+    //     }
+    //     else if (key == '-')
+    //     {
+    //         exposure -= 1000;
+    //         std::cout << "Setting exposure to: " << exposure << std::endl;
+    //         qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+    //     }
+    // }
+    // qhyCamera.close();
+    // return 0;
+
+    const auto concurrentThreads = std::thread::hardware_concurrency();
+    std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
+
+    EASY_PROFILER_ENABLE;
+
+    bgsPtr = createBGS(BGSType::WMV);
+
+    cv::VideoCapture cap;
+
+    // cv::setUseOpenVX(true);
+    cv::ocl::setUseOpenCL(true);
+    if (cv::ocl::haveOpenCL())
+        std::cout << "Has OpenCL support, using it on OpenCV" << std::endl;
+
+    initFrequency();
+
+    // int camNum = std::stoi(argv[1]);
+    // cap.open(camNum);
+    // cap.open("Dahua-20220901-184734.mp4");
+    // if (!cap.isOpened())
+    // {
+    //     std::cout << "***Could not initialize capturing...***" << std::endl;
+    //     return -1;
+    // }
+
+    // double frameWidth = cap.get(cv::CAP_PROP_FRAME_WIDTH);
+    // double frameHeight = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+    // std::cout << "Capture size: " << (int)frameWidth << " x " << (int)frameHeight << std::endl;
 
     cv::namedWindow("BGS Demo", 0);
     cv::namedWindow("Live Video", 0);
@@ -117,7 +157,8 @@ int main(int argc, const char **argv)
     double totalProcessedTime{0.0};
     double totalMeanProcessedTime{0.0};
 
-    cap.read(frame);
+    getQhyCameraImage(frame);
+    // cap.read(frame);
     if (frame.type() != CV_8UC3)
     {
         std::cout << "Image type not supported" << std::endl;
@@ -129,11 +170,13 @@ int main(int argc, const char **argv)
     // Applying first time for initialization of algo
     appyPreProcess(frame, processedFrame);
     appyBGS(processedFrame, bgsMask);
+    // detector = createBlobDetector(bgsMask);
 
     cv::imshow("BGS Demo", frame);
 
     std::vector<cv::Rect> bboxes;
     bool pause = false;
+    bool doBlobDetection = false;
     std::cout << "Enter loop" << std::endl;
     while (true)
     {
@@ -141,9 +184,10 @@ int main(int argc, const char **argv)
         EASY_BLOCK("Loop pass");
         if (!pause)
         {
-            double startProcessedTime = getAbsoluteTime();
             EASY_BLOCK("Capture");
-            cap.read(frame);
+            double startProcessedTime = getAbsoluteTime();
+            //cap.read(frame);
+            getQhyCameraImage(frame);
             if (frame.empty())
             {
                 std::cout << "No image" << std::endl;
@@ -153,13 +197,17 @@ int main(int argc, const char **argv)
             EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
-            findBlobs(bgsMask, bboxes);
             // applyTracker(blobs, processedFrame);
+            if (doBlobDetection)
+                bboxes = findBlobs(bgsMask);
             double endProcessedTime = getAbsoluteTime();
             EASY_END_BLOCK;
             EASY_BLOCK("Drawing bboxes");
-            drawBboxes(bboxes, bgsMask);
-            drawBboxes(bboxes, frame);
+            if (doBlobDetection)
+            {
+                drawBboxes(bboxes, bgsMask);
+                drawBboxes(bboxes, frame);
+            }
             EASY_END_BLOCK;
             ++numFrames;
             totalProcessedTime += endProcessedTime - startProcessedTime;
@@ -171,6 +219,10 @@ int main(int argc, const char **argv)
             cv::imshow("Live Video", frame);
             cv::resizeWindow("Live Video", 1024, 1024);
             EASY_END_BLOCK;
+            if (isVideoOpen)
+            {
+                videoWriter.write(frame);
+            }
         }
         char key = (char)cv::waitKey(1);
         if (key == 27)
@@ -180,8 +232,27 @@ int main(int argc, const char **argv)
         }
         else if (key == 32)
         {
+            std::cout << "Pausing" << std::endl;
             pause = !pause;
             outputBoundingBoxes(bboxes);
+        } 
+        else if (key == 'v')
+        {
+            if (!isVideoOpen)
+            {
+                std::cout << "Start recording" << std::endl;
+                isVideoOpen = openVideo(frame);
+            }
+            else
+            {
+                std::cout << "End recording" << std::endl;
+                videoWriter.release();
+            }
+        }
+        else if (key == 'b')
+        {
+            doBlobDetection = !doBlobDetection;
+            std::cout << "Blob Detection: " << doBlobDetection << std::endl;
         }
         double endFrameTime = getAbsoluteTime();
         totalTime += endFrameTime - startFrameTime;
@@ -203,6 +274,8 @@ int main(int argc, const char **argv)
 
     cv::destroyAllWindows();
 
+    qhyCamera.close();
+
     profiler::dumpBlocksToFile("test_profile.prof");
 
     return 0;
@@ -218,6 +291,8 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
         return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     case BGSType::WMVCL:
         return std::make_unique<sky360lib::bgs::WeightedMovingVarianceCL>();
+    // case BGSType::WMVHalide:
+    //     return std::make_unique<sky360lib::bgs::WeightedMovingVarianceHalide>();
     default:
         return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     }
@@ -274,23 +349,67 @@ inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes
-inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs)
+inline std::vector<cv::Rect> findBlobs(const cv::Mat &image)
 {
     EASY_FUNCTION(profiler::colors::Blue);
 
+    std::vector<cv::Rect> blobs;
     blobDetector.detect(image, blobs);
+
+    return blobs;
 }
 
-int getIntArg(std::string arg)
+bool openQQYCamera()
 {
-    std::size_t pos{};
-    try
+    auto cameras = qhyCamera.getCameras();
+    if (cameras.size() == 0)
     {
-        const int argNum{std::stoi(arg, &pos)};
-        return pos == arg.size() ? argNum : -1;
+        return false;
     }
-    catch (std::exception const &ex)
+    if (!qhyCamera.open(cameras[0].id))
     {
-        return -1;
+        std::cout << "Error opening camera" << std::endl;
+        return false;
     }
+
+    // check color camera
+    if (cameras[0].isColor)
+    {
+        qhyCamera.debayer(false);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::RedWB, 76.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::GreenWB, 58.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::BlueWB, 64.0);
+    }
+    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, 30))
+    {
+        return false;
+    }
+    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Offset, 0))
+    {
+        return false;
+    }
+    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16))
+    {
+        return false;
+    }
+    if (!qhyCamera.setBinMode(1, 1))
+    {
+        return false;
+    }
+    return true;
+}
+
+inline void getQhyCameraImage(cv::Mat & cameraFrame)
+{
+    auto qhyframe = qhyCamera.getFrame();
+    if (qhyframe == nullptr)
+    {
+        return;
+    }
+    //const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
+    const cv::Mat imgQHY(2048, 3056, CV_16UC1, (int8_t*)qhyframe);
+    //const cv::Mat imgQHY(1024, 1528, CV_16UC1, (int8_t*)qhyframe);
+    cv::cvtColor(imgQHY, cameraFrame, cv::COLOR_BayerGR2BGR);
+    cameraFrame.convertTo(cameraFrame, CV_8U, 1/256.0f);
+    //imgQHY.convertTo(cameraFrame, CV_8U, 1/256.0f);
 }
