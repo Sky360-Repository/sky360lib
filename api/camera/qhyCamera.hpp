@@ -105,6 +105,7 @@ namespace sky360lib::camera
         const std::vector<CameraInfo>& getCameras();
 
         const uint8_t* getFrame();
+        float getLastFrameCaptureTime();
 
         bool init();
         void release();
@@ -121,8 +122,9 @@ namespace sky360lib::camera
 
     private:
         qhyccd_handle *pCamHandle{nullptr};
-        uint8_t *pImgData{nullptr};
+        uint8_t *m_pImgData{nullptr};
         std::vector<CameraInfo> m_cameras;
+        float m_lastFrameCaptureTime;
 
         bool m_camInit{false};
         bool m_camOpen{false};

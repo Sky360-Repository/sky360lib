@@ -16,23 +16,22 @@
 #include "profiling.hpp"
 #include "connectedBlobDetection.hpp"
 
-#include "demoUtils.hpp"
-#include "demoVideoTracker.hpp"
-
 /////////////////////////////////////////////////////////////
 // Default parameters
 int blur_radius{3};
 bool applyGreyscale{true};
 bool applyNoiseReduction{true};
 int sensitivity{1};
+bool isVideoOpen = false;
+cv::VideoWriter videoWriter;
 
 /////////////////////////////////////////////////////////////
 // Background subtractor to use
 enum BGSType
 {
-    Vibe
-    ,WMV
-    ,WMVCL
+    Vibe,
+    WMV,
+    WMVCL
     //,WMVHalide
 };
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
@@ -42,115 +41,54 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 sky360lib::blobs::ConnectedBlobDetection blobDetector;
 
 /////////////////////////////////////////////////////////////
-// Video Tracker
-DemoVideoTracker videoTracker;
-
+// Camera Detector
 sky360lib::camera::QHYCamera qhyCamera;
-cv::VideoWriter videoWriter;
-bool isVideoOpen = false;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
 inline void appyBGS(const cv::Mat &input, cv::Mat &output);
-inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline void drawBboxes(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline std::vector<cv::Rect> findBlobs(const cv::Mat &image);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
-
 bool openQQYCamera();
-inline void getQhyCameraImage(cv::Mat & cameraFrame);
-
-bool openVideo(const cv::Mat& frame)
-{
-    auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
-
-    std::ostringstream oss;
-    oss << std::put_time(&tm, "%Y%m%d%H%M%S");
-    auto name = "vo" + oss.str() + ".mkv";
-    int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
-    return videoWriter.open(name , codec, 10, frame.size(), true);
-}
+inline void getQhyCameraImage(cv::Mat &cameraFrame);
+bool openVideo(const cv::Mat &frame);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    cv::namedWindow("QHY", 0);
+    EASY_PROFILER_ENABLE;
+
+    blobDetector.setMinDistance(40);
 
     if (!openQQYCamera())
     {
         return -1;
     }
 
-    double exposure = (argc > 1 ? atoi(argv[1]): 20000);
+    double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
-
-    // cv::Mat cameraFrame;
-    // while (true)
-    // {
-    //     getQhyCameraImage(cameraFrame);
-    //     cv::imshow("QHY", cameraFrame);
-    //     cv::resizeWindow("QHY", 1024, 1024);
-
-    //     char key = (char)cv::waitKey(1);
-    //     if (key == 27)
-    //     {
-    //         std::cout << "Escape key pressed" << std::endl;
-    //         break;
-    //     } 
-    //     else if (key == '+')
-    //     {
-    //         exposure += 1000;
-    //         std::cout << "Setting exposure to: " << exposure << std::endl;
-    //         qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
-    //     }
-    //     else if (key == '-')
-    //     {
-    //         exposure -= 1000;
-    //         std::cout << "Setting exposure to: " << exposure << std::endl;
-    //         qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
-    //     }
-    // }
-    // qhyCamera.close();
-    // return 0;
 
     const auto concurrentThreads = std::thread::hardware_concurrency();
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
 
-    EASY_PROFILER_ENABLE;
-
     bgsPtr = createBGS(BGSType::WMV);
 
-    cv::VideoCapture cap;
-
-    // cv::setUseOpenVX(true);
-    cv::ocl::setUseOpenCL(true);
     if (cv::ocl::haveOpenCL())
+    {
         std::cout << "Has OpenCL support, using it on OpenCV" << std::endl;
+    }
 
     initFrequency();
-
-    // int camNum = std::stoi(argv[1]);
-    // cap.open(camNum);
-    // cap.open("Dahua-20220901-184734.mp4");
-    // if (!cap.isOpened())
-    // {
-    //     std::cout << "***Could not initialize capturing...***" << std::endl;
-    //     return -1;
-    // }
-
-    // double frameWidth = cap.get(cv::CAP_PROP_FRAME_WIDTH);
-    // double frameHeight = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
-    // std::cout << "Capture size: " << (int)frameWidth << " x " << (int)frameHeight << std::endl;
 
     cv::namedWindow("BGS Demo", 0);
     cv::namedWindow("Live Video", 0);
 
-    cv::Mat frame, processedFrame;
+    cv::Mat frame, processedFrame, saveFrame;
     long numFrames{0};
     long totalNumFrames{0};
     double totalTime{0.0};
@@ -158,7 +96,6 @@ int main(int argc, const char **argv)
     double totalMeanProcessedTime{0.0};
 
     getQhyCameraImage(frame);
-    // cap.read(frame);
     if (frame.type() != CV_8UC3)
     {
         std::cout << "Image type not supported" << std::endl;
@@ -170,7 +107,6 @@ int main(int argc, const char **argv)
     // Applying first time for initialization of algo
     appyPreProcess(frame, processedFrame);
     appyBGS(processedFrame, bgsMask);
-    // detector = createBlobDetector(bgsMask);
 
     cv::imshow("BGS Demo", frame);
 
@@ -186,18 +122,11 @@ int main(int argc, const char **argv)
         {
             EASY_BLOCK("Capture");
             double startProcessedTime = getAbsoluteTime();
-            //cap.read(frame);
             getQhyCameraImage(frame);
-            if (frame.empty())
-            {
-                std::cout << "No image" << std::endl;
-                break;
-            }
             EASY_END_BLOCK;
             EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
-            // applyTracker(blobs, processedFrame);
             if (doBlobDetection)
                 bboxes = findBlobs(bgsMask);
             double endProcessedTime = getAbsoluteTime();
@@ -219,10 +148,12 @@ int main(int argc, const char **argv)
             cv::imshow("Live Video", frame);
             cv::resizeWindow("Live Video", 1024, 1024);
             EASY_END_BLOCK;
+            EASY_BLOCK("Saving frame");
             if (isVideoOpen)
             {
                 videoWriter.write(frame);
             }
+            EASY_END_BLOCK;
         }
         char key = (char)cv::waitKey(1);
         if (key == 27)
@@ -235,7 +166,7 @@ int main(int argc, const char **argv)
             std::cout << "Pausing" << std::endl;
             pause = !pause;
             outputBoundingBoxes(bboxes);
-        } 
+        }
         else if (key == 'v')
         {
             if (!isVideoOpen)
@@ -246,6 +177,7 @@ int main(int argc, const char **argv)
             else
             {
                 std::cout << "End recording" << std::endl;
+                isVideoOpen = false;
                 videoWriter.release();
             }
         }
@@ -254,6 +186,19 @@ int main(int argc, const char **argv)
             doBlobDetection = !doBlobDetection;
             std::cout << "Blob Detection: " << doBlobDetection << std::endl;
         }
+        else if (key == '+')
+        {
+            exposure *= 1.1;
+            std::cout << "Setting exposure to: " << exposure << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+        }
+        else if (key == '-')
+        {
+            exposure *= 0.9;
+            std::cout << "Setting exposure to: " << exposure << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+        }
+
         double endFrameTime = getAbsoluteTime();
         totalTime += endFrameTime - startFrameTime;
         if (totalTime > 2.0)
@@ -268,9 +213,7 @@ int main(int argc, const char **argv)
     std::cout << "Exit loop\n"
               << std::endl;
     std::cout << std::endl
-              << "Mean Framerate: " << (totalNumFrames / totalMeanProcessedTime) << " fps" << std::endl;
-
-    cap.release();
+              << "Average Framerate: " << (totalNumFrames / totalMeanProcessedTime) << " fps" << std::endl;
 
     cv::destroyAllWindows();
 
@@ -323,12 +266,6 @@ inline void appyBGS(const cv::Mat &input, cv::Mat &output)
 {
     EASY_FUNCTION(profiler::colors::Red);
     bgsPtr->apply(input, output);
-}
-
-inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame)
-{
-    EASY_FUNCTION(profiler::colors::Yellow);
-    videoTracker.create_trackers_from_keypoints(keypoints, frame);
 }
 
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes)
@@ -399,17 +336,29 @@ bool openQQYCamera()
     return true;
 }
 
-inline void getQhyCameraImage(cv::Mat & cameraFrame)
+inline void getQhyCameraImage(cv::Mat &cameraFrame)
 {
     auto qhyframe = qhyCamera.getFrame();
     if (qhyframe == nullptr)
     {
         return;
     }
-    //const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
-    const cv::Mat imgQHY(2048, 3056, CV_16UC1, (int8_t*)qhyframe);
-    //const cv::Mat imgQHY(1024, 1528, CV_16UC1, (int8_t*)qhyframe);
+    // const cv::Mat imgQHY(2048, 3056, CV_8UC3, (int8_t*)qhyframe);
+    const cv::Mat imgQHY(2048, 3056, CV_16UC1, (int8_t *)qhyframe);
+    // const cv::Mat imgQHY(1024, 1528, CV_16UC1, (int8_t*)qhyframe);
     cv::cvtColor(imgQHY, cameraFrame, cv::COLOR_BayerGR2BGR);
-    cameraFrame.convertTo(cameraFrame, CV_8U, 1/256.0f);
-    //imgQHY.convertTo(cameraFrame, CV_8U, 1/256.0f);
+    cameraFrame.convertTo(cameraFrame, CV_8U, 1 / 256.0f);
+    // imgQHY.convertTo(cameraFrame, CV_8U, 1/256.0f);
+}
+
+bool openVideo(const cv::Mat &frame)
+{
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+    auto name = "vo" + oss.str() + ".mkv";
+    int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
+    return videoWriter.open(name, codec, 10, frame.size(), true);
 }

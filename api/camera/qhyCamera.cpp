@@ -47,18 +47,16 @@ QHYCamera::~QHYCamera()
 
 const uint8_t *QHYCamera::getFrame()
 {
-    std::chrono::high_resolution_clock timer;
     using fsec = std::chrono::duration<float>;
+    std::chrono::high_resolution_clock timer;
     uint32_t w, h, bpp, channels;
-    static int numFrames = 0;
     static fsec fpsTime = fsec::zero();
 
     allocBufferMemory();
 
     int tries = 0;
     auto start = timer.now();
-    while (GetQHYCCDSingleFrame(pCamHandle, &w, &h, &bpp, &channels, pImgData) != QHYCCD_SUCCESS)
-    // while (GetQHYCCDLiveFrame(pCamHandle, &w, &h, &bpp, &channels, pImgData) != QHYCCD_SUCCESS)
+    while (GetQHYCCDSingleFrame(pCamHandle, &w, &h, &bpp, &channels, m_pImgData) != QHYCCD_SUCCESS)
     {
         usleep(10000);
         if (++tries > 100)
@@ -69,16 +67,9 @@ const uint8_t *QHYCamera::getFrame()
     }
     auto stop = timer.now();
     fsec duration = (stop - start);
-    ++numFrames;
-    fpsTime += duration;
+    m_lastFrameCaptureTime = duration.count();
 
-    if (fpsTime.count() > 2.0f)
-    {
-        fprintf(stderr, "Capture duration: %.3f seconds, fps: %.3f\n", duration.count(), 1 / duration.count());
-        numFrames = 0;
-        fpsTime = fsec::zero();
-    }
-    return pImgData;
+    return m_pImgData;
 }
 
 bool QHYCamera::getCameraInfo(std::string camId, CameraInfo &ci)
@@ -342,7 +333,7 @@ void QHYCamera::release()
 
 bool QHYCamera::allocBufferMemory()
 {
-    if (pImgData != nullptr)
+    if (m_pImgData != nullptr)
     {
         releaseBufferMemory();
     }
@@ -354,16 +345,16 @@ bool QHYCamera::allocBufferMemory()
         return false;
     }
 
-    pImgData = new uint8_t[size];
-    memset(pImgData, 0, size);
+    m_pImgData = new uint8_t[size];
+    memset(m_pImgData, 0, size);
 
     return true;
 }
 
 void QHYCamera::releaseBufferMemory()
 {
-    delete[] pImgData;
-    pImgData = nullptr;
+    delete[] m_pImgData;
+    m_pImgData = nullptr;
 }
 
 bool QHYCamera::open(std::string cameraId)
