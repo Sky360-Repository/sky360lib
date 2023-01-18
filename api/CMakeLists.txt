@@ -75,7 +75,19 @@ endif ()
 
 find_package(OpenCL REQUIRED)
 
+#project(sky360lib CUDA CXX)
 add_library(sky360lib_api STATIC)
+
+# if(NOT DEFINED CMAKE_CUDA_STANDARD)
+#     set(CMAKE_CUDA_STANDARD 11)
+#     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+# endif()
+# if(NOT DEFINED ${CMAKE_CUDA_ARCHITECTURES})
+#     set(CMAKE_CUDA_ARCHITECTURES 61 70 75 80 86)
+# endif()
+# message(STATUS "CUDA architectures set to ${CMAKE_CUDA_ARCHITECTURES}")
+# SET(CUDA_SEPARABLE_COMPILATION ON)
+# find_package(CUDA QUIET REQUIRED)
 
 target_sources(
     sky360lib_api

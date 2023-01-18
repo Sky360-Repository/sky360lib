@@ -1,41 +1,21 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
-# execute_process(
-#    COMMAND ${CMAKE_COMMAND} -E environment
-# )
-
 list(APPEND CMAKE_MODULE_PATH
     "${CMAKE_SOURCE_DIR}/cmake/"
     "${CMAKE_SOURCE_DIR}/cmake/Modules/"
 )
 if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
-    message(
-        FATAL_ERROR
-        "In-source build not supported; generation should be done in a subdir, e.g.:  ${CMAKE_SOURCE_DIR}/build"
-    )
+    message(FATAL_ERROR "In-source build not supported; generation should be done in a subdir, e.g.:  ${CMAKE_SOURCE_DIR}/build")
 endif ()
 
-include(CheckLanguage)
+#include(CheckLanguage)
 include(FrameworkUtils)
-include(CheckFunctionExists)
+#include(CheckFunctionExists)
 
-#project(sky360lib CUDA CXX)
 project(sky360lib CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# check_language(CUDA)
-# if(NOT DEFINED CMAKE_CUDA_STANDARD)
-#     set(CMAKE_CUDA_STANDARD 11)
-#     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-# endif()
-# if(NOT DEFINED ${CMAKE_CUDA_ARCHITECTURES})
-#     set(CMAKE_CUDA_ARCHITECTURES 61 70 75 80 86)
-# endif()
-# message(STATUS "CUDA architectures set to ${CMAKE_CUDA_ARCHITECTURES}")
-# SET(CUDA_SEPARABLE_COMPILATION ON)
-# find_package(CUDA QUIET REQUIRED)
 
 find_package(easy_profiler REQUIRED)
 
@@ -50,9 +30,9 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Install path 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Configs" FORCE)
-# if (NOT CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Forced project build type" FORCE)
-# endif (NOT CMAKE_BUILD_TYPE)
+endif (NOT CMAKE_BUILD_TYPE)
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG>")
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:_DEBUG>")
@@ -64,7 +44,7 @@ option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
 
 find_package(OpenCV 4.0 REQUIRED)
-message(STATUS "Found OpenCV >=4.0 at '${OpenCV_DIR}'")
+message(STATUS "Found OpenCV >=4.0")
 
 if (USE_OPENMP)
     find_package(OpenMP REQUIRED)
@@ -72,10 +52,6 @@ if (USE_OPENMP)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif ()
 
-add_subdirectory(cmake/checks/simd)
-# if (USE_NEON)
-#     add_definitions(-mfpu=neon)
-# endif ()
 if (USE_FAST_MATH)
     add_definitions(-ffast-math)
 endif ()
@@ -119,19 +95,17 @@ add_subdirectory(apps)
 
 SET(SKY360_PYTHON_SUPPORT ON)
 if(SKY360_PYTHON_SUPPORT)
+    message(STATUS "Building Python bindings lib")
     if(NOT DEFINED SKY360_PYTHON_VERSION)
         set(SKY360_PYTHON_VERSION 3)
     endif()
     set(PYBIND11_LTO_CXX_FLAGS "")
     set(PYBIND11_PYTHON_VERSION ${SKY360_PYTHON_VERSION})
-    message(STATUS "PYTHON VERSION: ${SKY360_PYTHON_VERSION}")
 
     add_subdirectory(modules/pybind11)
     message(STATUS "")
     message(STATUS "Python library status:")
     message(STATUS "    executable: ${PYTHON_EXECUTABLE}")
-    #message(STATUS "    version: ${PYTHON_VERSION_STRING}")
-    #message(STATUS "    libraries: ${PYTHON_LIBRARIES}")
     message(STATUS "    library: ${PYTHON_LIBRARY}")
     message(STATUS "    include path: ${PYTHON_INCLUDE_DIRS}")
 
