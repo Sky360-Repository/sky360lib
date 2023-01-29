@@ -52,6 +52,7 @@ int main(int argc, const char **argv)
     double totalTime{0.0};
     double totalProcessedTime{0.0};
     double totalMeanProcessedTime{0.0};
+    std::cout << "1" << std::endl;
 
     if (!getQhyCameraImage(frame))
     {
@@ -151,19 +152,19 @@ bool openQQYCamera()
     {
         return false;
     }
-    if (!qhyCamera.open(cameras[0].id))
+    if (!qhyCamera.open(cameras["QHY5III178C-93d25c4f9ac7e46ff"].id))
     {
         std::cout << "Error opening camera" << std::endl;
         return false;
     }
 
     // check color camera
-    if (cameras[0].isColor)
+    if (qhyCamera.getCameraInfo()->isColor)
     {
         qhyCamera.debayer(false);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 76.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 58.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 64.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 70.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 65.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 88.0);
     }
     if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::Gain, 30))
     {

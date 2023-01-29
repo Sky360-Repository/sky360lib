@@ -78,6 +78,18 @@ const uint8_t *QHYCamera::getFrame()
     return m_pImgData;
 }
 
+static inline int convertBayerPattern(uint32_t bayerFormat)
+{
+    switch (bayerFormat)
+    {
+    case BAYER_GB: return cv::COLOR_BayerGR2BGR; //!< equivalent to GBRG Bayer pattern
+    case BAYER_GR: return cv::COLOR_BayerGB2BGR; //!< equivalent to GRBG Bayer pattern
+    case BAYER_BG: return cv::COLOR_BayerRG2BGR; //!< equivalent to BGGR Bayer pattern
+    case BAYER_RG: return cv::COLOR_BayerBG2BGR; //!< equivalent to RGGB Bayer pattern
+    }
+    return cv::COLOR_BayerGR2BGR;
+}
+
 bool QHYCamera::getFrame(cv::Mat& frame, bool debayer)
 {
     const uint8_t* pFrame = getFrame();
@@ -88,11 +100,12 @@ bool QHYCamera::getFrame(cv::Mat& frame, bool debayer)
     
     int channels = m_currentInfo->isColor && m_params.applyDebayer ? 3 : 1;
     int type = m_params.transferBits == 16 ? CV_MAKETYPE(CV_16U, channels) : CV_MAKETYPE(CV_8U, channels);
-    const cv::Mat imgQHY(m_params.roiWidth, m_params.roiHeight, type, (int8_t *)pFrame);
+
+    const cv::Mat imgQHY(m_params.roiHeight, m_params.roiWidth, type, (int8_t *)pFrame);
 
     if (m_currentInfo->isColor && !m_params.applyDebayer && debayer)
     {
-        cv::cvtColor(imgQHY, frame, cv::COLOR_BayerGR2BGR);
+        cv::cvtColor(imgQHY, frame, convertBayerPattern(m_currentInfo->bayerFormat));
     }
     else
     {
@@ -329,7 +342,7 @@ bool QHYCamera::setDefaultParams()
     setControl(UsbSpeed, 0);
     setControl(Gain, 30);
     setControl(Offset, 0);
-    setResolution(0, 0, m_cameras[0].maxImageWidth, m_cameras[0].maxImageHeight);
+    setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
     setControl(TransferBits, 16);
     setBinMode(Bin_1x1);
 
