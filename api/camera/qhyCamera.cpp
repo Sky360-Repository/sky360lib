@@ -51,6 +51,41 @@ QHYCamera::~QHYCamera()
     release();
 }
 
+bool QHYCamera::getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData)
+{
+    int tries = 0;
+    uint32_t rc = ExpQHYCCDSingleFrame(pCamHandle);
+    while (GetQHYCCDSingleFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
+    {
+        usleep(10000);
+        if (++tries > 100)
+        {
+            std::cout << "retries: " << tries << ", aborting." << std::endl;
+            return false;
+        }
+    }
+    std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
+    //CancelQHYCCDExposingAndReadout(pCamHandle);
+
+    return true;
+}
+
+bool QHYCamera::getLive(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData)
+{
+    int tries = 0;
+    while (GetQHYCCDLiveFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
+    {
+        usleep(10000);
+        if (++tries > 100)
+        {
+            std::cout << "retries: " << tries << ", aborting." << std::endl;
+            return false;
+        }
+    }
+    std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
+    return true;
+}
+
 const uint8_t *QHYCamera::getFrame()
 {
     using fsec = std::chrono::duration<float>;
@@ -60,17 +95,23 @@ const uint8_t *QHYCamera::getFrame()
 
     allocBufferMemory();
 
-    int tries = 0;
     auto start = timer.now();
-    while (GetQHYCCDSingleFrame(pCamHandle, &w, &h, &bpp, &channels, m_pImgData) != QHYCCD_SUCCESS)
+
+    if (m_params.streamMode == SingleFrame)
     {
-        usleep(10000);
-        if (++tries > 100)
+        if (!getSingle(&w, &h, &bpp, &channels, m_pImgData))
         {
-            std::cout << "retries: " << tries << ", aborting." << std::endl;
             return nullptr;
         }
     }
+    else
+    {
+        if (!getLive(&w, &h, &bpp, &channels, m_pImgData))
+        {
+            return nullptr;
+        }
+    }
+
     auto stop = timer.now();
     fsec duration = (stop - start);
     m_lastFrameCaptureTime = duration.count();
@@ -262,6 +303,7 @@ bool QHYCamera::setControl(ControlParam controlParam, double value)
             case Gamma:         m_params.gamma = value;         break;
             default:    break;
         }
+        beginExposing();
     }
     else
     {
@@ -314,6 +356,19 @@ bool QHYCamera::setResolution(uint32_t startX, uint32_t startY, uint32_t width, 
     return true;
 }
 
+bool QHYCamera::setStreamMode(StreamModeType mode)
+{
+    uint32_t rc = SetQHYCCDStreamMode(pCamHandle, (int)mode);
+    if (rc != QHYCCD_SUCCESS) 
+    {
+        std::cerr << "Error setting stream mode" << std::endl;
+        return false;
+    }
+    m_params.streamMode = mode;
+
+    return true;
+}
+
 uint32_t QHYCamera::getMemoryNeededForFrame() const
 {
     return GetQHYCCDMemLength(pCamHandle);
@@ -337,13 +392,15 @@ bool QHYCamera::init()
 
 bool QHYCamera::setDefaultParams()
 {
-    setControl(Exposure, 2000);
+    setStreamMode(LiveFrame);
+    setControl(Exposure, 1000);
     setControl(UsbTraffic, 1);
     setControl(UsbSpeed, 0);
     setControl(Gain, 30);
     setControl(Offset, 0);
     setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
     setControl(TransferBits, 16);
+    setControl(Channels, 1);
     setBinMode(Bin_1x1);
 
     return true;
@@ -355,14 +412,6 @@ void QHYCamera::release()
     {
         close();
     }
-
-    // uint32_t rc = CloseQHYCCD(pCamHandle);
-    // if (rc != QHYCCD_SUCCESS)
-    // {
-    //     std::cerr << "Close QHYCCD failure, error: " << rc << std::endl;
-    // }
-
-    // releaseBufferMemory();
 
     // release sdk resources
     uint32_t rc = ReleaseQHYCCDResource();
@@ -395,6 +444,38 @@ void QHYCamera::releaseBufferMemory()
 {
     delete[] m_pImgData;
     m_pImgData = nullptr;
+}
+
+bool QHYCamera::beginExposing()
+{
+    if (m_params.streamMode == SingleFrame)
+    {
+        CancelQHYCCDExposingAndReadout(pCamHandle);
+        uint32_t rc = ExpQHYCCDSingleFrame(pCamHandle);
+        if (rc != QHYCCD_ERROR)
+        {
+            //std::cout << "ExpQHYCCDSingleFrame returned: " << rc << std::endl;
+            if (rc == QHYCCD_READ_DIRECTLY)
+            {
+                usleep(1);
+            }
+        }
+        else
+        {
+            std::cerr << "ExpQHYCCDSingleFrame failed: " << rc << std::endl;
+            return false;
+        }
+    }
+    else
+    {
+        uint32_t rc = BeginQHYCCDLive(pCamHandle);
+         if (rc != QHYCCD_SUCCESS)
+         {
+             std::cerr << "ExpQHYCCDSingleFrame failed: " << rc << std::endl;
+             return false;
+         }
+    }
+    return true;
 }
 
 bool QHYCamera::open(std::string cameraId)
@@ -433,27 +514,8 @@ bool QHYCamera::open(std::string cameraId)
         }
 
         setDefaultParams();
-
-        rc = ExpQHYCCDSingleFrame(pCamHandle);
-        if (rc != QHYCCD_ERROR)
-        {
-            if (rc == QHYCCD_READ_DIRECTLY)
-            {
-                usleep(200);
-            }
-            m_camOpen = true;
-        }
-        else
-        {
-            std::cerr << "ExpQHYCCDSingleFrame failed: " << rc << std::endl;
-            m_camOpen = false;
-        }
-        // int rc = BeginQHYCCDLive(pCamHandle);
-        //  if (rc != QHYCCD_SUCCESS)
-        //  {
-        //      std::cerr << "ExpQHYCCDSingleFrame failed: " << rc << std::endl;
-        //      m_camOpen = false;
-        //  }
+        beginExposing();
+        m_camOpen = true;
     }
 
     return m_camOpen;
@@ -463,20 +525,18 @@ void QHYCamera::close()
 {
     if (m_camOpen)
     {
-        uint32_t rc = CancelQHYCCDExposingAndReadout(pCamHandle);
-        if (rc != QHYCCD_SUCCESS)
+        if (m_params.streamMode == SingleFrame)
         {
-            std::cerr << "CancelQHYCCDExposingAndReadout failure, error: " << rc << std::endl;
+            CancelQHYCCDExposingAndReadout(pCamHandle);
         }
-        // StopQHYCCDLive(pCamHandle);
-        // SetQHYCCDStreamMode(pCamHandle, 0x0);
+        else
+        {
+            StopQHYCCDLive(pCamHandle);
+            SetQHYCCDStreamMode(pCamHandle, 0x0);
+        }
 
-        // close camera handle
-        rc = CloseQHYCCD(pCamHandle);
-        if (rc != QHYCCD_SUCCESS)
-        {
-            std::cerr << "Close QHYCCD failure" << std::endl;
-        }
+        CloseQHYCCD(pCamHandle);
+
         releaseBufferMemory();
 
         pCamHandle = nullptr;

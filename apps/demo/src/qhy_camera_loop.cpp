@@ -152,11 +152,13 @@ bool openQQYCamera()
     {
         return false;
     }
-    if (!qhyCamera.open(cameras["QHY5III178C-93d25c4f9ac7e46ff"].id))
+    if (!qhyCamera.open(cameras.begin()->first))
     {
         std::cout << "Error opening camera" << std::endl;
         return false;
     }
+
+    //qhyCamera.setStreamMode(sky360lib::camera::QHYCamera::SingleFrame);
 
     // check color camera
     if (qhyCamera.getCameraInfo()->isColor)

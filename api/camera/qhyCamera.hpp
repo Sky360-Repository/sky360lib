@@ -20,6 +20,12 @@ namespace sky360lib::camera
             Bin_3x3 = 3,
             Bin_4x4 = 4
         };
+        enum StreamModeType
+        {
+            SingleFrame = 0,
+            LiveFrame = 1
+        };
+
         struct CameraInfo
         {
             std::string id;
@@ -77,11 +83,6 @@ namespace sky360lib::camera
             double brightness;
             double gamma;
 
-            enum StreamModeType
-            {
-                SingleFrame = 0,
-                LiveFrame = 1
-            };
             StreamModeType streamMode; 
 
             uint32_t channels;
@@ -130,10 +131,13 @@ namespace sky360lib::camera
         bool open(std::string cameraId);
         void close();
 
+        bool beginExposing();
+
         bool setControl(ControlParam controlParam, double value);
         bool debayer(bool enable);
         bool setBinMode(BinMode mode);
         bool setResolution(uint32_t startX, uint32_t startY, uint32_t width, uint32_t height);
+        bool setStreamMode(StreamModeType mode);
 
         uint32_t getMemoryNeededForFrame() const;
 
@@ -154,5 +158,7 @@ namespace sky360lib::camera
         bool allocBufferMemory();
         void releaseBufferMemory();
         bool setDefaultParams();
+        bool getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData);
+        bool getLive(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData);
     };
 }
