@@ -2,15 +2,24 @@
 
 #include <string.h>
 #include <sstream>
+#include <map>
 #include <iostream>
 
 #include <qhyccd.h>
+#include <opencv2/opencv.hpp>
 
 namespace sky360lib::camera
 {
     class QHYCamera
     {
     public:
+        enum BinMode
+        {
+            Bin_1x1 = 1,
+            Bin_2x2 = 2,
+            Bin_3x3 = 3,
+            Bin_4x4 = 4
+        };
         struct CameraInfo
         {
             std::string id;
@@ -55,15 +64,18 @@ namespace sky360lib::camera
         {
             uint32_t roiStartX;
             uint32_t roiStartY;
-            uint32_t roiSizeX;
-            uint32_t roiSizeY;
+            uint32_t roiWidth;
+            uint32_t roiHeight;
 
             bool applyDebayer;
-            double weightBalanceR;
-            double weightBalanceG;
-            double weightBalanceB;
+            double redWB;
+            double greenWB;
+            double blueWB;
 
             uint32_t exposureTime;
+            double contrast;
+            double brightness;
+            double gamma;
 
             enum StreamModeType
             {
@@ -72,12 +84,12 @@ namespace sky360lib::camera
             };
             StreamModeType streamMode; 
 
+            uint32_t channels;
             uint32_t usbTraffic;
             uint32_t usbSpeed;
             uint32_t gain;
             uint32_t offset;
-            uint32_t binX;
-            uint32_t binY;
+            BinMode binMode;
 
             uint32_t transferBits;
         };
@@ -102,10 +114,15 @@ namespace sky360lib::camera
         QHYCamera();
         ~QHYCamera();
 
-        const std::vector<CameraInfo>& getCameras();
+        const std::map<std::string, CameraInfo>& getCameras();
 
         const uint8_t* getFrame();
-        float getLastFrameCaptureTime();
+        bool getFrame(cv::Mat& frame, bool debayer);
+        cv::Mat getFrameRet(bool debayer);
+
+        float getLastFrameCaptureTime() const;
+        CameraInfo const * getCameraInfo() const;
+        const CameraParams& getCameraParams() const;
 
         bool init();
         void release();
@@ -115,15 +132,18 @@ namespace sky360lib::camera
 
         bool setControl(ControlParam controlParam, double value);
         bool debayer(bool enable);
-        bool setBinMode(uint32_t binX, uint32_t binY);
+        bool setBinMode(BinMode mode);
         bool setResolution(uint32_t startX, uint32_t startY, uint32_t width, uint32_t height);
 
         uint32_t getMemoryNeededForFrame() const;
 
     private:
+        std::string m_camId;
         qhyccd_handle *pCamHandle{nullptr};
         uint8_t *m_pImgData{nullptr};
-        std::vector<CameraInfo> m_cameras;
+        std::map<std::string, CameraInfo> m_cameras;
+        CameraParams m_params;
+        CameraInfo* m_currentInfo;
         float m_lastFrameCaptureTime;
 
         bool m_camInit{false};

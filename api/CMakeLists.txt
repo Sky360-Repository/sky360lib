@@ -1,6 +1,8 @@
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories($ENV{OpenCL_INCLUDE_DIRS})
+include_directories($ENV{QHYCCD_SDK_INCLUDE_DIRS})
 
+message(STATUS "QHY_SDK = $ENV{QHYCCD_SDK_INCLUDE_DIRS}")
 #include_directories($ENV{CUDA_PATH}/include)
 #message(STATUS "CUDA_PATH = $ENV{CUDA_PATH}")
 

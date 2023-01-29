@@ -30,11 +30,17 @@ std::string QHYCamera::CameraInfo::toString()
     toStr << "Pixel     Size width x height: " << pixelWidthUM << " x " << pixelHeightUM << " [um]" << std::endl;
     toStr << "Bits per Pixel: " << bpp << std::endl;
     toStr << "Camera is color: " << (isColor ? "Yes" : "No") << ", Bayer Pattern: " << bayerFormatToString() << std::endl;
-    toStr << "Bin modes: 1x1: " << (hasBin1x1Mode ? "Yes" : "No") << ", 2x2: " << (hasBin2x2Mode ? "Yes" : "No") << ", 3x3: " << (hasBin3x3Mode ? "Yes" : "No") << ", 4x4: " << (hasBin4x4Mode ? "Yes" : "No") << std::endl;
+    toStr << "Available Bin modes:" 
+            << (hasBin1x1Mode ? " (1x1)" : "") 
+            << (hasBin2x2Mode ? " (2x2)" : "") 
+            << (hasBin3x3Mode ? " (3x3)" : "") 
+            << (hasBin4x4Mode ? " (4x4)" : "") 
+            << std::endl;
     return toStr.str();
 }
 
 QHYCamera::QHYCamera()
+    : m_currentInfo(nullptr)
 {
     EnableQHYCCDMessage(false);
     EnableQHYCCDLogFile(false);
@@ -72,9 +78,40 @@ const uint8_t *QHYCamera::getFrame()
     return m_pImgData;
 }
 
+bool QHYCamera::getFrame(cv::Mat& frame, bool debayer)
+{
+    const uint8_t* pFrame = getFrame();
+    if (!pFrame)
+    {
+        return false;
+    }
+    
+    int channels = m_currentInfo->isColor && m_params.applyDebayer ? 3 : 1;
+    int type = m_params.transferBits == 16 ? CV_MAKETYPE(CV_16U, channels) : CV_MAKETYPE(CV_8U, channels);
+    const cv::Mat imgQHY(m_params.roiWidth, m_params.roiHeight, type, (int8_t *)pFrame);
+
+    if (m_currentInfo->isColor && !m_params.applyDebayer && debayer)
+    {
+        cv::cvtColor(imgQHY, frame, cv::COLOR_BayerGR2BGR);
+    }
+    else
+    {
+        imgQHY.copyTo(frame);
+    }
+    //cameraFrame.convertTo(frame, CV_8U, 1 / 256.0f);
+
+    return true;
+}
+
+cv::Mat QHYCamera::getFrameRet(bool debayer)
+{
+    cv::Mat returnFrame;
+    getFrame(returnFrame, debayer);
+    return returnFrame;
+}
+
 bool QHYCamera::getCameraInfo(std::string camId, CameraInfo &ci)
 {
-    // open camera
     qhyccd_handle *camHandle = OpenQHYCCD((char *)camId.c_str());
     if (camHandle == nullptr)
     {
@@ -149,7 +186,7 @@ bool QHYCamera::scanCameras()
             CameraInfo ci;
             if (getCameraInfo(camId, ci))
             {
-                m_cameras.push_back(ci);
+                m_cameras[camId] = ci;
             }
         }
     }
@@ -163,10 +200,25 @@ bool QHYCamera::scanCameras()
     return true;
 }
 
-const std::vector<QHYCamera::CameraInfo> &QHYCamera::getCameras()
+const std::map<std::string, QHYCamera::CameraInfo> &QHYCamera::getCameras()
 {
     scanCameras();
     return m_cameras;
+}
+
+QHYCamera::CameraInfo const * QHYCamera::getCameraInfo() const
+{
+    return m_currentInfo;
+}
+
+const QHYCamera::CameraParams& QHYCamera::getCameraParams() const
+{
+    return m_params;
+}
+
+float QHYCamera::getLastFrameCaptureTime() const
+{
+    return m_lastFrameCaptureTime;
 }
 
 bool QHYCamera::setControl(ControlParam controlParam, double value)
@@ -180,7 +232,23 @@ bool QHYCamera::setControl(ControlParam controlParam, double value)
             std::cerr << "setControl failed: " << controlParam << std::endl;
             return false;
         }
-        releaseBufferMemory();
+        switch (controlParam)
+        {
+            case Channels:      m_params.channels = value;      allocBufferMemory();    break;
+            case TransferBits:  m_params.transferBits = value;  allocBufferMemory();    break;
+            case Brightness:    m_params.brightness = value;    break;
+            case Contrast:      m_params.contrast = value;      break;
+            case Exposure:      m_params.exposureTime = value;  break;
+            case UsbTraffic:    m_params.usbTraffic = value;    break;
+            case UsbSpeed:      m_params.usbSpeed = value;      break;
+            case Gain:          m_params.gain = value;          break;
+            case Offset:        m_params.offset = value;        break;
+            case RedWB:         m_params.redWB = value;         break;
+            case BlueWB:        m_params.greenWB = value;       break;
+            case GreenWB:       m_params.blueWB = value;        break;
+            case Gamma:         m_params.gamma = value;         break;
+            default:    break;
+        }
     }
     else
     {
@@ -196,20 +264,22 @@ bool QHYCamera::debayer(bool enable)
         std::cerr << "SetQHYCCDDebayerOnOff failure" << std::endl;
         return false;
     }
-    releaseBufferMemory();
+    allocBufferMemory();
+    m_params.applyDebayer = enable;
 
     return true;
 }
 
-bool QHYCamera::setBinMode(uint32_t binX, uint32_t binY)
+bool QHYCamera::setBinMode(QHYCamera::BinMode mode)
 {
-    uint32_t rc = SetQHYCCDBinMode(pCamHandle, binX, binY);
+    uint32_t rc = SetQHYCCDBinMode(pCamHandle, (int)mode, (int)mode);
     if (rc != QHYCCD_SUCCESS)
     {
         std::cerr << "SetQHYCCDBinMode failure, error: " << rc << std::endl;
         return false;
     }
-    releaseBufferMemory();
+    allocBufferMemory();
+    m_params.binMode = mode;
 
     return true;
 }
@@ -222,7 +292,11 @@ bool QHYCamera::setResolution(uint32_t startX, uint32_t startY, uint32_t width, 
         std::cerr << "SetQHYCCDResolution failure, error: " << rc << std::endl;
         return false;
     }
-    releaseBufferMemory();
+    allocBufferMemory();
+    m_params.roiStartX = startX;
+    m_params.roiStartY = startY;
+    m_params.roiWidth = width;
+    m_params.roiHeight = height;
 
     return true;
 }
@@ -236,7 +310,6 @@ bool QHYCamera::init()
 {
     if (!m_camInit)
     {
-        // init SDK
         if (InitQHYCCDResource() != QHYCCD_SUCCESS)
         {
             std::cerr << "Cannot initialize SDK resources" << std::endl;
@@ -251,59 +324,14 @@ bool QHYCamera::init()
 
 bool QHYCamera::setDefaultParams()
 {
-    // set exposure time
-    int EXPOSURE_TIME = 2000;
-    if (!setControl(Exposure, EXPOSURE_TIME))
-    {
-        return false;
-    }
-
-    // check traffic
-    int USB_TRAFFIC = 1;
-    if (!setControl(UsbTraffic, USB_TRAFFIC))
-    {
-        return false;
-    }
-
-    // check speed
-    int USB_SPEED = 0;
-    if (!setControl(UsbSpeed, USB_SPEED))
-    {
-        return false;
-    }
-
-    // check gain
-    int CHIP_GAIN = 30;
-    if (!setControl(Gain, CHIP_GAIN))
-    {
-        return false;
-    }
-
-    // check offset
-    int CHIP_OFFSET = 0;
-    if (!setControl(Offset, CHIP_OFFSET))
-    {
-        return false;
-    }
-
-    // set image resolution
-    if (!setResolution(0, 0, m_cameras[0].maxImageWidth, m_cameras[0].maxImageHeight))
-    {
-        return false;
-    }
-
-    if (!setControl(TransferBits, 16))
-    {
-        return false;
-    }
-
-    // set binning mode
-    if (!setBinMode(1, 1))
-    {
-        return false;
-    }
-
-    allocBufferMemory();
+    setControl(Exposure, 2000);
+    setControl(UsbTraffic, 1);
+    setControl(UsbSpeed, 0);
+    setControl(Gain, 30);
+    setControl(Offset, 0);
+    setResolution(0, 0, m_cameras[0].maxImageWidth, m_cameras[0].maxImageHeight);
+    setControl(TransferBits, 16);
+    setBinMode(Bin_1x1);
 
     return true;
 }
@@ -337,7 +365,6 @@ bool QHYCamera::allocBufferMemory()
     {
         releaseBufferMemory();
     }
-    // get requested memory lenght
     uint32_t size = getMemoryNeededForFrame();
     if (size == 0)
     {
@@ -359,7 +386,6 @@ void QHYCamera::releaseBufferMemory()
 
 bool QHYCamera::open(std::string cameraId)
 {
-    // open camera
     if (!m_camInit && !init())
     {
         return false;
@@ -369,21 +395,27 @@ bool QHYCamera::open(std::string cameraId)
         if (cameraId.empty())
         {
             if (!scanCameras())
+            {
                 return false;
+            }
             cameraId = m_cameras[0].id;
         }
+        m_camId = cameraId;
+        m_currentInfo = &m_cameras[m_camId];
 
-        pCamHandle = OpenQHYCCD((char*)cameraId.c_str());
+        pCamHandle = OpenQHYCCD((char*)m_camId.c_str());
         if (pCamHandle == nullptr)
         {
+            m_camId = "";
+            m_currentInfo = nullptr;
             std::cerr << "Open QHYCCD failure." << std::endl;
             return false;
         }
 
         uint32_t rc = InitQHYCCD(pCamHandle);
-        if (QHYCCD_SUCCESS != rc)
+        if (rc != QHYCCD_SUCCESS)
         {
-            fprintf(stderr, "InitQHYCCD faililure, error: %d\n", rc);
+            std::cerr << "InitQHYCCD faililure" << std::endl;
             return false;
         }
 
@@ -410,6 +442,7 @@ bool QHYCamera::open(std::string cameraId)
         //      m_camOpen = false;
         //  }
     }
+
     return m_camOpen;
 }
 
@@ -429,11 +462,12 @@ void QHYCamera::close()
         rc = CloseQHYCCD(pCamHandle);
         if (rc != QHYCCD_SUCCESS)
         {
-            std::cerr << "Close QHYCCD failure, error: " << rc << std::endl;
+            std::cerr << "Close QHYCCD failure" << std::endl;
         }
         releaseBufferMemory();
 
         pCamHandle = nullptr;
+        m_camId = "";
         m_camOpen = false;
     }
 }

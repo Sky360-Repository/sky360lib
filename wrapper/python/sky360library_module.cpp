@@ -32,14 +32,6 @@ PYBIND11_MODULE(pysky360, m)
         .def(py::init<>())
         .def("apply", &WeightedMovingVariance::applyRet)
         .def("getBackgroundImage", &WeightedMovingVariance::getBackgroundImage);
-    // py::class_<WeightedMovingVarianceHalide>(m, "WeightedMovingVarianceHalide")
-    //     .def(py::init<>())
-    //     .def("apply", &WeightedMovingVarianceHalide::applyRet)
-    //     .def("getBackgroundImage", &WeightedMovingVarianceHalide::getBackgroundImage);
-    // py::class_<WeightedMovingVarianceCuda>(m, "WeightedMovingVarianceCuda")
-    //     .def(py::init<>())
-    //     .def("apply", &WeightedMovingVarianceCuda::applyRet)
-    //     .def("getBackgroundImage", &WeightedMovingVarianceCuda::getBackgroundImage);
 
     py::class_<ConnectedBlobDetection>(m, "ConnectedBlobDetection")
         .def(py::init<>())
