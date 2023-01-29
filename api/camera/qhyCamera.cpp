@@ -64,7 +64,7 @@ bool QHYCamera::getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *cha
             return false;
         }
     }
-    std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
+    //std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
     //CancelQHYCCDExposingAndReadout(pCamHandle);
 
     return true;
@@ -82,7 +82,7 @@ bool QHYCamera::getLive(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *chann
             return false;
         }
     }
-    std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
+    //std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
     return true;
 }
 
@@ -393,7 +393,7 @@ bool QHYCamera::init()
 bool QHYCamera::setDefaultParams()
 {
     setStreamMode(LiveFrame);
-    setControl(Exposure, 1000);
+    setControl(Exposure, 2000);
     setControl(UsbTraffic, 1);
     setControl(UsbSpeed, 0);
     setControl(Gain, 30);

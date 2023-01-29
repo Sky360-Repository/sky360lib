@@ -303,19 +303,21 @@ bool openQQYCamera()
     {
         return false;
     }
-    if (!qhyCamera.open(cameras[0].id))
+    if (!qhyCamera.open(cameras.begin()->first))
     {
         std::cout << "Error opening camera" << std::endl;
         return false;
     }
 
+    //qhyCamera.setStreamMode(sky360lib::camera::QHYCamera::SingleFrame);
+
     // check color camera
-    if (cameras[0].isColor)
+    if (qhyCamera.getCameraInfo()->isColor)
     {
         qhyCamera.debayer(false);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 76.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 58.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 64.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 70.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 65.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 88.0);
     }
     if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::Gain, 30))
     {
