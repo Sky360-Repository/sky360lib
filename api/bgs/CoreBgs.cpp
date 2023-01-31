@@ -48,6 +48,7 @@ void CoreBgs::prepareParallel(const cv::Mat &_image)
 {
     m_imgSizesParallel.resize(m_numProcessesParallel);
     m_processSeq.resize(m_numProcessesParallel);
+    int bitsPerPixel = _image.elemSize1() * 8;
     size_t y{0};
     size_t h{_image.size().height / m_numProcessesParallel};
     for (size_t i{0}; i < m_numProcessesParallel; ++i)
@@ -59,6 +60,7 @@ void CoreBgs::prepareParallel(const cv::Mat &_image)
         }
         m_imgSizesParallel[i] = ImgSize::create(_image.size().width, h,
                                                 _image.channels(),
+                                                bitsPerPixel,
                                                 y * _image.size().width);
         y += h;
     }
@@ -73,7 +75,7 @@ void CoreBgs::applyParallel(const cv::Mat &_image, cv::Mat &_fgmask)
         [&](int np)
         {
             const cv::Mat imgSplit(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _image.type(),
-                                   _image.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numBytesPerPixel));
+                                   _image.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numChannels));
             cv::Mat maskPartial(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _fgmask.type(),
                                 _fgmask.data + m_imgSizesParallel[np]->originalPixelPos);
             process(imgSplit, maskPartial, np);

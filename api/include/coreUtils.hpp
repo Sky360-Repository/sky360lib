@@ -13,28 +13,30 @@ namespace sky360lib
     struct ImgSize
     {
         ImgSize(const ImgSize &_imgSize)
-            : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numBytesPerPixel, _imgSize.originalPixelPos)
+            : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numChannels, _imgSize.bitsPerPixel, _imgSize.originalPixelPos)
         {
         }
 
-        ImgSize(int _width, int _height, int _numBytesPerPixel, size_t _originalPixelPos = 0)
+        ImgSize(int _width, int _height, int _numChannels, int _bitsPerPixel, size_t _originalPixelPos)
             : width(_width),
               height(_height),
-              numBytesPerPixel(_numBytesPerPixel),
+              numChannels(_numChannels),
+              bitsPerPixel(_bitsPerPixel),
               numPixels(_width * _height),
-              size(_width * _height * _numBytesPerPixel),
+              size(_width * _height * _numChannels),
               originalPixelPos{_originalPixelPos}
         {
         }
 
-        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numBytesPerPixel, size_t _originalPixelPos = 0)
+        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numChannels, int _bitsPerPixel, size_t _originalPixelPos)
         {
-            return std::make_unique<ImgSize>(_width, _height, _numBytesPerPixel, _originalPixelPos);
+            return std::make_unique<ImgSize>(_width, _height, _numChannels, _bitsPerPixel, _originalPixelPos);
         }
 
         const int width;
         const int height;
-        const int numBytesPerPixel;
+        const int numChannels;
+        const int bitsPerPixel;
         const size_t numPixels;
         const size_t size;
 

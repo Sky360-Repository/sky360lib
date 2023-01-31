@@ -160,7 +160,7 @@ bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect>
                 }
                 // Spliting the image into chuncks and processing
                 const cv::Mat imgSplit(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, m_labels.type(),
-                                       m_labels.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numBytesPerPixel));
+                                       m_labels.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numChannels));
                 applyDetectBBoxes(imgSplit, m_bboxesParallel[np]);
             });
 
@@ -207,7 +207,7 @@ void ConnectedBlobDetection::prepareParallel(const cv::Mat &_image)
             h = _image.size().height - y;
         }
         m_imgSizesParallel[i] = ImgSize::create(_image.size().width, h,
-                                                4,
+                                                4, 8,
                                                 y * _image.size().width);
         y += h;
     }

@@ -54,11 +54,11 @@ QHYCamera::~QHYCamera()
 bool QHYCamera::getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData)
 {
     int tries = 0;
-    uint32_t rc = ExpQHYCCDSingleFrame(pCamHandle);
+    ExpQHYCCDSingleFrame(pCamHandle);
     while (GetQHYCCDSingleFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
     {
         usleep(10000);
-        if (++tries > 100)
+        if (++tries > 10)
         {
             std::cout << "retries: " << tries << ", aborting." << std::endl;
             return false;
@@ -76,7 +76,7 @@ bool QHYCamera::getLive(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *chann
     while (GetQHYCCDLiveFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
     {
         usleep(10000);
-        if (++tries > 100)
+        if (++tries > 10)
         {
             std::cout << "retries: " << tries << ", aborting." << std::endl;
             return false;

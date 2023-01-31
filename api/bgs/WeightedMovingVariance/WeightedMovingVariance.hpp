@@ -46,17 +46,19 @@ namespace sky360lib::bgs
                             cv::Mat &_imgOutput,
                             RollingImages &_imgInputPrev,
                             const WeightedMovingVarianceParams &_params);
+        template<class T>
         static void weightedVarianceMono(
-            const uint8_t *const img1,
-            const uint8_t *const img2,
-            const uint8_t *const img3,
+            const T *const img1,
+            const T *const img2,
+            const T *const img3,
             uint8_t *const outImg,
             const size_t totalPixels,
             const WeightedMovingVarianceParams &_params);
+        template<class T>
         static void weightedVarianceColor(
-            const uint8_t *const img1,
-            const uint8_t *const img2,
-            const uint8_t *const img3,
+            const T *const img1,
+            const T *const img2,
+            const T *const img3,
             uint8_t *const outImg,
             const size_t totalPixels,
             const WeightedMovingVarianceParams &_params);

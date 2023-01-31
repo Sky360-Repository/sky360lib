@@ -13,7 +13,8 @@ Vibe::Vibe(const VibeParams &_params, size_t _numProcessesParallel)
 void Vibe::initialize(const cv::Mat &_initImg)
 {
     std::vector<std::unique_ptr<Img>> imgSplit(m_numProcessesParallel);
-    m_origImgSize = ImgSize::create(_initImg.size().width, _initImg.size().height, _initImg.channels());
+    int bitsPerPixel = _initImg.elemSize1() * 8;
+    m_origImgSize = ImgSize::create(_initImg.size().width, _initImg.size().height, _initImg.channels(), bitsPerPixel, 0);
     Img frameImg(_initImg.data, *m_origImgSize);
     splitImg(frameImg, imgSplit, m_numProcessesParallel);
 
@@ -37,10 +38,10 @@ void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_b
             for (int xOrig{0}; xOrig < _initImg.size.width; xOrig++)
             {
                 getSamplePosition_7x7_std2(_rndGen.fast(), xSample, ySample, xOrig, yOrig, _initImg.size);
-                const size_t pixelPos = (yOrig * _initImg.size.width + xOrig) * _initImg.size.numBytesPerPixel;
-                const size_t samplePos = (ySample * _initImg.size.width + xSample) * _initImg.size.numBytesPerPixel;
+                const size_t pixelPos = (yOrig * _initImg.size.width + xOrig) * _initImg.size.numChannels;
+                const size_t samplePos = (ySample * _initImg.size.width + xSample) * _initImg.size.numChannels;
                 _bgImgSamples[s]->data[pixelPos] = _initImg.data[samplePos];
-                if (_initImg.size.numBytesPerPixel > 1)
+                if (_initImg.size.numChannels > 1)
                 {
                     _bgImgSamples[s]->data[pixelPos + 1] = _initImg.data[samplePos + 1];
                     _bgImgSamples[s]->data[pixelPos + 2] = _initImg.data[samplePos + 2];
@@ -52,9 +53,10 @@ void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_b
 
 void Vibe::process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess)
 {
-    Img imgSplit(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels()));
-    Img maskPartial(_fgmask.data, ImgSize(_image.size().width, _image.size().height, _fgmask.channels()));
-    if (imgSplit.size.numBytesPerPixel > 1)
+    int bitsPerPixel = _image.elemSize1() * 8;
+    Img imgSplit(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels(), bitsPerPixel, 0));
+    Img maskPartial(_fgmask.data, ImgSize(_image.size().width, _image.size().height, _fgmask.channels(), bitsPerPixel, 0));
+    if (imgSplit.size.numChannels > 1)
         apply3(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
     else
         apply1(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
@@ -71,7 +73,7 @@ void Vibe::apply3(const Img &_image,
     size_t pixOffset{0}, colorPixOffset{0};
     for (int y{0}; y < _image.size.height; ++y)
     {
-        for (int x{0}; x < _image.size.width; ++x, ++pixOffset, colorPixOffset += _image.size.numBytesPerPixel)
+        for (int x{0}; x < _image.size.width; ++x, ++pixOffset, colorPixOffset += _image.size.numChannels)
         {
             size_t nGoodSamplesCount{0},
                 nSampleIdx{0};
@@ -169,7 +171,7 @@ void Vibe::apply1(const Img &_image,
 
 void Vibe::getBackgroundImage(cv::Mat &backgroundImage)
 {
-    cv::Mat oAvgBGImg(m_origImgSize->height, m_origImgSize->width, CV_32FC(m_origImgSize->numBytesPerPixel));
+    cv::Mat oAvgBGImg(m_origImgSize->height, m_origImgSize->width, CV_32FC(m_origImgSize->numChannels));
 
     for (size_t t{0}; t < m_numProcessesParallel; ++t)
     {
@@ -177,14 +179,14 @@ void Vibe::getBackgroundImage(cv::Mat &backgroundImage)
         for (size_t n{0}; n < m_params.NBGSamples; ++n)
         {
             size_t inPixOffset{0};
-            size_t outPixOffset{bgSamples[0]->size.originalPixelPos * sizeof(float) * bgSamples[0]->size.numBytesPerPixel};
+            size_t outPixOffset{bgSamples[0]->size.originalPixelPos * sizeof(float) * bgSamples[0]->size.numChannels};
             for (; inPixOffset < bgSamples[n]->size.size;
-                 inPixOffset += m_origImgSize->numBytesPerPixel,
-                 outPixOffset += sizeof(float) * bgSamples[0]->size.numBytesPerPixel)
+                 inPixOffset += m_origImgSize->numChannels,
+                 outPixOffset += sizeof(float) * bgSamples[0]->size.numChannels)
             {
                 const uint8_t *const pixData{&bgSamples[n]->data[inPixOffset]};
                 float *const outData{(float *)(oAvgBGImg.data + outPixOffset)};
-                for (int c{0}; c < m_origImgSize->numBytesPerPixel; ++c)
+                for (int c{0}; c < m_origImgSize->numChannels; ++c)
                 {
                     outData[c] += (float)pixData[c] / (float)m_params.NBGSamples;
                 }

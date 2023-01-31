@@ -74,7 +74,7 @@ void WeightedMovingVariance::process(const cv::Mat &_inImage,
         return;
     }
 
-    if (_imgInputPrev.pImgSize->numBytesPerPixel == 1)
+    if (_imgInputPrev.pImgSize->numChannels == 1)
         weightedVarianceMono(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
                              _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
     else
@@ -82,7 +82,8 @@ void WeightedMovingVariance::process(const cv::Mat &_inImage,
                               _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
 }
 
-inline void calcWeightedVarianceMono(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+template<class T>
+inline void calcWeightedVarianceMono(const T *const i1, const T *const i2, const T *const i3,
                                      uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
     for (uint32_t i{0}; i < totalPixels; ++i)
@@ -94,7 +95,8 @@ inline void calcWeightedVarianceMono(const uint8_t *const i1, const uint8_t *con
     }
 }
 
-inline void calcWeightedVarianceMonoThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+template<class T>
+inline void calcWeightedVarianceMonoThreshold(const T *const i1, const T *const i2, const T *const i3,
                                               uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
     for (uint32_t i{0}; i < totalPixels; ++i)
@@ -140,7 +142,8 @@ inline void calcWeightedVarianceConvertMonoThreshold(const uint8_t *const i1, co
     }
 }
 
-inline void calcWeightedVarianceColor(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+template<class T>
+inline void calcWeightedVarianceColor(const T *const i1, const T *const i2, const T *const i3,
                                       uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
     for (uint32_t j{0}, j3{0}; j < totalPixels; ++j, j3 += 3)
@@ -161,7 +164,8 @@ inline void calcWeightedVarianceColor(const uint8_t *const i1, const uint8_t *co
     }
 }
 
-inline void calcWeightedVarianceColorThreshold(const uint8_t *const i1, const uint8_t *const i2, const uint8_t *const i3,
+template<class T>
+inline void calcWeightedVarianceColorThreshold(const T *const i1, const T *const i2, const T *const i3,
                                                uint8_t *const o, uint32_t totalPixels, const WeightedMovingVarianceParams &_params)
 {
     for (uint32_t j{0}, j3{0}; j < totalPixels; ++j, j3 += 3)
@@ -183,10 +187,11 @@ inline void calcWeightedVarianceColorThreshold(const uint8_t *const i1, const ui
     }
 }
 
+template<class T>
 void WeightedMovingVariance::weightedVarianceMono(
-    const uint8_t *const img1,
-    const uint8_t *const img2,
-    const uint8_t *const img3,
+    const T *const img1,
+    const T *const img2,
+    const T *const img3,
     uint8_t *const outImg,
     const size_t totalPixels,
     const WeightedMovingVarianceParams &_params)
@@ -197,10 +202,11 @@ void WeightedMovingVariance::weightedVarianceMono(
         calcWeightedVarianceMono(img1, img2, img3, outImg, totalPixels, _params);
 }
 
+template<class T>
 void WeightedMovingVariance::weightedVarianceColor(
-    const uint8_t *const img1,
-    const uint8_t *const img2,
-    const uint8_t *const img3,
+    const T *const img1,
+    const T *const img2,
+    const T *const img3,
     uint8_t *const outImg,
     const size_t totalPixels,
     const WeightedMovingVarianceParams &_params)
