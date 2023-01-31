@@ -75,11 +75,31 @@ void WeightedMovingVariance::process(const cv::Mat &_inImage,
     }
 
     if (_imgInputPrev.pImgSize->numChannels == 1)
-        weightedVarianceMono(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
-                             _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+    {
+        if (_imgInputPrev.pImgSize->bytesPerPixel == 1)
+        {
+            weightedVarianceMono(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
+                                _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+        }
+        else
+        {
+            weightedVarianceMono((uint16_t*)_imgInputPrev.pImgInput, (uint16_t*)_imgInputPrev.pImgInputPrev1, (uint16_t*)_imgInputPrev.pImgInputPrev2,
+                                _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+        }
+    }
     else
-        weightedVarianceColor(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
-                              _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+    {
+        if (_imgInputPrev.pImgSize->bytesPerPixel == 1)
+        {
+            weightedVarianceColor(_imgInputPrev.pImgInput, _imgInputPrev.pImgInputPrev1, _imgInputPrev.pImgInputPrev2,
+                                _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+        }
+        else
+        {
+            weightedVarianceColor((uint16_t*)_imgInputPrev.pImgInput, (uint16_t*)_imgInputPrev.pImgInputPrev1, (uint16_t*)_imgInputPrev.pImgInputPrev2,
+                                _outImg.data, (size_t)_imgInputPrev.pImgSize->numPixels, _params);
+        }
+    }
 }
 
 template<class T>
