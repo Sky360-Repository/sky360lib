@@ -20,8 +20,8 @@
 /////////////////////////////////////////////////////////////
 // Default parameters
 int blur_radius{3};
-bool applyGreyscale{true};
-bool applyNoiseReduction{true};
+bool applyGreyscale{false};
+bool applyNoiseReduction{false};
 int sensitivity{1};
 
 /////////////////////////////////////////////////////////////

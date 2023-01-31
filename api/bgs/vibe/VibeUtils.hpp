@@ -7,7 +7,8 @@
 
 namespace sky360lib::bgs
 {
-    static inline int64_t L2dist3Squared(const uint8_t *const a, const uint8_t *const b)
+    template<class T>
+    static inline int64_t L2dist3Squared(const T *const a, const T *const b)
     {
         const int64_t r0{(int64_t)a[0] - (int64_t)b[0]};
         const int64_t r1{(int64_t)a[1] - (int64_t)b[1]};
@@ -98,69 +99,13 @@ namespace sky360lib::bgs
         // based on 'floor(fspecial('gaussian',7,2)*512)'
         static const int s_nSamplesInitPatternTot = 512;
         static const std::array<std::array<int, 7>, 7> s_anSamplesInitPattern = {
-            std::array<int, 7>{
-                2,
-                4,
-                6,
-                7,
-                6,
-                4,
-                2,
-            },
-            std::array<int, 7>{
-                4,
-                8,
-                12,
-                14,
-                12,
-                8,
-                4,
-            },
-            std::array<int, 7>{
-                6,
-                12,
-                21,
-                25,
-                21,
-                12,
-                6,
-            },
-            std::array<int, 7>{
-                7,
-                14,
-                25,
-                28,
-                25,
-                14,
-                7,
-            },
-            std::array<int, 7>{
-                6,
-                12,
-                21,
-                25,
-                21,
-                12,
-                6,
-            },
-            std::array<int, 7>{
-                4,
-                8,
-                12,
-                14,
-                12,
-                8,
-                4,
-            },
-            std::array<int, 7>{
-                2,
-                4,
-                6,
-                7,
-                6,
-                4,
-                2,
-            },
+            std::array<int, 7>{ 2,  4,  6,  7,  6,  4,  2 },
+            std::array<int, 7>{ 4,  8, 12, 14, 12,  8,  4 },
+            std::array<int, 7>{ 6, 12, 21, 25, 21, 12,  6 },
+            std::array<int, 7>{ 7, 14, 25, 28, 25, 14,  7 },
+            std::array<int, 7>{ 6, 12, 21, 25, 21, 12,  6 },
+            std::array<int, 7>{ 4,  8, 12, 14, 12,  8,  4 },
+            std::array<int, 7>{ 2,  4,  6,  7,  6,  4,  2 },
         };
         getSamplePosition<7, 7>(s_anSamplesInitPattern, s_nSamplesInitPatternTot, nRandIdx, nSampleCoord_X, nSampleCoord_Y, nOrigCoord_X, nOrigCoord_Y, oImageSize);
     }
@@ -179,7 +124,7 @@ namespace sky360lib::bgs
             _outputImages[i] = Img::create(ImgSize(_inputImg.size.width, h, _inputImg.size.numChannels, _inputImg.size.bytesPerPixel, y * _inputImg.size.width), false);
 
             memcpy(_outputImages[i]->data,
-                   _inputImg.data + (_outputImages[i]->size.originalPixelPos * _inputImg.size.numChannels),
+                   _inputImg.data + (_outputImages[i]->size.originalPixelPos * _inputImg.size.numChannels * _inputImg.size.bytesPerPixel),
                    _outputImages[i]->size.sizeInBytes);
             y += h;
         }

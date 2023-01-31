@@ -25,9 +25,11 @@ namespace sky360lib::bgs
         std::vector<std::vector<std::unique_ptr<Img>>> m_bgImgSamples;
         std::vector<Pcg32> m_randomGenerators;
 
+        template<class T>
         void initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Pcg32 &_rndGen);
-
+        template<class T>
         static void apply1(const Img &_image, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Img &_fgmask, const VibeParams &_params, Pcg32 &_rndGen);
+        template<class T>
         static void apply3(const Img &_image, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Img &_fgmask, const VibeParams &_params, Pcg32 &_rndGen);
     };
 }

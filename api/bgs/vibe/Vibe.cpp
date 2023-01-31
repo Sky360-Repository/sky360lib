@@ -19,12 +19,23 @@ void Vibe::initialize(const cv::Mat &_initImg)
 
     m_randomGenerators.resize(m_numProcessesParallel);
     m_bgImgSamples.resize(m_numProcessesParallel);
-    for (size_t i{0}; i < m_numProcessesParallel; ++i)
+    if (m_origImgSize->bytesPerPixel == 1)
     {
-        initialize(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
+        for (size_t i{0}; i < m_numProcessesParallel; ++i)
+        {
+            initialize<uint8_t>(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
+        }
+    }
+    else
+    {
+        for (size_t i{0}; i < m_numProcessesParallel; ++i)
+        {
+            initialize<uint16_t>(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
+        }
     }
 }
 
+template<class T>
 void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Pcg32 &_rndGen)
 {
     int ySample, xSample;
@@ -39,11 +50,11 @@ void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_b
                 getSamplePosition_7x7_std2(_rndGen.fast(), xSample, ySample, xOrig, yOrig, _initImg.size);
                 const size_t pixelPos = (yOrig * _initImg.size.width + xOrig) * _initImg.size.numChannels;
                 const size_t samplePos = (ySample * _initImg.size.width + xSample) * _initImg.size.numChannels;
-                _bgImgSamples[s]->data[pixelPos] = _initImg.data[samplePos];
+                _bgImgSamples[s]->ptr<T>()[pixelPos] = _initImg.ptr<T>()[samplePos];
                 if (_initImg.size.numChannels > 1)
                 {
-                    _bgImgSamples[s]->data[pixelPos + 1] = _initImg.data[samplePos + 1];
-                    _bgImgSamples[s]->data[pixelPos + 2] = _initImg.data[samplePos + 2];
+                    _bgImgSamples[s]->ptr<T>()[pixelPos + 1] = _initImg.ptr<T>()[samplePos + 1];
+                    _bgImgSamples[s]->ptr<T>()[pixelPos + 2] = _initImg.ptr<T>()[samplePos + 2];
                 }
             }
         }
@@ -55,11 +66,30 @@ void Vibe::process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess)
     Img imgSplit(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0));
     Img maskPartial(_fgmask.data, ImgSize(_image.size().width, _image.size().height, _fgmask.channels(), _image.elemSize1(), 0));
     if (imgSplit.size.numChannels > 1)
-        apply3(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+    {
+        if (imgSplit.size.bytesPerPixel == 1)
+        {
+            apply3<uint8_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+        }
+        else
+        {
+            apply3<uint16_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+        }
+    }
     else
-        apply1(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+    {
+        if (imgSplit.size.bytesPerPixel == 1)
+        {
+            apply1<uint8_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+        }
+        else
+        {
+            apply1<uint16_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+        }
+    }
 }
 
+template<class T>
 void Vibe::apply3(const Img &_image,
                   std::vector<std::unique_ptr<Img>> &_bgImg,
                   Img &_fgmask,
@@ -76,11 +106,11 @@ void Vibe::apply3(const Img &_image,
             size_t nGoodSamplesCount{0},
                 nSampleIdx{0};
 
-            const uint8_t *const pixData{&_image.data[colorPixOffset]};
+            const T *const pixData{&_image.ptr<T>()[colorPixOffset]};
 
             while (nSampleIdx < _params.NBGSamples)
             {
-                const uint8_t *const bg{&_bgImg[nSampleIdx]->data[colorPixOffset]};
+                const T *const bg{&_bgImg[nSampleIdx]->ptr<T>()[colorPixOffset]};
                 if (L2dist3Squared(pixData, bg) < _params.NColorDistThresholdSquared)
                 {
                     ++nGoodSamplesCount;
@@ -99,7 +129,7 @@ void Vibe::apply3(const Img &_image,
             {
                 if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
                 {
-                    uint8_t *const bgImgPixData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[colorPixOffset]};
+                    T *const bgImgPixData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->ptr<T>()[colorPixOffset]};
                     bgImgPixData[0] = pixData[0];
                     bgImgPixData[1] = pixData[1];
                     bgImgPixData[2] = pixData[2];
@@ -107,7 +137,7 @@ void Vibe::apply3(const Img &_image,
                 if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
                 {
                     const int neighData{getNeighborPosition_3x3(x, y, _image.size, _rndGen.fast()) * 3};
-                    uint8_t *const xyRandData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData]};
+                    T *const xyRandData{&_bgImg[_rndGen.fast() & _params.ANDlearningRate]->ptr<T>()[neighData]};
                     xyRandData[0] = pixData[0];
                     xyRandData[1] = pixData[1];
                     xyRandData[2] = pixData[2];
@@ -117,6 +147,7 @@ void Vibe::apply3(const Img &_image,
     }
 }
 
+template<class T>
 void Vibe::apply1(const Img &_image,
                   std::vector<std::unique_ptr<Img>> &_bgImg,
                   Img &_fgmask,
@@ -133,11 +164,11 @@ void Vibe::apply1(const Img &_image,
             uint32_t nGoodSamplesCount{0},
                 nSampleIdx{0};
 
-            const uint8_t pixData{_image.data[pixOffset]};
+            const T pixData{_image.ptr<T>()[pixOffset]};
 
             while (nSampleIdx < _params.NBGSamples)
             {
-                if (std::abs((int32_t)_bgImg[nSampleIdx]->data[pixOffset] - (int32_t)pixData) < _params.NColorDistThreshold)
+                if (std::abs((int32_t)_bgImg[nSampleIdx]->ptr<T>()[pixOffset] - (int32_t)pixData) < _params.NColorDistThreshold)
                 {
                     ++nGoodSamplesCount;
                     if (nGoodSamplesCount >= _params.NRequiredBGSamples)
@@ -155,12 +186,12 @@ void Vibe::apply1(const Img &_image,
             {
                 if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
                 {
-                    _bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[pixOffset] = pixData;
+                    _bgImg[_rndGen.fast() & _params.ANDlearningRate]->ptr<T>()[pixOffset] = pixData;
                 }
                 if ((_rndGen.fast() & _params.ANDlearningRate) == 0)
                 {
                     const int neighData{getNeighborPosition_3x3(x, y, _image.size, _rndGen.fast())};
-                    _bgImg[_rndGen.fast() & _params.ANDlearningRate]->data[neighData] = pixData;
+                    _bgImg[_rndGen.fast() & _params.ANDlearningRate]->ptr<T>()[neighData] = pixData;
                 }
             }
         }

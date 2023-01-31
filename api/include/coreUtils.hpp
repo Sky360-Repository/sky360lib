@@ -71,6 +71,11 @@ namespace sky360lib
         uint8_t *const data;
         const ImgSize size;
 
+        template<class T>
+        inline T * ptr() { return (T*)data; }
+        template<class T>
+        inline const T * ptr() const { return (T*)data; }
+
         std::unique_ptr<uint8_t[]> dataPtr;
     };
 
