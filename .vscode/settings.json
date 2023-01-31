@@ -93,7 +93,8 @@
         "csignal": "cpp",
         "strstream": "cpp",
         "bitset": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "core": "cpp"
     },
     "cmake.configureOnOpen": false
 }

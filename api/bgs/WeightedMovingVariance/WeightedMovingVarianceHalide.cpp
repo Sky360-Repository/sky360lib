@@ -45,9 +45,9 @@ void WeightedMovingVarianceHalide::initParallelData()
         imgInputPrev[i].pImgInput = nullptr;
         imgInputPrev[i].pImgInputPrev1 = nullptr;
         imgInputPrev[i].pImgInputPrev2 = nullptr;
-        imgInputPrev[i].pImgMem[0] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
-        imgInputPrev[i].pImgMem[1] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
-        imgInputPrev[i].pImgMem[2] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->size);
+        imgInputPrev[i].pImgMem[0] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->sizeInBytes);
+        imgInputPrev[i].pImgMem[1] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->sizeInBytes);
+        imgInputPrev[i].pImgMem[2] = std::make_unique_for_overwrite<uint8_t[]>(imgInputPrev[i].pImgSize->sizeInBytes);
         rollImages(imgInputPrev[i]);
     }
 }

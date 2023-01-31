@@ -97,9 +97,9 @@ void WeightedMovingVarianceCL::initialize(const cv::Mat &)
         imgInputPrev[i].pImgInputPrev1 = nullptr;
         imgInputPrev[i].pImgInputPrev2 = nullptr;
 
-        imgInputPrev[i].pImgMem[0] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->size);
-        imgInputPrev[i].pImgMem[1] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->size);
-        imgInputPrev[i].pImgMem[2] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->size);
+        imgInputPrev[i].pImgMem[0] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->sizeInBytes);
+        imgInputPrev[i].pImgMem[1] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->sizeInBytes);
+        imgInputPrev[i].pImgMem[2] = cl::Buffer(m_context, CL_MEM_READ_ONLY, imgInputPrev[i].pImgSize->sizeInBytes);
         imgInputPrev[i].bImgOutput = cl::Buffer(m_context, CL_MEM_WRITE_ONLY, imgInputPrev[i].pImgSize->numPixels);
         imgInputPrev[i].bWeight = cl::Buffer(m_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 4 * sizeof(float), (void*)m_params.weight);
         rollImages(imgInputPrev[i]);
@@ -131,8 +131,8 @@ void WeightedMovingVarianceCL::process(const cv::Mat &_imgInput,
                                          RollingImages &_imgInputPrev)
 {
     const size_t numPixels = _imgInput.size().area();
-    //memcpy(_imgInputPrev.pImgInput, _imgInput.data, _imgInputPrev.pImgSize->size);
-    m_queue.enqueueWriteBuffer(*_imgInputPrev.pImgInput, CL_TRUE, 0, _imgInputPrev.pImgSize->size, _imgInput.data);
+    //memcpy(_imgInputPrev.pImgInput, _imgInput.data, _imgInputPrev.pImgSize->sizeInBytes);
+    m_queue.enqueueWriteBuffer(*_imgInputPrev.pImgInput, CL_TRUE, 0, _imgInputPrev.pImgSize->sizeInBytes, _imgInput.data);
 
     if (_imgInputPrev.firstPhase < 2)
     { 

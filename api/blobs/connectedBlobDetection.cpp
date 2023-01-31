@@ -207,7 +207,7 @@ void ConnectedBlobDetection::prepareParallel(const cv::Mat &_image)
             h = _image.size().height - y;
         }
         m_imgSizesParallel[i] = ImgSize::create(_image.size().width, h,
-                                                4, 8,
+                                                4, 1,
                                                 y * _image.size().width);
         y += h;
     }

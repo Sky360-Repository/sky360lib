@@ -50,9 +50,9 @@ void WeightedMovingVarianceCuda::initialize(const cv::Mat &)
         imgInputPrev[i].pImgInputPrev1 = nullptr;
         imgInputPrev[i].pImgInputPrev2 = nullptr;
         cudaMalloc((void **)&imgInputPrev[i].pImgOutputCuda, imgInputPrev[i].pImgSize->numPixels);
-        cudaMalloc((void **)&imgInputPrev[i].pImgMem[0], imgInputPrev[i].pImgSize->size);
-        cudaMalloc((void **)&imgInputPrev[i].pImgMem[1], imgInputPrev[i].pImgSize->size);
-        cudaMalloc((void **)&imgInputPrev[i].pImgMem[2], imgInputPrev[i].pImgSize->size);
+        cudaMalloc((void **)&imgInputPrev[i].pImgMem[0], imgInputPrev[i].pImgSize->sizeInBytes);
+        cudaMalloc((void **)&imgInputPrev[i].pImgMem[1], imgInputPrev[i].pImgSize->sizeInBytes);
+        cudaMalloc((void **)&imgInputPrev[i].pImgMem[2], imgInputPrev[i].pImgSize->sizeInBytes);
         rollImages(imgInputPrev[i]);
     }
 }

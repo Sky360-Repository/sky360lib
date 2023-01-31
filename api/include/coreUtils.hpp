@@ -13,32 +13,32 @@ namespace sky360lib
     struct ImgSize
     {
         ImgSize(const ImgSize &_imgSize)
-            : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numChannels, _imgSize.bitsPerPixel, _imgSize.originalPixelPos)
+            : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numChannels, _imgSize.bytesPerPixel, _imgSize.originalPixelPos)
         {
         }
 
-        ImgSize(int _width, int _height, int _numChannels, int _bitsPerPixel, size_t _originalPixelPos)
+        ImgSize(int _width, int _height, int _numChannels, int _bytesPerPixel, size_t _originalPixelPos)
             : width(_width),
               height(_height),
               numChannels(_numChannels),
-              bitsPerPixel(_bitsPerPixel),
+              bytesPerPixel(_bytesPerPixel),
               numPixels(_width * _height),
-              size(_width * _height * _numChannels),
+              sizeInBytes(_width * _height * _numChannels * bytesPerPixel),
               originalPixelPos{_originalPixelPos}
         {
         }
 
-        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numChannels, int _bitsPerPixel, size_t _originalPixelPos)
+        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numChannels, int _bytesPerPixel, size_t _originalPixelPos)
         {
-            return std::make_unique<ImgSize>(_width, _height, _numChannels, _bitsPerPixel, _originalPixelPos);
+            return std::make_unique<ImgSize>(_width, _height, _numChannels, _bytesPerPixel, _originalPixelPos);
         }
 
         const int width;
         const int height;
         const int numChannels;
-        const int bitsPerPixel;
+        const int bytesPerPixel;
         const size_t numPixels;
-        const size_t size;
+        const size_t sizeInBytes;
 
         const size_t originalPixelPos;
     };
@@ -54,10 +54,10 @@ namespace sky360lib
 
         static std::unique_ptr<Img> create(const ImgSize &_imgSize, bool _clear = false)
         {
-            auto data = std::make_unique_for_overwrite<uint8_t[]>(_imgSize.size);
+            auto data = std::make_unique_for_overwrite<uint8_t[]>(_imgSize.sizeInBytes);
             if (_clear)
             {
-                memset(data.get(), 0, _imgSize.size);
+                memset(data.get(), 0, _imgSize.sizeInBytes);
             }
 
             return std::make_unique<Img>(data.get(), _imgSize, std::move(data));
@@ -65,7 +65,7 @@ namespace sky360lib
 
         inline void clear()
         {
-            memset(data, 0, size.size);
+            memset(data, 0, size.sizeInBytes);
         }
 
         uint8_t *const data;

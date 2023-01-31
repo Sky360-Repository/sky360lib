@@ -176,11 +176,11 @@ namespace sky360lib::bgs
             {
                 h = _inputImg.size.height - y;
             }
-            _outputImages[i] = Img::create(ImgSize(_inputImg.size.width, h, _inputImg.size.numChannels, _inputImg.size.bitsPerPixel, y * _inputImg.size.width), false);
+            _outputImages[i] = Img::create(ImgSize(_inputImg.size.width, h, _inputImg.size.numChannels, _inputImg.size.bytesPerPixel, y * _inputImg.size.width), false);
 
             memcpy(_outputImages[i]->data,
                    _inputImg.data + (_outputImages[i]->size.originalPixelPos * _inputImg.size.numChannels),
-                   _outputImages[i]->size.size);
+                   _outputImages[i]->size.sizeInBytes);
             y += h;
         }
     }
