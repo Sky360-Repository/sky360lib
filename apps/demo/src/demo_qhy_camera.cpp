@@ -314,26 +314,9 @@ bool openQQYCamera()
     // check color camera
     if (qhyCamera.getCameraInfo()->isColor)
     {
-        qhyCamera.debayer(false);
         qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 70.0);
         qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 65.0);
         qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 88.0);
-    }
-    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::Gain, 30))
-    {
-        return false;
-    }
-    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::Offset, 0))
-    {
-        return false;
-    }
-    if (!qhyCamera.setControl(sky360lib::camera::QHYCamera::TransferBits, 16))
-    {
-        return false;
-    }
-    if (!qhyCamera.setBinMode(sky360lib::camera::QHYCamera::Bin_1x1))
-    {
-        return false;
     }
     return true;
 }

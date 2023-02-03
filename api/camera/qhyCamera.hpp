@@ -13,6 +13,7 @@ namespace sky360lib::camera
     class QHYCamera
     {
     public:
+    static const int DEFAULT_CAPTURE_RETRIES = 1000;
         enum BinMode
         {
             Bin_1x1 = 1,
@@ -134,7 +135,7 @@ namespace sky360lib::camera
         bool beginExposing();
 
         bool setControl(ControlParam controlParam, double value);
-        bool debayer(bool enable);
+        bool setDebayer(bool enable);
         bool setBinMode(BinMode mode);
         bool setResolution(uint32_t startX, uint32_t startY, uint32_t width, uint32_t height);
         bool setStreamMode(StreamModeType mode);
@@ -152,12 +153,14 @@ namespace sky360lib::camera
 
         bool m_camInit{false};
         bool m_camOpen{false};
+        bool m_isExposing{false};
 
         bool getCameraInfo(std::string camId, CameraInfo &ci);
         bool scanCameras();
         bool allocBufferMemory();
         void releaseBufferMemory();
         bool setDefaultParams();
+        void applyParams();
         bool getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData);
         bool getLive(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData);
     };

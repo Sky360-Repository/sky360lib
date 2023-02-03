@@ -58,13 +58,13 @@ bool QHYCamera::getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *cha
     while (GetQHYCCDSingleFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
     {
         usleep(10000);
-        if (++tries > 10)
+        if (++tries > DEFAULT_CAPTURE_RETRIES)
         {
             std::cout << "retries: " << tries << ", aborting." << std::endl;
             return false;
         }
     }
-    //std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
+    std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
     //CancelQHYCCDExposingAndReadout(pCamHandle);
 
     return true;
@@ -76,13 +76,13 @@ bool QHYCamera::getLive(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *chann
     while (GetQHYCCDLiveFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
     {
         usleep(10000);
-        if (++tries > 10)
+        if (++tries > DEFAULT_CAPTURE_RETRIES)
         {
             std::cout << "retries: " << tries << ", aborting." << std::endl;
             return false;
         }
     }
-    //std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels" << std::endl;
+    std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
     return true;
 }
 
@@ -93,7 +93,8 @@ const uint8_t *QHYCamera::getFrame()
     uint32_t w, h, bpp, channels;
     static fsec fpsTime = fsec::zero();
 
-    allocBufferMemory();
+    if (!m_isExposing)
+        beginExposing();
 
     auto start = timer.now();
 
@@ -303,7 +304,6 @@ bool QHYCamera::setControl(ControlParam controlParam, double value)
             case Gamma:         m_params.gamma = value;         break;
             default:    break;
         }
-        beginExposing();
     }
     else
     {
@@ -312,7 +312,7 @@ bool QHYCamera::setControl(ControlParam controlParam, double value)
     return true;
 }
 
-bool QHYCamera::debayer(bool enable)
+bool QHYCamera::setDebayer(bool enable)
 {
     if (SetQHYCCDDebayerOnOff(pCamHandle, enable) != QHYCCD_SUCCESS)
     {
@@ -366,6 +366,14 @@ bool QHYCamera::setStreamMode(StreamModeType mode)
     }
     m_params.streamMode = mode;
 
+    rc = InitQHYCCD(pCamHandle);
+    if (rc != QHYCCD_SUCCESS)
+    {
+        std::cerr << "InitQHYCCD faililure" << std::endl;
+        return false;
+    }
+    //applyParams();
+
     return true;
 }
 
@@ -392,9 +400,13 @@ bool QHYCamera::init()
 
 bool QHYCamera::setDefaultParams()
 {
-    setStreamMode(LiveFrame);
+    setDebayer(false);
+    setControl(RedWB, 70.0);
+    setControl(GreenWB, 65.0);
+    setControl(BlueWB, 88.0);
     setControl(Exposure, 2000);
-    setControl(UsbTraffic, 1);
+    setStreamMode(SingleFrame);
+    setControl(UsbTraffic, 0);
     setControl(UsbSpeed, 0);
     setControl(Gain, 30);
     setControl(Offset, 0);
@@ -402,6 +414,9 @@ bool QHYCamera::setDefaultParams()
     setControl(TransferBits, 16);
     setControl(Channels, 1);
     setBinMode(Bin_1x1);
+    setControl(Contrast, 0.0);
+    setControl(Brightness, 0.0);
+    setControl(Gamma, 1.0);
 
     return true;
 }
@@ -468,13 +483,15 @@ bool QHYCamera::beginExposing()
     }
     else
     {
+        StopQHYCCDLive(pCamHandle);
         uint32_t rc = BeginQHYCCDLive(pCamHandle);
-         if (rc != QHYCCD_SUCCESS)
-         {
-             std::cerr << "ExpQHYCCDSingleFrame failed: " << rc << std::endl;
-             return false;
-         }
+        if (rc != QHYCCD_SUCCESS)
+        {
+            std::cerr << "ExpQHYCCDSingleFrame failed: " << rc << std::endl;
+            return false;
+        }
     }
+    m_isExposing = true;
     return true;
 }
 
@@ -506,19 +523,39 @@ bool QHYCamera::open(std::string cameraId)
             return false;
         }
 
-        uint32_t rc = InitQHYCCD(pCamHandle);
-        if (rc != QHYCCD_SUCCESS)
-        {
-            std::cerr << "InitQHYCCD faililure" << std::endl;
-            return false;
-        }
+        // uint32_t rc = InitQHYCCD(pCamHandle);
+        // if (rc != QHYCCD_SUCCESS)
+        // {
+        //     std::cerr << "InitQHYCCD faililure" << std::endl;
+        //     return false;
+        // }
 
         setDefaultParams();
-        beginExposing();
         m_camOpen = true;
     }
 
     return m_camOpen;
+}
+
+void QHYCamera::applyParams()
+{
+    setDebayer(m_params.applyDebayer);
+    setControl(RedWB, m_params.redWB);
+    setControl(GreenWB, m_params.greenWB);
+    setControl(BlueWB, m_params.blueWB);
+    setControl(Exposure, m_params.exposureTime);
+    setStreamMode(LiveFrame);
+    setControl(UsbTraffic, m_params.usbTraffic);
+    setControl(UsbSpeed, m_params.usbSpeed);
+    setControl(Gain, m_params.gain);
+    setControl(Offset, m_params.offset);
+    setResolution(m_params.roiStartX, m_params.roiStartY, m_params.roiWidth, m_params.roiHeight);
+    setControl(TransferBits, m_params.transferBits);
+    setControl(Channels, m_params.channels);
+    setBinMode(m_params.binMode);
+    setControl(Contrast, m_params.contrast);
+    setControl(Brightness, m_params.brightness);
+    setControl(Gamma, m_params.gamma);
 }
 
 void QHYCamera::close()
@@ -542,5 +579,6 @@ void QHYCamera::close()
         pCamHandle = nullptr;
         m_camId = "";
         m_camOpen = false;
+        m_isExposing = false;
     }
 }
