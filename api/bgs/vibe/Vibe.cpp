@@ -6,7 +6,7 @@
 using namespace sky360lib::bgs;
 
 Vibe::Vibe(const VibeParams &_params, size_t _numProcessesParallel)
-    : CoreBgs(1), m_params(_params)
+    : CoreBgs(_numProcessesParallel), m_params(_params)
 {
 }
 
