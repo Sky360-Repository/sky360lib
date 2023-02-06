@@ -53,7 +53,9 @@ namespace sky360lib::bgs
             const T *const img3,
             uint8_t *const outImg,
             const size_t totalPixels,
-            const WeightedMovingVarianceParams &_params);
+            const float* weight, 
+            const bool enableThreshold,
+            const float thresholdSquared);
         template<class T>
         static void weightedVarianceColor(
             const T *const img1,
@@ -61,6 +63,8 @@ namespace sky360lib::bgs
             const T *const img3,
             uint8_t *const outImg,
             const size_t totalPixels,
-            const WeightedMovingVarianceParams &_params);
+            const float* weight, 
+            const bool enableThreshold,
+            const float thresholdSquared);
     };
 }

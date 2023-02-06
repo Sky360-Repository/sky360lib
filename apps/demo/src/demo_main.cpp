@@ -75,7 +75,7 @@ int main(int argc, const char **argv)
 
     std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
 
-    bgsPtr = createBGS(BGSType::Vibe);
+    bgsPtr = createBGS(BGSType::WMV);
     cv::VideoCapture cap;
 
     if (argc > 1)
