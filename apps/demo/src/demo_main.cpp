@@ -20,7 +20,7 @@
 /////////////////////////////////////////////////////////////
 // Default parameters
 int blur_radius{3};
-bool applyGreyscale{false};
+bool applyGreyscale{true};
 bool applyNoiseReduction{false};
 int sensitivity{1};
 
@@ -75,7 +75,7 @@ int main(int argc, const char **argv)
 
     std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    bgsPtr = createBGS(BGSType::Vibe);
     cv::VideoCapture cap;
 
     if (argc > 1)
@@ -110,7 +110,7 @@ int main(int argc, const char **argv)
     cv::namedWindow("BGS Demo", 0);
     cv::namedWindow("Live Video", 0);
 
-    cv::Mat frame, processedFrame;
+    cv::Mat frame, frame16, processedFrame;
     long numFrames{0};
     long totalNumFrames{0};
     double totalTime{0.0};
@@ -123,14 +123,7 @@ int main(int argc, const char **argv)
         std::cout << "Image type not supported" << std::endl;
         return -1;
     }
-
     cv::Mat bgsMask{frame.size(), CV_8UC1};
-
-    // Applying first time for initialization of algo
-    appyPreProcess(frame, processedFrame);
-    appyBGS(processedFrame, bgsMask);
-
-    cv::imshow("BGS Demo", frame);
 
     std::vector<cv::Rect> bboxes;
     bool pause = false;
@@ -149,12 +142,13 @@ int main(int argc, const char **argv)
                 std::cout << "No image" << std::endl;
                 break;
             }
+            frame.convertTo(frame16, CV_16UC3, 256.0f);
             EASY_END_BLOCK;
             EASY_BLOCK("Process");
-            appyPreProcess(frame, processedFrame);
+            appyPreProcess(frame16, processedFrame);
             appyBGS(processedFrame, bgsMask);
             findBlobs(bgsMask, bboxes);
-            // applyTracker(blobs, processedFrame);
+            //applyTracker(blobs, processedFrame);
             double endProcessedTime = getAbsoluteTime();
             EASY_END_BLOCK;
             EASY_BLOCK("Drawing bboxes");

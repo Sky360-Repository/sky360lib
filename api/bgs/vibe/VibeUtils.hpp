@@ -135,7 +135,7 @@ namespace sky360lib::bgs
         /// defines the default value for ColorDistThreshold
         static const size_t DEFAULT_COLOR_DIST_THRESHOLD{50}; //{32};
         /// defines the default value for BGSamples
-        static const size_t DEFAULT_NB_BG_SAMPLES{20}; //{8};
+        static const size_t DEFAULT_NB_BG_SAMPLES{16}; //{8};
         /// defines the default value for RequiredBGSamples
         static const size_t DEFAULT_REQUIRED_NB_BG_SAMPLES{1}; //{2};
         /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
@@ -152,8 +152,10 @@ namespace sky360lib::bgs
                    uint32_t learningRate)
             : NBGSamples(nBGSamples),
               NRequiredBGSamples(nRequiredBGSamples),
-              NColorDistThreshold(nColorDistThreshold),
-              NColorDistThresholdSquared{(nColorDistThreshold * 3) * (nColorDistThreshold * 3)},
+              NColorDistThresholdMono(nColorDistThreshold),
+              NColorDistThresholdColorSquared{(nColorDistThreshold * 3) * (nColorDistThreshold * 3)},
+              NColorDistThresholdMono16(nColorDistThreshold << 8),
+              NColorDistThresholdColor16Squared{((nColorDistThreshold << 8) * 3) * ((nColorDistThreshold << 8) * 3)},
               LearningRate(learningRate),
               ANDlearningRate{learningRate - 1}
         {
@@ -164,8 +166,10 @@ namespace sky360lib::bgs
         /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
         const uint32_t NRequiredBGSamples;
         /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)
-        const int32_t NColorDistThreshold;
-        const int64_t NColorDistThresholdSquared;
+        const int32_t NColorDistThresholdMono;
+        const int64_t NColorDistThresholdColorSquared;
+        const int32_t NColorDistThresholdMono16;
+        const int64_t NColorDistThresholdColor16Squared;
         /// should be > 0 and factor of 2 (smaller values == faster adaptation)
         const uint32_t LearningRate;
         const uint32_t ANDlearningRate;

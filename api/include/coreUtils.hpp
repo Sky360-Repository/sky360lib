@@ -12,7 +12,7 @@ namespace sky360lib
 {
     struct ImgSize
     {
-        ImgSize(const ImgSize &_imgSize)
+        ImgSize(const ImgSize& _imgSize)
             : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numChannels, _imgSize.bytesPerPixel, _imgSize.originalPixelPos)
         {
         }
@@ -23,7 +23,7 @@ namespace sky360lib
               numChannels(_numChannels),
               bytesPerPixel(_bytesPerPixel),
               numPixels(_width * _height),
-              sizeInBytes(_width * _height * _numChannels * bytesPerPixel),
+              sizeInBytes(_width * _height * _numChannels * _bytesPerPixel),
               originalPixelPos{_originalPixelPos}
         {
         }
@@ -45,14 +45,14 @@ namespace sky360lib
 
     struct Img
     {
-        Img(uint8_t *_data, const ImgSize &_imgSize, std::unique_ptr<uint8_t[]> _dataPtr = nullptr)
+        Img(uint8_t* _data, const ImgSize& _imgSize, std::unique_ptr<uint8_t[]> _dataPtr = nullptr)
             : data{_data},
               size{_imgSize},
               dataPtr{std::move(_dataPtr)}
         {
         }
 
-        static std::unique_ptr<Img> create(const ImgSize &_imgSize, bool _clear = false)
+        static std::unique_ptr<Img> create(const ImgSize& _imgSize, bool _clear = false)
         {
             auto data = std::make_unique_for_overwrite<uint8_t[]>(_imgSize.sizeInBytes);
             if (_clear)
@@ -68,13 +68,13 @@ namespace sky360lib
             memset(data, 0, size.sizeInBytes);
         }
 
-        uint8_t *const data;
+        uint8_t* const data;
         const ImgSize size;
 
         template<class T>
-        inline T * ptr() { return (T*)data; }
+        inline T* ptr() { return (T*)data; }
         template<class T>
-        inline const T * ptr() const { return (T*)data; }
+        inline const T* ptr() const { return (T*)data; }
 
         std::unique_ptr<uint8_t[]> dataPtr;
     };
@@ -85,7 +85,7 @@ namespace sky360lib
         return (size_t)std::max(1U, std::thread::hardware_concurrency());
     }
 
-    inline bool rectsOverlap(const cv::Rect &r1, const cv::Rect &r2)
+    inline bool rectsOverlap(const cv::Rect& r1, const cv::Rect& r2)
     {
         // checking if they don't everlap
         if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
@@ -96,7 +96,7 @@ namespace sky360lib
         return true;
     }
 
-    inline float rectsDistanceSquared(const cv::Rect &r1, const cv::Rect &r2)
+    inline float rectsDistanceSquared(const cv::Rect& r1, const cv::Rect& r2)
     {
         if (rectsOverlap(r1, r2))
             return 0;

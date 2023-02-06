@@ -1,5 +1,6 @@
 #include "CoreBgs.hpp"
 
+#include <iostream>
 #include <execution>
 #include <algorithm>
 
@@ -29,10 +30,12 @@ void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
 
     if (m_numProcessesParallel == 1)
     {
+        //std::cout << "CoreBgs runing in the same thread" << std::endl;
         process(_image, _fgmask, 0);
     }
     else
     {
+        //std::cout << "CoreBgs runing in " << m_numProcessesParallel << " threads" << std::endl;
         applyParallel(_image, _fgmask);
     }
 }
@@ -74,7 +77,7 @@ void CoreBgs::applyParallel(const cv::Mat &_image, cv::Mat &_fgmask)
         [&](int np)
         {
             const cv::Mat imgSplit(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _image.type(),
-                                   _image.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numChannels));
+                                   _image.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numChannels * m_imgSizesParallel[np]->bytesPerPixel));
             cv::Mat maskPartial(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _fgmask.type(),
                                 _fgmask.data + m_imgSizesParallel[np]->originalPixelPos);
             process(imgSplit, maskPartial, np);
