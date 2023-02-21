@@ -122,6 +122,8 @@ namespace sky360lib::camera
         bool getFrame(cv::Mat& frame, bool debayer);
         cv::Mat getFrameRet(bool debayer);
 
+        void debayerImage(const cv::Mat& imageIn, cv::Mat& imageOut) const;
+
         float getLastFrameCaptureTime() const;
         CameraInfo const * getCameraInfo() const;
         const CameraParams& getCameraParams() const;

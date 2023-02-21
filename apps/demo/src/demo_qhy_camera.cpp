@@ -55,7 +55,8 @@ inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 bool openQQYCamera();
 inline bool getQhyCameraImage(cv::Mat &cameraFrame);
-bool openVideo(const cv::Mat &frame);
+bool openVideo(const cv::Mat &frame, double meanFps);
+inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -88,7 +89,7 @@ int main(int argc, const char **argv)
     cv::namedWindow("BGS Demo", 0);
     cv::namedWindow("Live Video", 0);
 
-    cv::Mat frame, processedFrame, saveFrame;
+    cv::Mat frame, processedFrame, saveFrame, frameDebayered;
     long numFrames{0};
     long totalNumFrames{0};
     double totalTime{0.0};
@@ -96,19 +97,8 @@ int main(int argc, const char **argv)
     double totalMeanProcessedTime{0.0};
 
     getQhyCameraImage(frame);
-    if (frame.type() != CV_8UC3)
-    {
-        std::cout << "Image type not supported" << std::endl;
-        return -1;
-    }
 
     cv::Mat bgsMask{frame.size(), CV_8UC1};
-
-    // Applying first time for initialization of algo
-    appyPreProcess(frame, processedFrame);
-    appyBGS(processedFrame, bgsMask);
-
-    cv::imshow("BGS Demo", frame);
 
     std::vector<cv::Rect> bboxes;
     bool pause = false;
@@ -131,11 +121,14 @@ int main(int argc, const char **argv)
                 bboxes = findBlobs(bgsMask);
             double endProcessedTime = getAbsoluteTime();
             EASY_END_BLOCK;
+            EASY_BLOCK("Debayering Image");
+            debayerImage(frame, frameDebayered);
+            EASY_END_BLOCK;
             EASY_BLOCK("Drawing bboxes");
             if (doBlobDetection)
             {
-                drawBboxes(bboxes, bgsMask);
-                drawBboxes(bboxes, frame);
+                // drawBboxes(bboxes, bgsMask);
+                drawBboxes(bboxes, frameDebayered);
             }
             EASY_END_BLOCK;
             ++numFrames;
@@ -145,13 +138,15 @@ int main(int argc, const char **argv)
             EASY_BLOCK("Show/resize windows");
             cv::imshow("BGS Demo", bgsMask);
             cv::resizeWindow("BGS Demo", 1024, 1024);
-            cv::imshow("Live Video", frame);
+            cv::imshow("Live Video", frameDebayered);
             cv::resizeWindow("Live Video", 1024, 1024);
             EASY_END_BLOCK;
             EASY_BLOCK("Saving frame");
             if (isVideoOpen)
             {
-                videoWriter.write(frame);
+                cv::Mat videoFrame;
+                frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
+                videoWriter.write(videoFrame);
             }
             EASY_END_BLOCK;
         }
@@ -172,7 +167,7 @@ int main(int argc, const char **argv)
             if (!isVideoOpen)
             {
                 std::cout << "Start recording" << std::endl;
-                isVideoOpen = openVideo(frame);
+                isVideoOpen = openVideo(frame, totalNumFrames / totalMeanProcessedTime);
             }
             else
             {
@@ -248,7 +243,7 @@ inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
     cv::Mat tmpFrame;
 
     EASY_BLOCK("Greyscale");
-    if (applyGreyscale)
+    if (applyGreyscale && input.channels() > 1)
         cv::cvtColor(input, tmpFrame, cv::COLOR_RGB2GRAY);
     else
         tmpFrame = input;
@@ -281,7 +276,14 @@ inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
 {
     for (auto bb : bboxes)
     {
-        cv::rectangle(frame, bb, cv::Scalar(255, 0, 255), 2);
+        if (frame.elemSize1() == 1)
+        {
+            cv::rectangle(frame, bb, cv::Scalar(255, 0, 255), 2);
+        }
+        else
+        {
+            cv::rectangle(frame, bb, cv::Scalar(65535, 0, 65535), 2);
+        }
     }
 }
 
@@ -309,7 +311,7 @@ bool openQQYCamera()
         return false;
     }
 
-    //qhyCamera.setStreamMode(sky360lib::camera::QHYCamera::SingleFrame);
+    // qhyCamera.setStreamMode(sky360lib::camera::QHYCamera::SingleFrame);
 
     // check color camera
     if (qhyCamera.getCameraInfo()->isColor)
@@ -323,10 +325,19 @@ bool openQQYCamera()
 
 inline bool getQhyCameraImage(cv::Mat &cameraFrame)
 {
-    return qhyCamera.getFrame(cameraFrame, true);
+    EASY_FUNCTION(profiler::colors::Purple);
+
+    return qhyCamera.getFrame(cameraFrame, false);
 }
 
-bool openVideo(const cv::Mat &frame)
+inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut)
+{
+    EASY_FUNCTION(profiler::colors::Yellow);
+
+    qhyCamera.debayerImage(imageIn, imageOut);
+}
+
+bool openVideo(const cv::Mat &frame, double meanFps)
 {
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
@@ -335,5 +346,5 @@ bool openVideo(const cv::Mat &frame)
     oss << std::put_time(&tm, "%Y%m%d%H%M%S");
     auto name = "vo" + oss.str() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
-    return videoWriter.open(name, codec, 10, frame.size(), true);
+    return videoWriter.open(name, codec, meanFps, frame.size(), true);
 }
