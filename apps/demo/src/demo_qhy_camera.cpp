@@ -58,6 +58,17 @@ inline bool getQhyCameraImage(cv::Mat &cameraFrame);
 bool openVideo(const cv::Mat &frame, double meanFps);
 inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut);
 
+static void changeParam(int value, void* paramP)
+{
+    long param = (long)paramP;
+    switch (param)
+    {
+        case sky360lib::camera::QHYCamera::ControlParam::Gain:
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
+            break;
+    }
+}
+
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
@@ -70,6 +81,7 @@ int main(int argc, const char **argv)
     {
         return -1;
     }
+    double aspectRatio{(double)qhyCamera.getCameraInfo()->maxImageWidth / (double)qhyCamera.getCameraInfo()->maxImageHeight};
 
     double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
@@ -86,8 +98,11 @@ int main(int argc, const char **argv)
 
     initFrequency();
 
-    cv::namedWindow("BGS Demo", 0);
+    cv::namedWindow("BGS", 0);
     cv::namedWindow("Live Video", 0);
+
+    int gain = 30;
+    cv::createTrackbar("Gain:", "Live Video", &gain, 50, changeParam, (void*)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
 
     cv::Mat frame, processedFrame, saveFrame, frameDebayered;
     long numFrames{0};
@@ -95,10 +110,12 @@ int main(int argc, const char **argv)
     double totalTime{0.0};
     double totalProcessedTime{0.0};
     double totalMeanProcessedTime{0.0};
+    double lastFPS{0.0};
 
     getQhyCameraImage(frame);
 
     cv::Mat bgsMask{frame.size(), CV_8UC1};
+    cv::Mat videoFrame{frame.size(), CV_8UC3};
 
     std::vector<cv::Rect> bboxes;
     bool pause = false;
@@ -131,21 +148,26 @@ int main(int argc, const char **argv)
                 drawBboxes(bboxes, frameDebayered);
             }
             EASY_END_BLOCK;
+
+            frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
+            cv::addText(videoFrame, "Exposure: " + std::to_string((int)(exposure / 1000.0)) + " ms ('+' to +10%, '-' to -10%)", cv::Point(20, 60), "Arial", 40, cv::Scalar(0,255,255,0));
+            cv::addText(videoFrame, "FPS: " + std::to_string(lastFPS), cv::Point(20, 120), "Arial", 40, cv::Scalar(0,255,255,0));
+            cv::addText(videoFrame, "Blob Detection: " + std::string(doBlobDetection ? "On" : "Off") + " ('b' to toggle)", cv::Point(20, 180), "Arial", 40, cv::Scalar(0,255,255,0));
+            cv::addText(videoFrame, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", cv::Point(20, 240), "Arial", 40, cv::Scalar(0,255,255,0));
+
             ++numFrames;
             totalProcessedTime += endProcessedTime - startProcessedTime;
             totalMeanProcessedTime += endProcessedTime - startProcessedTime;
             ++totalNumFrames;
             EASY_BLOCK("Show/resize windows");
-            cv::imshow("BGS Demo", bgsMask);
-            cv::resizeWindow("BGS Demo", 1024, 1024);
-            cv::imshow("Live Video", frameDebayered);
-            cv::resizeWindow("Live Video", 1024, 1024);
+            cv::imshow("BGS", bgsMask);
+            cv::resizeWindow("BGS", 1024, 1024 / aspectRatio);
+            cv::imshow("Live Video", videoFrame);
+            cv::resizeWindow("Live Video", 1024, 1024 / aspectRatio);
             EASY_END_BLOCK;
             EASY_BLOCK("Saving frame");
             if (isVideoOpen)
             {
-                cv::Mat videoFrame;
-                frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
                 videoWriter.write(videoFrame);
             }
             EASY_END_BLOCK;
@@ -198,7 +220,8 @@ int main(int argc, const char **argv)
         totalTime += endFrameTime - startFrameTime;
         if (totalTime > 2.0)
         {
-            std::cout << "Framerate: " << (numFrames / totalProcessedTime) << " fps" << std::endl;
+            lastFPS = numFrames / totalProcessedTime;
+            std::cout << "Framerate: " << lastFPS << " fps" << std::endl;
             totalTime = 0.0;
             totalProcessedTime = 0.0;
             numFrames = 0;
