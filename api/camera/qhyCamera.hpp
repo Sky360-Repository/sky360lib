@@ -62,9 +62,9 @@ namespace sky360lib::camera
             bool hasBin3x3Mode;
             bool hasBin4x4Mode;
 
-            std::string bayerFormatToString();
+            std::string bayerFormatToString() const;
 
-            std::string toString();
+            std::string toString() const;
         };
 
         struct CameraParams
@@ -116,6 +116,8 @@ namespace sky360lib::camera
         QHYCamera();
         ~QHYCamera();
 
+        void setDebugInfo(bool _enable);
+
         const std::map<std::string, CameraInfo>& getCameras();
 
         const uint8_t* getFrame();
@@ -145,6 +147,7 @@ namespace sky360lib::camera
         uint32_t getMemoryNeededForFrame() const;
 
     private:
+        bool m_debugInfo;
         std::string m_camId;
         qhyccd_handle *pCamHandle{nullptr};
         uint8_t *m_pImgData{nullptr};

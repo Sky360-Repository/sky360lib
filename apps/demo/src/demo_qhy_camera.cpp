@@ -19,9 +19,8 @@
 /////////////////////////////////////////////////////////////
 // Default parameters
 int blur_radius{3};
-bool applyGreyscale{true};
+bool applyGreyscale{false};
 bool applyNoiseReduction{true};
-int sensitivity{1};
 bool isVideoOpen = false;
 cv::VideoWriter videoWriter;
 
@@ -46,6 +45,7 @@ sky360lib::camera::QHYCamera qhyCamera;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
+void writeText(const cv::Mat _frame, std::string _text, int _line);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
 inline void appyBGS(const cv::Mat &input, cv::Mat &output);
@@ -75,12 +75,16 @@ int main(int argc, const char **argv)
 {
     EASY_PROFILER_ENABLE;
 
+    BGSType bgsType{WMV};
+
     blobDetector.setMinDistance(40);
 
     if (!openQQYCamera())
     {
         return -1;
     }
+    std::cout << qhyCamera.getCameraInfo()->toString() << std::endl;
+
     double aspectRatio{(double)qhyCamera.getCameraInfo()->maxImageWidth / (double)qhyCamera.getCameraInfo()->maxImageHeight};
 
     double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
@@ -89,7 +93,7 @@ int main(int argc, const char **argv)
     const auto concurrentThreads = std::thread::hardware_concurrency();
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    bgsPtr = createBGS(bgsType);
 
     if (cv::ocl::haveOpenCL())
     {
@@ -111,6 +115,8 @@ int main(int argc, const char **argv)
     double totalProcessedTime{0.0};
     double totalMeanProcessedTime{0.0};
     double lastFPS{0.0};
+    double cameraTime{0.0};
+    double cameraFPS{0.0};
 
     getQhyCameraImage(frame);
 
@@ -130,6 +136,7 @@ int main(int argc, const char **argv)
             EASY_BLOCK("Capture");
             double startProcessedTime = getAbsoluteTime();
             getQhyCameraImage(frame);
+            cameraTime += qhyCamera.getLastFrameCaptureTime();
             EASY_END_BLOCK;
             EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
@@ -149,11 +156,20 @@ int main(int argc, const char **argv)
             }
             EASY_END_BLOCK;
 
-            frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
-            cv::addText(videoFrame, "Exposure: " + std::to_string((int)(exposure / 1000.0)) + " ms ('+' to +10%, '-' to -10%)", cv::Point(20, 60), "Arial", 40, cv::Scalar(0,255,255,0));
-            cv::addText(videoFrame, "FPS: " + std::to_string(lastFPS), cv::Point(20, 120), "Arial", 40, cv::Scalar(0,255,255,0));
-            cv::addText(videoFrame, "Blob Detection: " + std::string(doBlobDetection ? "On" : "Off") + " ('b' to toggle)", cv::Point(20, 180), "Arial", 40, cv::Scalar(0,255,255,0));
-            cv::addText(videoFrame, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", cv::Point(20, 240), "Arial", 40, cv::Scalar(0,255,255,0));
+            if (frameDebayered.elemSize1() > 1)
+            {
+                frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
+            }
+            else
+            {
+                videoFrame = frameDebayered;
+            }
+            writeText(videoFrame, "Exposure: " + std::to_string(exposure / 1000.0) + " ms ('+' to +10%, '-' to -10%)", 1);
+            writeText(videoFrame, "Capture: " + std::to_string(cameraFPS) + " fps", 2);
+            writeText(videoFrame, "Total Processing: " + std::to_string(lastFPS) + " fps", 3);
+            writeText(videoFrame, "Blob Detection: " + std::string(doBlobDetection ? "On" : "Off") + " ('b' to toggle)", 4);
+            writeText(videoFrame, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
+            writeText(videoFrame, "BGS: " + std::string(bgsType == WMV ? "WMV" : "Vibe") + " ('s' to toggle)", 6);
 
             ++numFrames;
             totalProcessedTime += endProcessedTime - startProcessedTime;
@@ -215,14 +231,22 @@ int main(int argc, const char **argv)
             std::cout << "Setting exposure to: " << exposure << std::endl;
             qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
         }
+        else if (key == 's')
+        {
+            bgsType = bgsType == BGSType::WMV ? BGSType::Vibe : BGSType::WMV;
+            bgsPtr = createBGS(bgsType);
+            std::cout << "Setting BGS to: " << std::to_string(bgsType) << std::endl;
+        }
 
         double endFrameTime = getAbsoluteTime();
         totalTime += endFrameTime - startFrameTime;
-        if (totalTime > 2.0)
+        if (totalTime > 1.0)
         {
             lastFPS = numFrames / totalProcessedTime;
+            cameraFPS = numFrames / cameraTime;
             std::cout << "Framerate: " << lastFPS << " fps" << std::endl;
             totalTime = 0.0;
+            cameraTime = 0.0;
             totalProcessedTime = 0.0;
             numFrames = 0;
         }
@@ -240,6 +264,15 @@ int main(int argc, const char **argv)
     profiler::dumpBlocksToFile("test_profile.prof");
 
     return 0;
+}
+
+void writeText(const cv::Mat _frame, std::string _text, int _line)
+{
+    const int fontSize = 40;
+    const int fontSpacing = 10;
+    const int height = _line * (fontSize + fontSpacing);
+
+    cv::addText(_frame, _text, cv::Point(fontSpacing, height), "Arial", fontSize, cv::Scalar(0,255,255,0));
 }
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)

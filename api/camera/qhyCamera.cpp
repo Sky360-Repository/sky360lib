@@ -6,7 +6,7 @@
 namespace sky360lib::camera
 {
 
-    std::string QHYCamera::CameraInfo::bayerFormatToString()
+    std::string QHYCamera::CameraInfo::bayerFormatToString() const
     {
         switch (bayerFormat)
         {
@@ -22,7 +22,7 @@ namespace sky360lib::camera
         return "MONO";
     }
 
-    std::string QHYCamera::CameraInfo::toString()
+    std::string QHYCamera::CameraInfo::toString() const
     {
         std::stringstream toStr;
         toStr << "Camera model: " << model << ", Serial: " << serialNum << ", Id: " << id << std::endl;
@@ -45,7 +45,8 @@ namespace sky360lib::camera
     }
 
     QHYCamera::QHYCamera()
-        : m_currentInfo(nullptr)
+        : m_debugInfo{false}
+        , m_currentInfo{nullptr}
     {
         EnableQHYCCDMessage(false);
         EnableQHYCCDLogFile(false);
@@ -54,6 +55,11 @@ namespace sky360lib::camera
     QHYCamera::~QHYCamera()
     {
         release();
+    }
+
+    void QHYCamera::setDebugInfo(bool _enable)
+    {
+        m_debugInfo = _enable;
     }
 
     bool QHYCamera::getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData)
@@ -69,7 +75,10 @@ namespace sky360lib::camera
                 return false;
             }
         }
-        std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
+        if (m_debugInfo)
+        {
+            std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
+        }
         // CancelQHYCCDExposingAndReadout(pCamHandle);
 
         return true;
@@ -87,7 +96,10 @@ namespace sky360lib::camera
                 return false;
             }
         }
-        std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
+        if (m_debugInfo)
+        {
+            std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
+        }
         return true;
     }
 
@@ -218,7 +230,7 @@ namespace sky360lib::camera
                                &ci.pixelWidthUM, &ci.pixelHeightUM, &ci.bpp);
         if (rc != QHYCCD_SUCCESS)
         {
-            fprintf(stderr, "GetQHYCCDChipInfo failure, error: %d\n", rc);
+            std::cerr << "GetQHYCCDChipInfo failure," << std::endl;
             return false;
         }
 
@@ -235,7 +247,10 @@ namespace sky360lib::camera
         {
             std::cerr << "Close QHYCCD failure, error: " << rc << std::endl;
         }
-        std::cout << ci.toString() << std::endl;
+        if (m_debugInfo)
+        {
+            std::cout << ci.toString() << std::endl;
+        }
 
         return true;
     }
@@ -355,7 +370,7 @@ namespace sky360lib::camera
                 break;
             }
         }
-        else
+        else if (m_debugInfo)
         {
             std::cout << "Control not available to change: " << controlParam << std::endl;
         }
@@ -455,13 +470,13 @@ namespace sky360lib::camera
         setControl(GreenWB, 65.0);
         setControl(BlueWB, 88.0);
         setControl(Exposure, 2000);
-        setStreamMode(SingleFrame);
+        setStreamMode(LiveFrame);
         setControl(UsbTraffic, 0);
         setControl(UsbSpeed, 0);
         setControl(Gain, 30);
         setControl(Offset, 0);
         setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
-        setControl(TransferBits, 16);
+        setControl(TransferBits, 8);
         setControl(Channels, 1);
         setBinMode(Bin_1x1);
         setControl(Contrast, 0.0);
