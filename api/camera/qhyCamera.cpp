@@ -476,7 +476,7 @@ namespace sky360lib::camera
         setControl(Gain, 30);
         setControl(Offset, 0);
         setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
-        setControl(TransferBits, 8);
+        setControl(TransferBits, 16);
         setControl(Channels, 1);
         setBinMode(Bin_1x1);
         setControl(Contrast, 0.0);
