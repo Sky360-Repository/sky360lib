@@ -28,6 +28,13 @@ bool openQQYCamera();
 inline bool getQhyCameraImage(cv::Mat &cameraFrame);
 bool openVideo(const cv::Mat &frame);
 
+void changeParameter(int, void*);
+
+void changeParameter(int value, void* paramName)
+{
+    std::cout << "Parameter: " << (char*)paramName << ", value: " << value << std::endl;
+}
+
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
@@ -45,6 +52,8 @@ int main(int argc, const char **argv)
     initFrequency();
 
     cv::namedWindow("Live Video", 0);
+    int cvGain = 30;
+    cv::createTrackbar("Gain", "Live Video", &cvGain, 50, changeParameter, (void*)"Gain");
 
     cv::Mat frame, processedFrame, saveFrame;
     long numFrames{0};

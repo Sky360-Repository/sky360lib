@@ -7,10 +7,11 @@
 
 using namespace sky360lib::bgs;
 
-WeightedMovingVarianceCL::WeightedMovingVarianceCL(const WeightedMovingVarianceParams& _params)
+WeightedMovingVarianceCL::WeightedMovingVarianceCL(WMVParams _params)
     : CoreBgs(1),
-      m_params(_params)
+      m_params{_params}
 {
+    m_params.setBgs(this);
     initOpenCL();
 }
 

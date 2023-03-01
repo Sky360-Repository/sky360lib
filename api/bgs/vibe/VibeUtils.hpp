@@ -130,7 +130,7 @@ namespace sky360lib::bgs
         }
     }
 
-    struct VibeParams
+    struct VibeParams2
     {
         /// defines the default value for ColorDistThreshold
         static const size_t DEFAULT_COLOR_DIST_THRESHOLD{50}; //{32};
@@ -141,12 +141,12 @@ namespace sky360lib::bgs
         /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
         static const size_t DEFAULT_LEARNING_RATE{2}; //{8};
 
-        VibeParams()
-            : VibeParams(DEFAULT_COLOR_DIST_THRESHOLD, DEFAULT_NB_BG_SAMPLES, DEFAULT_REQUIRED_NB_BG_SAMPLES, DEFAULT_LEARNING_RATE)
+        VibeParams2()
+            : VibeParams2(DEFAULT_COLOR_DIST_THRESHOLD, DEFAULT_NB_BG_SAMPLES, DEFAULT_REQUIRED_NB_BG_SAMPLES, DEFAULT_LEARNING_RATE)
         {
         }
 
-        VibeParams(uint32_t nColorDistThreshold,
+        VibeParams2(uint32_t nColorDistThreshold,
                    uint32_t nBGSamples,
                    uint32_t nRequiredBGSamples,
                    uint32_t learningRate)
@@ -173,5 +173,104 @@ namespace sky360lib::bgs
         /// should be > 0 and factor of 2 (smaller values == faster adaptation)
         const uint32_t LearningRate;
         const uint32_t ANDlearningRate;
+    };
+
+    class VibeParams : public CoreParameters
+    {
+    public:
+        enum ParamType
+        {
+            ColorDistThresholdType,
+            BGSamplesType,
+            RequiredBGSamplesType,
+            LearningRateType
+        };
+        /// defines the default value for ColorDistThreshold
+        static const uint32_t DEFAULT_COLOR_DIST_THRESHOLD{50}; //{32};
+        /// defines the default value for BGSamples
+        static const uint32_t DEFAULT_NB_BG_SAMPLES{16}; //{8};
+        /// defines the default value for RequiredBGSamples
+        static const uint32_t DEFAULT_REQUIRED_NB_BG_SAMPLES{1}; //{2};
+        /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
+        static const uint32_t DEFAULT_LEARNING_RATE{2}; //{8};
+
+        VibeParams()
+            : VibeParams(DEFAULT_COLOR_DIST_THRESHOLD, 
+                DEFAULT_NB_BG_SAMPLES, 
+                DEFAULT_REQUIRED_NB_BG_SAMPLES, 
+                DEFAULT_LEARNING_RATE)
+        {
+        }
+
+        VibeParams(uint32_t nColorDistThreshold,
+                   uint32_t nBGSamples,
+                   uint32_t nRequiredBGSamples,
+                   uint32_t learningRate)
+            : CoreParameters()
+            , NBGSamples{nBGSamples}
+            , NRequiredBGSamples{nRequiredBGSamples}
+            , NColorDistThresholdMono{nColorDistThreshold}
+            , NColorDistThresholdColorSquared{((uint64_t)nColorDistThreshold * 3) * ((uint64_t)nColorDistThreshold * 3)}
+            , NColorDistThresholdMono16{nColorDistThreshold << 8}
+            , NColorDistThresholdColor16Squared{(((uint64_t)nColorDistThreshold << 8) * 3) * (((uint64_t)nColorDistThreshold << 8) * 3)}
+            , LearningRate{learningRate}
+            , ANDlearningRate{learningRate - 1}
+        {
+            setMap();
+        }
+
+        VibeParams(const VibeParams& _params)
+            : CoreParameters()
+            , NBGSamples{_params.NBGSamples}
+            , NRequiredBGSamples{_params.NRequiredBGSamples}
+            , NColorDistThresholdMono{_params.NColorDistThresholdMono}
+            , NColorDistThresholdColorSquared{_params.NColorDistThresholdColorSquared}
+            , NColorDistThresholdMono16{_params.NColorDistThresholdMono16}
+            , NColorDistThresholdColor16Squared{_params.NColorDistThresholdColor16Squared}
+            , LearningRate{_params.LearningRate}
+            , ANDlearningRate{_params.ANDlearningRate}
+        {
+            setMap();
+        }
+
+        friend class Vibe;
+
+    protected:
+        /// number of different samples per pixel/block to be taken from input frames to build the background model ('N' in the original ViBe paper)
+        uint32_t NBGSamples;
+        /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
+        uint32_t NRequiredBGSamples;
+        /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)
+        uint32_t NColorDistThresholdMono;
+        uint64_t NColorDistThresholdColorSquared;
+        uint32_t NColorDistThresholdMono16;
+        uint64_t NColorDistThresholdColor16Squared;
+        /// should be > 0 and factor of 2 (smaller values == faster adaptation)
+        uint32_t LearningRate;
+        uint32_t ANDlearningRate;
+
+        void setMap()
+        {
+            m_paramsMap.clear();
+            m_paramsMap.insert({ParamType::ColorDistThresholdType, ParamMap("ColorDistThreshold", false, &NColorDistThresholdMono)});
+            m_paramsMap.insert({ParamType::BGSamplesType, ParamMap("BGSamples", true, &NBGSamples)});
+            m_paramsMap.insert({ParamType::RequiredBGSamplesType, ParamMap("RequiredBGSamples", true, &NRequiredBGSamples)});
+            m_paramsMap.insert({ParamType::LearningRateType, ParamMap("LearningRate", false, &LearningRate)});
+        }
+
+        virtual void paramUpdated(int _param)
+        {
+            switch (_param)
+            {
+                case ParamType::ColorDistThresholdType:
+                    NColorDistThresholdColorSquared = (NColorDistThresholdMono * 3) * (NColorDistThresholdMono * 3);
+                    NColorDistThresholdMono16 = NColorDistThresholdMono * 256;
+                    NColorDistThresholdColor16Squared = (NColorDistThresholdMono16 * 3) * (NColorDistThresholdMono16 * 3);
+                    break;
+                case ParamType::LearningRateType:
+                    ANDlearningRate = LearningRate - 1;
+                    break;
+            }
+        }
     };
 }

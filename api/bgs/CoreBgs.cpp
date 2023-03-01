@@ -1,4 +1,5 @@
 #include "CoreBgs.hpp"
+#include "CoreParameters.hpp"
 
 #include <iostream>
 #include <execution>
@@ -7,12 +8,18 @@
 using namespace sky360lib::bgs;
 
 CoreBgs::CoreBgs(size_t _numProcessesParallel)
-    : m_numProcessesParallel{_numProcessesParallel}, m_initialized{false}
+    : m_numProcessesParallel{_numProcessesParallel}
+    , m_initialized{false}
 {
     if (_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
     {
         m_numProcessesParallel = calcAvailableThreads();;
     }
+}
+
+void CoreBgs::restart()
+{
+    m_initialized = false;
 }
 
 void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)

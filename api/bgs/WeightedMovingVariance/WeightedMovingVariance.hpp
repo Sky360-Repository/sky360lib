@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreBgs.hpp"
+#include "CoreParameters.hpp"
 #include "WeightedMovingVarianceUtils.hpp"
 
 #include <opencv2/opencv.hpp>
@@ -14,19 +15,22 @@ namespace sky360lib::bgs
         : public CoreBgs 
     {
     public:
-        WeightedMovingVariance(const WeightedMovingVarianceParams& _params = WeightedMovingVarianceParams(),
+        WeightedMovingVariance(WMVParams _params = WMVParams(),
                                size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
         ~WeightedMovingVariance();
 
-        void getBackgroundImage(cv::Mat &_bgImage);
+        virtual CoreParameters &getParameters() { return m_params; }
+
+        virtual void getBackgroundImage(cv::Mat &_bgImage);
 
     private:
-        void initialize(const cv::Mat &_image);
-        void process(const cv::Mat &img_input, cv::Mat &img_output, int _numProcess);
+        virtual void initialize(const cv::Mat &_image);
+        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, int _numProcess);
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 
-        const WeightedMovingVarianceParams m_params;
+        //const WeightedMovingVarianceParams m_params;
+        WMVParams m_params;
 
         struct RollingImages
         {
@@ -45,7 +49,7 @@ namespace sky360lib::bgs
         static void process(const cv::Mat &_imgInput,
                             cv::Mat &_imgOutput,
                             RollingImages &_imgInputPrev,
-                            const WeightedMovingVarianceParams &_params);
+                            const WMVParams &_params);
         template<class T>
         static void weightedVarianceMono(
             const T *const img1,

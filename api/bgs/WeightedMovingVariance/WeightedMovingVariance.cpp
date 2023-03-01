@@ -7,11 +7,12 @@
 
 using namespace sky360lib::bgs;
 
-WeightedMovingVariance::WeightedMovingVariance(const WeightedMovingVarianceParams &_params,
+WeightedMovingVariance::WeightedMovingVariance(WMVParams _params,
                                                size_t _numProcessesParallel)
     : CoreBgs(_numProcessesParallel),
-      m_params(_params)
+      m_params{_params}
 {
+    m_params.setBgs(this);
 }
 
 WeightedMovingVariance::~WeightedMovingVariance()
@@ -64,7 +65,7 @@ void WeightedMovingVariance::process(const cv::Mat &_imgInput, cv::Mat &_imgOutp
 void WeightedMovingVariance::process(const cv::Mat &_inImage,
                                      cv::Mat &_outImg,
                                      RollingImages &_imgInputPrev,
-                                     const WeightedMovingVarianceParams &_params)
+                                     const WMVParams &_params)
 {
     memcpy(_imgInputPrev.pImgInput, _inImage.data, _imgInputPrev.pImgSize->sizeInBytes);
 

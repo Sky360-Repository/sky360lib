@@ -27,11 +27,13 @@ PYBIND11_MODULE(pysky360, m)
     py::class_<Vibe>(m, "Vibe")
         .def(py::init<>())
         .def("apply", &Vibe::applyRet)
-        .def("getBackgroundImage", &Vibe::getBackgroundImage);
+        .def("getBackgroundImage", &Vibe::getBackgroundImage)
+        .def("getParameters", &Vibe::getParameters);
     py::class_<WeightedMovingVariance>(m, "WeightedMovingVariance")
         .def(py::init<>())
         .def("apply", &WeightedMovingVariance::applyRet)
-        .def("getBackgroundImage", &WeightedMovingVariance::getBackgroundImage);
+        .def("getBackgroundImage", &WeightedMovingVariance::getBackgroundImage)
+        .def("getParameters", &WeightedMovingVariance::getParameters);
 
     py::class_<ConnectedBlobDetection>(m, "ConnectedBlobDetection")
         .def(py::init<>())

@@ -5,8 +5,9 @@
 
 using namespace sky360lib::bgs;
 
-Vibe::Vibe(const VibeParams &_params, size_t _numProcessesParallel)
-    : CoreBgs(_numProcessesParallel), m_params(_params)
+Vibe::Vibe(VibeParams _params, size_t _numProcessesParallel)
+    : CoreBgs(_numProcessesParallel)
+    , m_params{_params}
 {
 }
 
@@ -15,17 +16,14 @@ void Vibe::initialize(const cv::Mat &_initImg)
     std::vector<std::unique_ptr<Img>> imgSplit(m_numProcessesParallel);
     m_origImgSize = ImgSize::create(_initImg.size().width, _initImg.size().height, _initImg.channels(), _initImg.elemSize1(), 0);
     Img frameImg(_initImg.data, *m_origImgSize);
-    //std::cout << "initialize 1" << std::endl;
     splitImg(frameImg, imgSplit, m_numProcessesParallel);
 
-    //std::cout << "initialize 2" << std::endl;
     m_randomGenerators.resize(m_numProcessesParallel);
     m_bgImgSamples.resize(m_numProcessesParallel);
     if (m_origImgSize->bytesPerPixel == 1)
     {
         for (size_t i{0}; i < m_numProcessesParallel; ++i)
         {
-            //std::cout << "initialize 2.1: " << i << std::endl;
             initialize<uint8_t>(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
         }
     }
@@ -33,7 +31,6 @@ void Vibe::initialize(const cv::Mat &_initImg)
     {
         for (size_t i{0}; i < m_numProcessesParallel; ++i)
         {
-            //std::cout << "initialize 2.2: " << i << std::endl;
             initialize<uint16_t>(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
         }
     }
@@ -46,7 +43,6 @@ void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_b
     _bgImgSamples.resize(m_params.NBGSamples);
     for (size_t s{0}; s < m_params.NBGSamples; ++s)
     {
-        //std::cout << "initialize " << s << " (" << _initImg.size.width << "x" << _initImg.size.height << ") = " << _initImg.size.sizeInBytes << std::endl;
         _bgImgSamples[s] = Img::create(_initImg.size, false);
         for (int yOrig{0}; yOrig < _initImg.size.height; yOrig++)
         {
@@ -68,7 +64,6 @@ void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_b
 
 void Vibe::process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess)
 {
-    //std::cout << "process: " << _numProcess << ", bpp: " << _image.elemSize1() << std::endl;
     Img imgSplit(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0));
     Img maskPartial(_fgmask.data, ImgSize(_image.size().width, _image.size().height, _fgmask.channels(), _fgmask.elemSize1(), 0));
     if (imgSplit.size.numChannels > 1)

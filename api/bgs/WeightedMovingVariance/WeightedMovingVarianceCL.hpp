@@ -16,8 +16,10 @@ namespace sky360lib::bgs
         : public CoreBgs
     {
     public:
-        WeightedMovingVarianceCL(const WeightedMovingVarianceParams& _params = WeightedMovingVarianceParams());
+        WeightedMovingVarianceCL(WMVParams _params = WMVParams());
         ~WeightedMovingVarianceCL();
+
+        virtual CoreParameters &getParameters() { return m_params; }
 
         void getBackgroundImage(cv::Mat &_bgImage);
 
@@ -29,7 +31,7 @@ namespace sky360lib::bgs
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 
-        const WeightedMovingVarianceParams m_params;
+        WMVParams m_params;
 
         struct RollingImages
         {

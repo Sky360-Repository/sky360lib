@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreBgs.hpp"
+#include "CoreParameters.hpp"
 #include "VibeUtils.hpp"
 #include "pcg32.hpp"
 
@@ -10,14 +11,16 @@ namespace sky360lib::bgs
         : public CoreBgs
     {
     public:
-        Vibe(const VibeParams &_params = VibeParams(),
+        Vibe(VibeParams _params = VibeParams(),
              size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
-        void getBackgroundImage(cv::Mat &_bgImage);
+        virtual CoreParameters &getParameters() { return m_params; }
+
+        virtual void getBackgroundImage(cv::Mat &_bgImage);
 
     private:
-        void initialize(const cv::Mat &oInitImg);
-        void process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess);
+        virtual void initialize(const cv::Mat &oInitImg);
+        virtual void process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess);
 
         VibeParams m_params;
 

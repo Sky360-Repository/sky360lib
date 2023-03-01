@@ -177,6 +177,18 @@ int main(int argc, const char **argv)
             pause = !pause;
             outputBoundingBoxes(bboxes);
         }
+        else if (key == '+')
+        {
+            float threshold = bgsPtr->getParameters().get<float>(sky360lib::bgs::WMVParams::ThresholdType);
+            std::cout << "Got threshold: " << threshold << std::endl;
+            bgsPtr->getParameters().set<float>(sky360lib::bgs::VibeParams::ColorDistThresholdType, threshold + 5);
+        }
+        else if (key == '-')
+        {
+            float threshold = bgsPtr->getParameters().get<float>(sky360lib::bgs::WMVParams::ThresholdType);
+            std::cout << "Got threshold: " << threshold << std::endl;
+            bgsPtr->getParameters().set<float>(sky360lib::bgs::VibeParams::ColorDistThresholdType, threshold - 5);
+        }
         double endFrameTime = getAbsoluteTime();
         totalTime += endFrameTime - startFrameTime;
         if (totalTime > 2.0)
