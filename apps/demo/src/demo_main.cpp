@@ -179,15 +179,17 @@ int main(int argc, const char **argv)
         }
         else if (key == '+')
         {
-            float threshold = bgsPtr->getParameters().get<float>(sky360lib::bgs::WMVParams::ThresholdType);
+            auto params = (sky360lib::bgs::WMVParams&)(bgsPtr->getParameters());
+            float threshold = params.getThreshold();
             std::cout << "Got threshold: " << threshold << std::endl;
-            bgsPtr->getParameters().set<float>(sky360lib::bgs::VibeParams::ColorDistThresholdType, threshold + 5);
+            params.setThreshold(threshold + 5);
         }
         else if (key == '-')
         {
-            float threshold = bgsPtr->getParameters().get<float>(sky360lib::bgs::WMVParams::ThresholdType);
+            auto params = (sky360lib::bgs::WMVParams&)(bgsPtr->getParameters());
+            float threshold = params.getThreshold();
             std::cout << "Got threshold: " << threshold << std::endl;
-            bgsPtr->getParameters().set<float>(sky360lib::bgs::VibeParams::ColorDistThresholdType, threshold - 5);
+            params.setThreshold(threshold - 5);
         }
         double endFrameTime = getAbsoluteTime();
         totalTime += endFrameTime - startFrameTime;

@@ -19,7 +19,7 @@ namespace sky360lib::bgs
                                size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
         ~WeightedMovingVariance();
 
-        virtual CoreParameters &getParameters() { return m_params; }
+        virtual WMVParams &getParameters() { return m_params; }
 
         virtual void getBackgroundImage(cv::Mat &_bgImage);
 
@@ -29,7 +29,6 @@ namespace sky360lib::bgs
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 
-        //const WeightedMovingVarianceParams m_params;
         WMVParams m_params;
 
         struct RollingImages

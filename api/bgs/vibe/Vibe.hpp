@@ -14,7 +14,7 @@ namespace sky360lib::bgs
         Vibe(VibeParams _params = VibeParams(),
              size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
-        virtual CoreParameters &getParameters() { return m_params; }
+        virtual VibeParams &getParameters() { return m_params; }
 
         virtual void getBackgroundImage(cv::Mat &_bgImage);
 

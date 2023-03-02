@@ -7,13 +7,6 @@ namespace sky360lib::bgs
     class WMVParams : public CoreParameters
     {
     public:
-        enum ParamType
-        {
-            ThresholdType,
-            WeightsType,
-            EnableWeightType,
-            EnableThresholdType
-        };
         static inline const bool DEFAULT_ENABLE_WEIGHT{true};
         static inline const bool DEFAULT_ENABLE_THRESHOLD{true};
         static inline const float DEFAULT_THRESHOLD_VALUE{30.0f};
@@ -37,32 +30,66 @@ namespace sky360lib::bgs
                 float _weight2,
                 float _weight3)
             : CoreParameters()
-            , enableWeight{_enableWeight}
-            , enableThreshold{_enableThreshold}
-            , threshold{_threshold}
-            , threshold16{_threshold * 256.0f}
             , weight{_enableWeight ? _weight1 : ONE_THIRD, 
                 _enableWeight ? _weight2 : ONE_THIRD, 
-                _enableWeight ? _weight3 : ONE_THIRD, 
-                0.0f}
-            , thresholdSquared{_threshold * _threshold}
-            , thresholdSquared16{(_threshold * 256.0f) * (_threshold * 256.0f)}
+                _enableWeight ? _weight3 : ONE_THIRD}
         {
-            setMap();
+            setEnableThreshold(_enableThreshold);
+            setEnableWeight(_enableWeight);
+            setThreshold(_threshold);
         }
 
         WMVParams(const WMVParams& _params)
             : CoreParameters()
-            , enableWeight{_params.enableWeight}
-            , enableThreshold{_params.enableThreshold}
-            , threshold{_params.threshold}
-            , threshold16{_params.threshold16}
-            , weight{_params.weight[0], _params.weight[1], _params.weight[2], _params.weight[3]}
-            , thresholdSquared{_params.thresholdSquared}
-            , thresholdSquared16{_params.thresholdSquared16}
+            , weight{_params.weight[0], _params.weight[1], _params.weight[2]}
         {
-            setMap();
-        }        
+            setEnableThreshold(_params.enableThreshold);
+            setEnableWeight(_params.enableWeight);
+            setThreshold(_params.threshold);
+        }
+
+        // WMVParams& operator=(const WMVParams& _params)
+        // {
+        //     enableWeight = _params.enableWeight;
+        //     enableThreshold = _params.enableThreshold;
+        //     threshold = _params.threshold;
+        //     threshold16 = _params.threshold16;
+        //     weight[0] = _params.weight[0];
+        //     weight[1] = _params.weight[1];
+        //     weight[2] = _params.weight[2];
+        //     thresholdSquared = _params.thresholdSquared;
+        //     thresholdSquared16 = _params.thresholdSquared16;
+        //     setMap();
+        //     return *this;
+        // }
+
+        float getThreshold() { return threshold; }
+        float* getWeights() { return weight; }
+        bool getEnableWeight() { return enableWeight; }
+        bool getEnableThreshold() { return enableThreshold; }
+
+        void setEnableWeight(bool value)
+        { 
+            enableWeight = value; 
+        }
+        void setEnableThreshold(bool value)
+        { 
+            enableThreshold = value; 
+        }
+        void setWeights(int _weight, float _value)
+        {
+            if (_weight >= 0 && _weight <= 3)
+            {
+                weight[_weight] = _value; 
+            }
+        }
+        void setThreshold(float _value) 
+        { 
+            threshold = _value;
+            threshold16 = threshold * 256.0f;
+            thresholdSquared = threshold * threshold;
+            thresholdSquared16 = threshold16 * threshold16;
+        }
 
         friend class WeightedMovingVariance;
         friend class WeightedMovingVarianceCL;        
@@ -72,26 +99,8 @@ namespace sky360lib::bgs
         bool enableThreshold;
         float threshold;
         float threshold16;
-        float weight[4];
+        float weight[3];
         float thresholdSquared;
         float thresholdSquared16;
-
-        void setMap()
-        {
-            m_paramsMap.insert({ParamType::EnableWeightType, ParamMap("EnableWeight", false, &enableWeight)});
-            m_paramsMap.insert({ParamType::EnableThresholdType, ParamMap("EnableThreshold", false, &enableThreshold)});
-            m_paramsMap.insert({ParamType::ThresholdType, ParamMap("Threshold", false, &threshold)});
-            m_paramsMap.insert({ParamType::WeightsType, ParamMap("Weights", false, &weight)});
-        }
-
-        virtual void paramUpdated(int _param)
-        {
-            if (_param == ParamType::ThresholdType)
-            {
-                threshold16 = threshold * 256.0f;
-                thresholdSquared = threshold * threshold;
-                thresholdSquared16 = threshold16 * threshold16;
-            }
-        }
     };
 }

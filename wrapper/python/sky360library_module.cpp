@@ -24,16 +24,39 @@ PYBIND11_MODULE(pysky360, m)
     py::object version = py::cast("1.0.0");
     m.attr("__version__") = version;
 
+    py::class_<WMVParams>(m, "WMVParams")
+        .def(py::init<>())
+        .def("getThreshold", &WMVParams::getThreshold)
+        .def("getWeights", &WMVParams::getWeights)
+        .def("getEnableWeight", &WMVParams::getEnableWeight)
+        .def("getEnableThreshold", &WMVParams::getEnableThreshold)
+        .def("setEnableWeight", &WMVParams::setEnableWeight)
+        .def("setEnableThreshold", &WMVParams::setEnableThreshold)
+        .def("setWeights", &WMVParams::setWeights)
+        .def("setThreshold", &WMVParams::setThreshold)
+        ;
+    py::class_<VibeParams>(m, "VibeParams")
+        .def(py::init<>())
+        .def("getThreshold", &VibeParams::getThreshold)
+        .def("getBGSamples", &VibeParams::getBGSamples)
+        .def("getRequiredBGSamples", &VibeParams::getRequiredBGSamples)
+        .def("getLearningRate", &VibeParams::getLearningRate)
+        .def("setThreshold", &VibeParams::setThreshold)
+        .def("setBGSamples", &VibeParams::setBGSamples)
+        .def("setRequiredBGSamples", &VibeParams::setRequiredBGSamples)
+        .def("setLearningRate", &VibeParams::setLearningRate)
+        ;
+
     py::class_<Vibe>(m, "Vibe")
         .def(py::init<>())
         .def("apply", &Vibe::applyRet)
         .def("getBackgroundImage", &Vibe::getBackgroundImage)
-        .def("getParameters", &Vibe::getParameters);
+        .def("getParameters", &Vibe::getParameters, py::return_value_policy::reference);
     py::class_<WeightedMovingVariance>(m, "WeightedMovingVariance")
         .def(py::init<>())
         .def("apply", &WeightedMovingVariance::applyRet)
         .def("getBackgroundImage", &WeightedMovingVariance::getBackgroundImage)
-        .def("getParameters", &WeightedMovingVariance::getParameters);
+        .def("getParameters", &WeightedMovingVariance::getParameters, py::return_value_policy::reference);
 
     py::class_<ConnectedBlobDetection>(m, "ConnectedBlobDetection")
         .def(py::init<>())
