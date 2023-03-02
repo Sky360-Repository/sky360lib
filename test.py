@@ -1,12 +1,15 @@
 import cv2
 import pysky360
 
-algorithm = pysky360.WeightedMovingVariance()
-# algorithm = pysky360.WeightedMovingVarianceHalide()
-# algorithm = pysky360.WeightedMovingVarianceCuda()
+#algorithm = pysky360.WeightedMovingVariance()
+algorithm = pysky360.Vibe()
 
 video_file = "Dahua-20220901-184734.mp4"
 capture = cv2.VideoCapture(video_file)
+
+parameters = algorithm.getParameters()
+threshold = parameters.getThreshold()
+print("threshold: " + str(threshold))
 
 while not capture.isOpened():
     capture = cv2.VideoCapture(video_file)
@@ -28,8 +31,17 @@ while True:
     else:
         cv2.waitKey(1000)
         break
-    
-    if 0xFF & cv2.waitKey(10) == 27:
+    keyPressed = cv2.waitKey(10) & 0xFF
+    if keyPressed == 27:
         break
+    elif keyPressed == ord('+'):
+        threshold += 5
+        parameters.setThreshold(threshold)
+        print("threshold: " + str(threshold))
+    elif keyPressed == ord('-'):
+        threshold -= 5
+        parameters.setThreshold(threshold)
+        print("threshold: " + str(threshold))
+
 
 cv2.destroyAllWindows()
