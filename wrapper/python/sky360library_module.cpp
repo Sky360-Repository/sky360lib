@@ -86,6 +86,21 @@ PYBIND11_MODULE(pysky360, m)
         .def("setBinMode", &QHYCamera::setBinMode)
         .def("setResolution", &QHYCamera::setResolution)
         .def("setStreamMode", &QHYCamera::setStreamMode)
-        .def("getMemoryNeededForFrame", &QHYCamera::getMemoryNeededForFrame)
-        ;
+        .def("getMemoryNeededForFrame", &QHYCamera::getMemoryNeededForFrame);
+
+    py::enum_<QHYCamera::ControlParam>(m, "ControlParam")
+        .value("Brightness", QHYCamera::ControlParam::Brightness)
+        .value("Exposure", QHYCamera::ControlParam::Exposure)
+        .value("Contrast", QHYCamera::ControlParam::Contrast)
+        .value("UsbTraffic", QHYCamera::ControlParam::UsbTraffic)
+        .value("UsbSpeed", QHYCamera::ControlParam::UsbSpeed)
+        .value("Gain", QHYCamera::ControlParam::Gain)
+        .value("Offset", QHYCamera::ControlParam::Offset)
+        .value("TransferBits", QHYCamera::ControlParam::TransferBits)
+        .value("RedWB", QHYCamera::ControlParam::RedWB)
+        .value("GreenWB", QHYCamera::ControlParam::GreenWB)
+        .value("BlueWB", QHYCamera::ControlParam::BlueWB)
+        .value("Gamma", QHYCamera::ControlParam::Gamma)
+        .value("Channels", QHYCamera::ControlParam::Channels)
+        .export_values();
 }

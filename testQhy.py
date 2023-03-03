@@ -9,17 +9,22 @@ parameters = algorithm.getParameters()
 threshold = parameters.getThreshold()
 print("threshold: " + str(threshold))
 
+cv2.namedWindow("BGS", cv2.WINDOW_NORMAL);
+cv2.namedWindow("Live Video", cv2.WINDOW_NORMAL);
+
+cv2.resizeWindow("BGS", (1024, 1024))
+cv2.resizeWindow("Live Video", (1024, 1024));
+
 camera.open('')
+camera.setControl(pysky360.ControlParam.Exposure, 40000)
 
 while True:
     frame = camera.getFrame(True)
 
-    frame = cv2.resize(frame, (1024, 1024))
-    cv2.imshow('video', frame)
+    cv2.imshow('Live Video', frame)
     greyFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY);
-    img_output = algorithm.apply(greyFrame)
-    
-    cv2.imshow('img_output', img_output)
+    bgsMask = algorithm.apply(greyFrame)
+    cv2.imshow('BGS', bgsMask)
 
     keyPressed = cv2.waitKey(10) & 0xFF
     if keyPressed == 27:
@@ -32,6 +37,5 @@ while True:
         threshold -= 5
         parameters.setThreshold(threshold)
         print("threshold: " + str(threshold))
-
 
 cv2.destroyAllWindows()
