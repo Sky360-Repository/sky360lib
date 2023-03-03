@@ -160,7 +160,7 @@ namespace sky360lib::camera
         bool m_camOpen{false};
         bool m_isExposing{false};
 
-        bool getCameraInfo(std::string camId, CameraInfo &ci);
+        bool fillCameraInfo(std::string camId, CameraInfo &ci);
         bool scanCameras();
         bool allocBufferMemory();
         void releaseBufferMemory();

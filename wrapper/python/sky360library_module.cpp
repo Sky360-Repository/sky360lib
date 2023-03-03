@@ -11,10 +11,12 @@
 
 #include "bgs.hpp"
 #include "connectedBlobDetection.hpp"
+#include "qhyCamera.hpp"
 
 namespace py = pybind11;
 using namespace sky360lib::bgs;
 using namespace sky360lib::blobs;
+using namespace sky360lib::camera;
 
 PYBIND11_MODULE(pysky360, m)
 {
@@ -65,4 +67,25 @@ PYBIND11_MODULE(pysky360, m)
         .def("setSizeThreshold", &ConnectedBlobDetection::setSizeThreshold)
         .def("setAreaThreshold", &ConnectedBlobDetection::setAreaThreshold)
         .def("setMinDistance", &ConnectedBlobDetection::setMinDistance);
+
+    py::class_<QHYCamera>(m, "QHYCamera")
+        .def(py::init<>())
+        .def("setDebugInfo", &QHYCamera::setDebugInfo)
+        .def("getFrame", &QHYCamera::getFrameRet)
+        .def("debayerImage", &QHYCamera::debayerImage)
+        .def("getLastFrameCaptureTime", &QHYCamera::getLastFrameCaptureTime)
+        .def("getCameraInfo", &QHYCamera::getCameraInfo)
+        .def("getCameraParams", &QHYCamera::getCameraParams)
+        .def("init", &QHYCamera::init)
+        .def("release", &QHYCamera::release)
+        .def("open", &QHYCamera::open)
+        .def("close", &QHYCamera::close)
+        .def("beginExposing", &QHYCamera::beginExposing)
+        .def("setControl", &QHYCamera::setControl)
+        .def("setDebayer", &QHYCamera::setDebayer)
+        .def("setBinMode", &QHYCamera::setBinMode)
+        .def("setResolution", &QHYCamera::setResolution)
+        .def("setStreamMode", &QHYCamera::setStreamMode)
+        .def("getMemoryNeededForFrame", &QHYCamera::getMemoryNeededForFrame)
+        ;
 }

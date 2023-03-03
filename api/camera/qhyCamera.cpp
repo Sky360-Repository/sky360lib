@@ -198,7 +198,7 @@ namespace sky360lib::camera
         return returnFrame;
     }
 
-    bool QHYCamera::getCameraInfo(std::string camId, CameraInfo &ci)
+    bool QHYCamera::fillCameraInfo(std::string camId, CameraInfo &ci)
     {
         qhyccd_handle *camHandle = OpenQHYCCD((char *)camId.c_str());
         if (camHandle == nullptr)
@@ -275,7 +275,7 @@ namespace sky360lib::camera
             if (rc == QHYCCD_SUCCESS)
             {
                 CameraInfo ci;
-                if (getCameraInfo(camId, ci))
+                if (fillCameraInfo(camId, ci))
                 {
                     m_cameras[camId] = ci;
                 }
