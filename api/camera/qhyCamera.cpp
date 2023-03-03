@@ -574,7 +574,7 @@ namespace sky360lib::camera
                 {
                     return false;
                 }
-                cameraId = m_cameras[0].id;
+                cameraId = m_cameras.begin()->second.id;
             }
             m_camId = cameraId;
             m_currentInfo = &m_cameras[m_camId];
