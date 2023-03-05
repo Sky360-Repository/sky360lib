@@ -78,12 +78,6 @@ int main(int argc, const char **argv)
     bgsPtr = createBGS(BGSType::Vibe);
     cv::VideoCapture cap;
 
-    auto parameters = (sky360lib::bgs::VibeParams&)bgsPtr->getParameters();
-    parameters.setThreshold(5);
-    parameters.setBGSamples(4);
-    parameters.setRequiredBGSamples(1);
-    parameters.setLearningRate(8);
-
     if (argc > 1)
     {
         int camNum = getIntArg(argv[1]);
