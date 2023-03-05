@@ -88,6 +88,11 @@ PYBIND11_MODULE(pysky360, m)
         .def("setStreamMode", &QHYCamera::setStreamMode)
         .def("getMemoryNeededForFrame", &QHYCamera::getMemoryNeededForFrame);
 
+    py::class_<QHYCamera::CameraInfo>(m, "QHYCamera.CameraInfo")
+        .def(py::init<>())
+        .def("bayerFormatToString", &QHYCamera::CameraInfo::bayerFormatToString)
+        .def("toString", &QHYCamera::CameraInfo::toString);
+
     py::enum_<QHYCamera::ControlParam>(m, "ControlParam")
         .value("Brightness", QHYCamera::ControlParam::Brightness)
         .value("Exposure", QHYCamera::ControlParam::Exposure)
