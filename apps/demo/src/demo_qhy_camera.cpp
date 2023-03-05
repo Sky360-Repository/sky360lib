@@ -112,7 +112,8 @@ int main(int argc, const char **argv)
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);
 
     int gain = 30;
-    cv::createTrackbar("Gain:", "Live Video", &gain, 50, changeParam, (void*)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
+    cv::createTrackbar("Gain:", "Live Video", nullptr, 50, changeParam, (void*)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
+    cv::setTrackbarPos("Gain:", "Live Video", gain);
 
     cv::Mat frame, processedFrame, saveFrame, frameDebayered;
     long numFrames{0};
@@ -179,6 +180,7 @@ int main(int argc, const char **argv)
             writeText(videoFrame, "Blob Detection: " + std::string(doBlobDetection ? "On" : "Off") + " ('b' to toggle)", 4);
             writeText(videoFrame, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
             writeText(videoFrame, "BGS: " + getBGSName(bgsType) + " ('s' to toggle)", 6);
+            writeText(videoFrame, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 7);
 
             ++numFrames;
             totalProcessedTime += endProcessedTime - startProcessedTime;
@@ -240,6 +242,14 @@ int main(int argc, const char **argv)
                 std::cout << "Setting exposure to: " << exposure << std::endl;
                 qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
                 break;
+            case '1':
+                std::cout << "Setting bits to 8" << std::endl;
+                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
+                break;
+            case '2':
+                std::cout << "Setting bits to 16" << std::endl;
+                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16);
+                break;
         }
 
         double endFrameTime = getAbsoluteTime();
@@ -273,7 +283,7 @@ int main(int argc, const char **argv)
 void writeText(const cv::Mat _frame, std::string _text, int _line)
 {
     const std::string fontFamily = "Arial";
-    const cv::Scalar color{0, 255, 255, 0};
+    const cv::Scalar color{0, 200, 200, 0};
     const int fontSize = 40;
     const int fontSpacing = 15;
     const int height = _line * (fontSize + fontSpacing);
