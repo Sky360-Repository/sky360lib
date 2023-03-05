@@ -75,8 +75,14 @@ int main(int argc, const char **argv)
 
     std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    bgsPtr = createBGS(BGSType::Vibe);
     cv::VideoCapture cap;
+
+    auto parameters = (sky360lib::bgs::VibeParams&)bgsPtr->getParameters();
+    parameters.setThreshold(5);
+    parameters.setBGSamples(4);
+    parameters.setRequiredBGSamples(1);
+    parameters.setLearningRate(8);
 
     if (argc > 1)
     {
@@ -221,7 +227,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
     switch (_type)
     {
     case BGSType::Vibe:
-        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 24, 1, 2));
+        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 24, 1, 8));
     case BGSType::WMV:
         return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     case BGSType::WMVCL:

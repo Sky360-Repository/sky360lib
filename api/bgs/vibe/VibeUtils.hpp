@@ -199,7 +199,7 @@ namespace sky360lib::bgs
         }
         void setLearningRate(uint32_t value) 
         { 
-            if (learningRate > 0) 
+            if (value > 1) 
             {
                 learningRate = getHigherValueBit(value);
                 andLearningRate = learningRate - 1;
@@ -227,9 +227,9 @@ namespace sky360lib::bgs
         uint32_t learningRate;
         uint32_t andLearningRate;
 
-        uint32_t getHigherValueBit(uint32_t value)
+        static uint32_t getHigherValueBit(uint32_t value)
         {
-            unsigned r = 1;
+            uint32_t r = 1;
 
             while (value >>= 1) 
             {
