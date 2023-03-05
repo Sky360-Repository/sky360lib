@@ -141,6 +141,7 @@ namespace sky360lib::bgs
         /// defines the default value for RequiredBGSamples
         static const uint32_t DEFAULT_REQUIRED_NB_BG_SAMPLES{1}; //{2};
         /// defines the default value for the learning rate passed to the 'subsampling' factor in the original ViBe paper
+        /// needs to be a power of 2
         static const uint32_t DEFAULT_LEARNING_RATE{2}; //{8};
 
         VibeParams()
@@ -198,8 +199,16 @@ namespace sky360lib::bgs
         }
         void setLearningRate(uint32_t value) 
         { 
-            learningRate = value; 
-            andLearningRate = learningRate - 1;
+            if (learningRate > 0) 
+            {
+                learningRate = getHigherValueBit(value);
+                andLearningRate = learningRate - 1;
+            }
+            else
+            {
+                learningRate = 1;
+                andLearningRate = 1;
+            }
         }
 
         friend class Vibe;
@@ -214,8 +223,19 @@ namespace sky360lib::bgs
         uint64_t thresholdColorSquared;
         uint32_t thresholdMono16;
         uint64_t thresholdColor16Squared;
-        /// should be > 0 and factor of 2 (smaller values == faster adaptation)
+        /// should be > 1 and factor of 2 (smaller values == faster adaptation)
         uint32_t learningRate;
         uint32_t andLearningRate;
+
+        uint32_t getHigherValueBit(uint32_t value)
+        {
+            unsigned r = 1;
+
+            while (value >>= 1) 
+            {
+                r <<= 1;
+            }
+            return r;
+        }
     };
 }
