@@ -57,11 +57,7 @@ void MouseCallBackFunc(int event, int x, int y, int, void *)
     if (event == cv::EVENT_LBUTTONUP)
     {
         fullFrameBox = tempFrameBox;
-        if (!isBoxSelected)
-        {
-            cv::namedWindow("Window Cut", cv::WINDOW_AUTOSIZE);
-            isBoxSelected = true;
-        }
+        isBoxSelected = true;
     }
     else if (event == cv::EVENT_MOUSEMOVE)
     {
@@ -113,6 +109,9 @@ int main(int argc, const char **argv)
     }
 
     initFrequency();
+
+    cv::namedWindow("Window Cut", cv::WINDOW_AUTOSIZE);
+    cv::resizeWindow("Window Cut", fullFrameBox.width, fullFrameBox.height);
 
     cv::namedWindow("Live Video", cv::WINDOW_NORMAL);
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);

@@ -12,7 +12,7 @@
 		//"--gpus",
 		//"all",
 		"--privileged",
-		"--network=bridge",
+		"--network=host",
 		"--cap-add=SYS_PTRACE",
 		"--security-opt=seccomp:unconfined",
 		"--security-opt=apparmor:unconfined",
