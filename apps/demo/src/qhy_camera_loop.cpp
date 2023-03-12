@@ -17,8 +17,16 @@
 /////////////////////////////////////////////////////////////
 // Default parameters
 const int DEFAULT_WINDOW_WIDTH{1024};
+const int DEFAULT_BOX_SIZE{500};
+
 bool isVideoOpen = false;
+bool isBoxSelected = false;
+int frameWidth;
+int frameHeight;
 cv::VideoWriter videoWriter;
+
+cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
+cv::Rect tempFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
 
 /////////////////////////////////////////////////////////////
 // Camera Detector
@@ -26,20 +34,56 @@ sky360lib::camera::QHYCamera qhyCamera;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
+inline void drawBoxes(const cv::Mat &frame);
 void writeText(const cv::Mat _frame, std::string _text, int _line);
 bool openQQYCamera();
 inline bool getQhyCameraImage(cv::Mat &cameraFrame);
 bool openVideo(const cv::Mat &frame, double meanFps);
 inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut);
 
-static void changeParam(int value, void* paramP)
+static void changeParam(int value, void *paramP)
 {
     long param = (long)paramP;
     switch (param)
     {
-        case sky360lib::camera::QHYCamera::ControlParam::Gain:
-            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
-            break;
+    case sky360lib::camera::QHYCamera::ControlParam::Gain:
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
+        break;
+    }
+}
+
+void MouseCallBackFunc(int event, int x, int y, int, void *)
+{
+    if (event == cv::EVENT_LBUTTONUP)
+    {
+        fullFrameBox = tempFrameBox;
+        if (!isBoxSelected)
+        {
+            cv::namedWindow("Window Cut", cv::WINDOW_AUTOSIZE);
+            isBoxSelected = true;
+        }
+    }
+    else if (event == cv::EVENT_MOUSEMOVE)
+    {
+        //tempFrameBox
+        if (x > (frameWidth - (tempFrameBox.width / 2.0)))
+        {
+            x = frameWidth - (tempFrameBox.width / 2.0);
+        }
+        else if (x < (tempFrameBox.width / 2.0))
+        {
+            x = (tempFrameBox.width / 2.0);
+        }
+        if (y > (frameHeight - (tempFrameBox.height / 2.0)))
+        {
+            y = frameHeight - (tempFrameBox.height / 2.0);
+        }
+        else if (y < (tempFrameBox.height / 2.0))
+        {
+            y = (tempFrameBox.height / 2.0);
+        }
+        tempFrameBox.x = x - (tempFrameBox.width / 2.0);
+        tempFrameBox.y = y - (tempFrameBox.height / 2.0);
     }
 }
 
@@ -72,9 +116,10 @@ int main(int argc, const char **argv)
 
     cv::namedWindow("Live Video", cv::WINDOW_NORMAL);
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);
+    cv::setMouseCallback("Live Video", MouseCallBackFunc, NULL);
 
     int gain = 30;
-    cv::createTrackbar("Gain:", "Live Video", nullptr, 50, changeParam, (void*)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
+    cv::createTrackbar("Gain:", "Live Video", nullptr, 50, changeParam, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
     cv::setTrackbarPos("Gain:", "Live Video", gain);
 
     cv::Mat frame, processedFrame, saveFrame, frameDebayered;
@@ -89,6 +134,9 @@ int main(int argc, const char **argv)
 
     getQhyCameraImage(frame);
 
+    frameWidth = frame.size().width;
+    frameHeight = frame.size().height;
+
     cv::Mat videoFrame{frame.size(), CV_8UC3};
 
     std::vector<cv::Rect> bboxes;
@@ -99,17 +147,21 @@ int main(int argc, const char **argv)
     while (run)
     {
         double startFrameTime = getAbsoluteTime();
-        EASY_BLOCK("Loop pass");
         if (!pause)
         {
             double startProcessedTime = getAbsoluteTime();
             getQhyCameraImage(frame);
             cameraTime += qhyCamera.getLastFrameCaptureTime();
             double endProcessedTime = getAbsoluteTime();
-            EASY_BLOCK("Debayering Image");
             debayerImage(frame, frameDebayered);
-            EASY_END_BLOCK;
 
+            if (isBoxSelected)
+            {
+                cv::Mat cropFrame = frameDebayered(fullFrameBox);
+                cv::imshow("Window Cut", cropFrame);
+            }
+
+            drawBoxes(frameDebayered);
             if (frameDebayered.elemSize1() > 1)
             {
                 frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
@@ -128,59 +180,55 @@ int main(int argc, const char **argv)
             totalProcessedTime += endProcessedTime - startProcessedTime;
             totalMeanProcessedTime += endProcessedTime - startProcessedTime;
             ++totalNumFrames;
-            EASY_BLOCK("Show/resize windows");
             cv::imshow("Live Video", videoFrame);
-            EASY_END_BLOCK;
-            EASY_BLOCK("Saving frame");
             if (isVideoOpen)
             {
                 videoWriter.write(videoFrame);
             }
-            EASY_END_BLOCK;
         }
 
         char key = (char)cv::waitKey(1);
         switch (key)
         {
-            case 27:
-                std::cout << "Escape key pressed" << std::endl;
-                run = false;
-                break;
-            case ' ':
-                std::cout << "Pausing" << std::endl;
-                pause = !pause;
-                break;
-            case 'v':
-                if (!isVideoOpen)
-                {
-                    std::cout << "Start recording" << std::endl;
-                    isVideoOpen = openVideo(frame, totalNumFrames / totalMeanProcessedTime);
-                }
-                else
-                {
-                    std::cout << "End recording" << std::endl;
-                    isVideoOpen = false;
-                    videoWriter.release();
-                }
-                break;
-            case '+':
-                exposure *= 1.1;
-                std::cout << "Setting exposure to: " << exposure << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
-                break;
-            case '-':
-                exposure *= 0.9;
-                std::cout << "Setting exposure to: " << exposure << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
-                break;
-            case '1':
-                std::cout << "Setting bits to 8" << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
-                break;
-            case '2':
-                std::cout << "Setting bits to 16" << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16);
-                break;
+        case 27:
+            std::cout << "Escape key pressed" << std::endl;
+            run = false;
+            break;
+        case ' ':
+            std::cout << "Pausing" << std::endl;
+            pause = !pause;
+            break;
+        case 'v':
+            if (!isVideoOpen)
+            {
+                std::cout << "Start recording" << std::endl;
+                isVideoOpen = openVideo(frame, totalNumFrames / totalMeanProcessedTime);
+            }
+            else
+            {
+                std::cout << "End recording" << std::endl;
+                isVideoOpen = false;
+                videoWriter.release();
+            }
+            break;
+        case '+':
+            exposure *= 1.1;
+            std::cout << "Setting exposure to: " << exposure << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+            break;
+        case '-':
+            exposure *= 0.9;
+            std::cout << "Setting exposure to: " << exposure << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+            break;
+        case '1':
+            std::cout << "Setting bits to 8" << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
+            break;
+        case '2':
+            std::cout << "Setting bits to 16" << std::endl;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16);
+            break;
         }
 
         double endFrameTime = getAbsoluteTime();
@@ -209,6 +257,29 @@ int main(int argc, const char **argv)
     profiler::dumpBlocksToFile("test_profile.prof");
 
     return 0;
+}
+
+inline void drawBoxes(const cv::Mat &frame)
+{
+    if (frame.elemSize1() == 1)
+    {
+        cv::rectangle(frame, tempFrameBox, cv::Scalar(255, 0, 255), 2);
+    }
+    else
+    {
+        cv::rectangle(frame, tempFrameBox, cv::Scalar(65535, 0, 65535), 2);
+    }
+    if (isBoxSelected)
+    {
+        if (frame.elemSize1() == 1)
+        {
+            cv::rectangle(frame, fullFrameBox, cv::Scalar(0, 0, 255), 2);
+        }
+        else
+        {
+            cv::rectangle(frame, fullFrameBox, cv::Scalar(0, 0, 65535), 2);
+        }
+    }
 }
 
 void writeText(const cv::Mat _frame, std::string _text, int _line)
