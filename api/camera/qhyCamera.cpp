@@ -45,8 +45,7 @@ namespace sky360lib::camera
     }
 
     QHYCamera::QHYCamera()
-        : m_debugInfo{false}
-        , m_currentInfo{nullptr}
+        : m_debugInfo{false}, m_currentInfo{nullptr}
     {
         EnableQHYCCDMessage(false);
         EnableQHYCCDLogFile(false);
@@ -312,63 +311,99 @@ namespace sky360lib::camera
         return m_lastFrameCaptureTime;
     }
 
-    bool QHYCamera::setControl(ControlParam controlParam, double value)
+    bool QHYCamera::setControl(ControlParam controlParam, double value, bool force)
     {
         uint32_t rc = IsQHYCCDControlAvailable(pCamHandle, (CONTROL_ID)controlParam);
         if (rc == QHYCCD_SUCCESS)
         {
+            switch (controlParam)
+            {
+            case Channels:
+                if (m_params.channels == (uint32_t)value)
+                    return true;
+                m_params.channels = value;
+                if (m_camOpen)
+                {
+                    allocBufferMemory();
+                    beginExposing();
+                }
+                break;
+            case TransferBits:
+                if (!force && m_params.transferBits == (uint32_t)value)
+                    return true;
+                m_params.transferBits = value;
+                if (m_camOpen)
+                {
+                    allocBufferMemory();
+                    close();
+                    open(m_camId);
+                }
+                break;
+            case Brightness:
+                if (!force && m_params.brightness == value)
+                    return true;
+                m_params.brightness = value;
+                break;
+            case Contrast:
+                if (!force && m_params.contrast == value)
+                    return true;
+                m_params.contrast = value;
+                break;
+            case Exposure:
+                if (!force && m_params.exposureTime == (uint32_t)value)
+                    return true;
+                m_params.exposureTime = value;
+                break;
+            case UsbTraffic:
+                if (!force && m_params.usbTraffic == (uint32_t)value)
+                    return true;
+                m_params.usbTraffic = value;
+                break;
+            case UsbSpeed:
+                if (!force && m_params.usbSpeed == (uint32_t)value)
+                    return true;
+                m_params.usbSpeed = value;
+                break;
+            case Gain:
+                if (!force && m_params.gain == (uint32_t)value)
+                    return true;
+                m_params.gain = value;
+                break;
+            case Offset:
+                if (!force && m_params.offset == (uint32_t)value)
+                    return true;
+                m_params.offset = value;
+                break;
+            case RedWB:
+                if (!force && m_params.redWB == value)
+                    return true;
+                m_params.redWB = value;
+                break;
+            case BlueWB:
+                if (!force && m_params.greenWB == value)
+                    return true;
+                m_params.greenWB = value;
+                break;
+            case GreenWB:
+                if (!force && m_params.blueWB == value)
+                    return true;
+                m_params.blueWB = value;
+                break;
+            case Gamma:
+                if (!force && m_params.gamma == value)
+                    return true;
+                m_params.gamma = value;
+                break;
+            default:
+                break;
+            }
             rc = SetQHYCCDParam(pCamHandle, (CONTROL_ID)controlParam, value);
             if (rc != QHYCCD_SUCCESS)
             {
                 std::cerr << "setControl failed: " << controlParam << std::endl;
                 return false;
             }
-            switch (controlParam)
-            {
-            case Channels:
-                m_params.channels = value;
-                allocBufferMemory();
-                break;
-            case TransferBits:
-                m_params.transferBits = value;
-                allocBufferMemory();
-                break;
-            case Brightness:
-                m_params.brightness = value;
-                break;
-            case Contrast:
-                m_params.contrast = value;
-                break;
-            case Exposure:
-                m_params.exposureTime = value;
-                break;
-            case UsbTraffic:
-                m_params.usbTraffic = value;
-                break;
-            case UsbSpeed:
-                m_params.usbSpeed = value;
-                break;
-            case Gain:
-                m_params.gain = value;
-                break;
-            case Offset:
-                m_params.offset = value;
-                break;
-            case RedWB:
-                m_params.redWB = value;
-                break;
-            case BlueWB:
-                m_params.greenWB = value;
-                break;
-            case GreenWB:
-                m_params.blueWB = value;
-                break;
-            case Gamma:
-                m_params.gamma = value;
-                break;
-            default:
-                break;
-            }
+
         }
         else if (m_debugInfo)
         {
@@ -463,27 +498,55 @@ namespace sky360lib::camera
         return true;
     }
 
-    bool QHYCamera::setDefaultParams()
+    void QHYCamera::setDefaultParams()
     {
-        setDebayer(false);
-        setControl(RedWB, 70.0);
-        setControl(GreenWB, 65.0);
-        setControl(BlueWB, 88.0);
-        setControl(Exposure, 2000);
-        setStreamMode(LiveFrame);
-        setControl(UsbTraffic, 0);
-        setControl(UsbSpeed, 0);
-        setControl(Gain, 30);
-        setControl(Offset, 0);
-        setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
-        setControl(TransferBits, 8);
-        setControl(Channels, 1);
-        setBinMode(Bin_1x1);
-        setControl(Contrast, 0.0);
-        setControl(Brightness, 0.0);
-        setControl(Gamma, 1.0);
+        if (!m_defaultSet)
+        {
+            setDebayer(false);
+            setControl(RedWB, 70.0, true);
+            setControl(GreenWB, 65.0, true);
+            setControl(BlueWB, 88.0, true);
+            setControl(Exposure, 2000, true);
+            setStreamMode(LiveFrame);
+            setControl(UsbTraffic, 0, true);
+            setControl(UsbSpeed, 0, true);
+            setControl(Gain, 30, true);
+            setControl(Offset, 0, true);
+            setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
+            setControl(TransferBits, 16, true);
+            setControl(Channels, 1, true);
+            setBinMode(Bin_1x1);
+            setControl(Contrast, 0.0, true);
+            setControl(Brightness, 0.0, true);
+            setControl(Gamma, 1.0, true);
 
-        return true;
+            m_defaultSet = true;
+        }
+        else
+        {
+            applyParams();
+        }
+    }
+
+    void QHYCamera::applyParams()
+    {
+        setDebayer(m_params.applyDebayer);
+        setControl(RedWB, m_params.redWB);
+        setControl(GreenWB, m_params.greenWB);
+        setControl(BlueWB, m_params.blueWB);
+        setControl(Exposure, m_params.exposureTime);
+        setStreamMode(m_params.streamMode);
+        setControl(UsbTraffic, m_params.usbTraffic);
+        setControl(UsbSpeed, m_params.usbSpeed);
+        setControl(Gain, m_params.gain);
+        setControl(Offset, m_params.offset);
+        setResolution(m_params.roiStartX, m_params.roiStartY, m_params.roiWidth, m_params.roiHeight);
+        setControl(TransferBits, m_params.transferBits);
+        setControl(Channels, m_params.channels);
+        setBinMode(m_params.binMode);
+        setControl(Contrast, m_params.contrast);
+        setControl(Brightness, m_params.brightness);
+        setControl(Gamma, m_params.gamma);
     }
 
     void QHYCamera::release()
@@ -524,6 +587,19 @@ namespace sky360lib::camera
     {
         delete[] m_pImgData;
         m_pImgData = nullptr;
+    }
+
+    void QHYCamera::endExposing()
+    {
+        if (m_params.streamMode == SingleFrame)
+        {
+            CancelQHYCCDExposingAndReadout(pCamHandle);
+        }
+        else
+        {
+            StopQHYCCDLive(pCamHandle);
+        }
+        m_isExposing = false;
     }
 
     bool QHYCamera::beginExposing()
@@ -576,6 +652,10 @@ namespace sky360lib::camera
                 }
                 cameraId = m_cameras.begin()->second.id;
             }
+            else if (cameraId != m_camId)
+            {
+                m_defaultSet = false;
+            }
             m_camId = cameraId;
             m_currentInfo = &m_cameras[m_camId];
 
@@ -600,27 +680,6 @@ namespace sky360lib::camera
         }
 
         return m_camOpen;
-    }
-
-    void QHYCamera::applyParams()
-    {
-        setDebayer(m_params.applyDebayer);
-        setControl(RedWB, m_params.redWB);
-        setControl(GreenWB, m_params.greenWB);
-        setControl(BlueWB, m_params.blueWB);
-        setControl(Exposure, m_params.exposureTime);
-        setStreamMode(LiveFrame);
-        setControl(UsbTraffic, m_params.usbTraffic);
-        setControl(UsbSpeed, m_params.usbSpeed);
-        setControl(Gain, m_params.gain);
-        setControl(Offset, m_params.offset);
-        setResolution(m_params.roiStartX, m_params.roiStartY, m_params.roiWidth, m_params.roiHeight);
-        setControl(TransferBits, m_params.transferBits);
-        setControl(Channels, m_params.channels);
-        setBinMode(m_params.binMode);
-        setControl(Contrast, m_params.contrast);
-        setControl(Brightness, m_params.brightness);
-        setControl(Gamma, m_params.gamma);
     }
 
     void QHYCamera::close()

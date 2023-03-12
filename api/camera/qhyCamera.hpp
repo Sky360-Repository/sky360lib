@@ -137,8 +137,9 @@ namespace sky360lib::camera
         void close();
 
         bool beginExposing();
+        void endExposing();
 
-        bool setControl(ControlParam controlParam, double value);
+        bool setControl(ControlParam controlParam, double value, bool force = false);
         bool setDebayer(bool enable);
         bool setBinMode(BinMode mode);
         bool setResolution(uint32_t startX, uint32_t startY, uint32_t width, uint32_t height);
@@ -159,12 +160,13 @@ namespace sky360lib::camera
         bool m_camInit{false};
         bool m_camOpen{false};
         bool m_isExposing{false};
+        bool m_defaultSet{false};
 
         bool fillCameraInfo(std::string camId, CameraInfo &ci);
         bool scanCameras();
         bool allocBufferMemory();
         void releaseBufferMemory();
-        bool setDefaultParams();
+        void setDefaultParams();
         void applyParams();
         bool getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData);
         bool getLive(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData);

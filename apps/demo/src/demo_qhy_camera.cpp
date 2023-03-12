@@ -245,10 +245,12 @@ int main(int argc, const char **argv)
             case '1':
                 std::cout << "Setting bits to 8" << std::endl;
                 qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
+                bgsPtr = createBGS(bgsType);
                 break;
             case '2':
                 std::cout << "Setting bits to 16" << std::endl;
                 qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16);
+                bgsPtr->restart();
                 break;
         }
 
