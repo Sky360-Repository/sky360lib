@@ -23,6 +23,7 @@ bool isVideoOpen = false;
 bool isBoxSelected = false;
 int frameWidth;
 int frameHeight;
+double clipLimit = 2.0;
 cv::VideoWriter videoWriter;
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -40,48 +41,9 @@ bool openQQYCamera();
 inline bool getQhyCameraImage(cv::Mat &cameraFrame);
 bool openVideo(const cv::Mat &frame, double meanFps);
 inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut);
-
-static void changeParam(int value, void *paramP)
-{
-    long param = (long)paramP;
-    switch (param)
-    {
-    case sky360lib::camera::QHYCamera::ControlParam::Gain:
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
-        break;
-    }
-}
-
-void MouseCallBackFunc(int event, int x, int y, int, void *)
-{
-    if (event == cv::EVENT_LBUTTONUP)
-    {
-        fullFrameBox = tempFrameBox;
-        isBoxSelected = true;
-    }
-    else if (event == cv::EVENT_MOUSEMOVE)
-    {
-        //tempFrameBox
-        if (x > (frameWidth - (tempFrameBox.width / 2.0)))
-        {
-            x = frameWidth - (tempFrameBox.width / 2.0);
-        }
-        else if (x < (tempFrameBox.width / 2.0))
-        {
-            x = (tempFrameBox.width / 2.0);
-        }
-        if (y > (frameHeight - (tempFrameBox.height / 2.0)))
-        {
-            y = frameHeight - (tempFrameBox.height / 2.0);
-        }
-        else if (y < (tempFrameBox.height / 2.0))
-        {
-            y = (tempFrameBox.height / 2.0);
-        }
-        tempFrameBox.x = x - (tempFrameBox.width / 2.0);
-        tempFrameBox.y = y - (tempFrameBox.height / 2.0);
-    }
-}
+void equalizeImage(const cv::Mat &imageIn, cv::Mat &imageOut, double clipLimit);
+void changeParam(int value, void *paramP);
+void MouseCallBackFunc(int event, int x, int y, int, void *);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -141,7 +103,7 @@ int main(int argc, const char **argv)
     std::vector<cv::Rect> bboxes;
     bool run = true;
     bool pause = false;
-    bool doBlobDetection = false;
+    bool doEqualization = false;
     std::cout << "Enter loop" << std::endl;
     while (run)
     {
@@ -153,6 +115,10 @@ int main(int argc, const char **argv)
             cameraTime += qhyCamera.getLastFrameCaptureTime();
             double endProcessedTime = getAbsoluteTime();
             debayerImage(frame, frameDebayered);
+            if (doEqualization)
+            {
+                equalizeImage(frameDebayered, frameDebayered, clipLimit);
+            }
 
             if (isBoxSelected)
             {
@@ -161,27 +127,27 @@ int main(int argc, const char **argv)
             }
 
             drawBoxes(frameDebayered);
-            if (frameDebayered.elemSize1() > 1)
-            {
-                frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
-            }
-            else
-            {
-                videoFrame = frameDebayered;
-            }
-            writeText(videoFrame, "Exposure: " + std::to_string(exposure / 1000.0) + " ms ('+' to +10%, '-' to -10%)", 1);
-            writeText(videoFrame, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 2);
-            writeText(videoFrame, "Blob Detection: " + std::string(doBlobDetection ? "On" : "Off") + " ('b' to toggle)", 4);
-            writeText(videoFrame, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
-            writeText(videoFrame, "Capture: " + std::to_string(cameraFPS) + " fps", 7);
+            writeText(frameDebayered, "Exposure: " + std::to_string(exposure / 1000.0) + " ms ('+' to +10%, '-' to -10%)", 1);
+            writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 2);
+            writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 4);
+            writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
+            writeText(frameDebayered, "Capture: " + std::to_string(cameraFPS) + " fps", 7);
 
             ++numFrames;
             totalProcessedTime += endProcessedTime - startProcessedTime;
             totalMeanProcessedTime += endProcessedTime - startProcessedTime;
             ++totalNumFrames;
-            cv::imshow("Live Video", videoFrame);
+            cv::imshow("Live Video", frameDebayered);
             if (isVideoOpen)
             {
+                if (frameDebayered.elemSize1() > 1)
+                {
+                    frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
+                }
+                else
+                {
+                    videoFrame = frameDebayered;
+                }
                 videoWriter.write(videoFrame);
             }
         }
@@ -196,6 +162,9 @@ int main(int argc, const char **argv)
         case ' ':
             std::cout << "Pausing" << std::endl;
             pause = !pause;
+            break;
+        case 'e':
+            doEqualization = !doEqualization;
             break;
         case 'v':
             if (!isVideoOpen)
@@ -258,6 +227,48 @@ int main(int argc, const char **argv)
     return 0;
 }
 
+void changeParam(int value, void *paramP)
+{
+    long param = (long)paramP;
+    switch (param)
+    {
+    case sky360lib::camera::QHYCamera::ControlParam::Gain:
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
+        break;
+    }
+}
+
+void MouseCallBackFunc(int event, int x, int y, int, void *)
+{
+    if (event == cv::EVENT_LBUTTONUP)
+    {
+        fullFrameBox = tempFrameBox;
+        isBoxSelected = true;
+    }
+    else if (event == cv::EVENT_MOUSEMOVE)
+    {
+        //tempFrameBox
+        if (x > (frameWidth - (tempFrameBox.width / 2.0)))
+        {
+            x = frameWidth - (tempFrameBox.width / 2.0);
+        }
+        else if (x < (tempFrameBox.width / 2.0))
+        {
+            x = (tempFrameBox.width / 2.0);
+        }
+        if (y > (frameHeight - (tempFrameBox.height / 2.0)))
+        {
+            y = frameHeight - (tempFrameBox.height / 2.0);
+        }
+        else if (y < (tempFrameBox.height / 2.0))
+        {
+            y = (tempFrameBox.height / 2.0);
+        }
+        tempFrameBox.x = x - (tempFrameBox.width / 2.0);
+        tempFrameBox.y = y - (tempFrameBox.height / 2.0);
+    }
+}
+
 inline void drawBoxes(const cv::Mat &frame)
 {
     if (frame.elemSize1() == 1)
@@ -281,15 +292,43 @@ inline void drawBoxes(const cv::Mat &frame)
     }
 }
 
+int getMaxTextHeight()
+{
+    const std::string text = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz(){}[]!|$#^0123456789";
+    const int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+    const double fontScale = 1.0;
+    const int thickness = 5;
+    int baseline = 0;
+    cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, &baseline);
+
+    return textSize.height;
+}
+
+inline double calcFontScale(int fontHeight)
+{
+    const double numLines = 40;
+    const double lineHeight = (double)qhyCamera.getCameraInfo()->maxImageHeight /  numLines;
+    return lineHeight / ((double)fontHeight * 1.5);
+}
+
+inline int calcHeight(int line)
+{
+    const double numLines = 40;
+    const double lineHeight = (double)qhyCamera.getCameraInfo()->maxImageHeight /  numLines;
+    return line * lineHeight;
+}
+
 void writeText(const cv::Mat _frame, std::string _text, int _line)
 {
-    const std::string fontFamily = "Arial";
+    static const int maxHeight = getMaxTextHeight();
+    static const double fontScale = calcFontScale(maxHeight);
+    const int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+    const int thickness = 5;
     const cv::Scalar color{0, 200, 200, 0};
-    const int fontSize = 40;
-    const int fontSpacing = 15;
-    const int height = _line * (fontSize + fontSpacing);
+    const cv::Scalar color16{0, 200 * 255, 200 * 255, 0};
+    const int height = calcHeight(_line);
 
-    cv::addText(_frame, _text, cv::Point(fontSpacing, height), fontFamily, fontSize, color);
+    cv::putText(_frame, _text, cv::Point(maxHeight, height), fontFace, fontScale, _frame.elemSize1() == 1 ? color : color16, thickness);
 }
 
 bool openQQYCamera()
@@ -304,8 +343,6 @@ bool openQQYCamera()
         std::cout << "Error opening camera" << std::endl;
         return false;
     }
-
-    // qhyCamera.setStreamMode(sky360lib::camera::QHYCamera::SingleFrame);
 
     // check color camera
     if (qhyCamera.getCameraInfo()->isColor)
@@ -329,6 +366,29 @@ inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut)
     EASY_FUNCTION(profiler::colors::Yellow);
 
     qhyCamera.debayerImage(imageIn, imageOut);
+}
+
+inline void equalizeImage(const cv::Mat &imageIn, cv::Mat &imageOut, double clipLimit)
+{
+    EASY_FUNCTION(profiler::colors::Yellow);
+
+    cv::Mat labImage;
+
+    cv::cvtColor(imageIn, labImage, cv::COLOR_BGR2YCrCb);
+
+    std::vector<cv::Mat> labChannels(3);
+    cv::split(labImage, labChannels);
+    
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+    clahe->setClipLimit(clipLimit);
+    clahe->setTilesGridSize(cv::Size(32, 32));
+    cv::Mat equalizedL;
+    clahe->apply(labChannels[0], equalizedL);
+
+    labChannels[0] = equalizedL;
+    cv::merge(labChannels, labImage);
+
+    cv::cvtColor(labImage, imageOut, cv::COLOR_YCrCb2BGR);
 }
 
 bool openVideo(const cv::Mat &frame, double meanFps)
