@@ -21,10 +21,21 @@ const int DEFAULT_BOX_SIZE{500};
 
 bool isVideoOpen = false;
 bool isBoxSelected = false;
-int frameWidth;
-int frameHeight;
+cv::Size frameSize;
 double clipLimit = 2.0;
+double exposure;
+bool doEqualization = false;
 cv::VideoWriter videoWriter;
+
+long numFrames{0};
+long totalNumFrames{0};
+double totalTime{0.0};
+double totalProcessedTime{0.0};
+double totalMeanProcessedTime{0.0};
+double lastProcessingFPS{0.0};
+double cameraTime{0.0};
+double cameraFPS{0.0};
+
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
 cv::Rect tempFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -39,11 +50,14 @@ inline void drawBoxes(const cv::Mat &frame);
 void writeText(const cv::Mat _frame, std::string _text, int _line);
 bool openQQYCamera();
 inline bool getQhyCameraImage(cv::Mat &cameraFrame);
-bool openVideo(const cv::Mat &frame, double meanFps);
+bool openVideo(const cv::Size &size, double meanFps);
 inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut);
 void equalizeImage(const cv::Mat &imageIn, cv::Mat &imageOut, double clipLimit);
-void changeParam(int value, void *paramP);
+void changeGain(int value, void *paramP);
 void MouseCallBackFunc(int event, int x, int y, int, void *);
+void exposureCallback(int, void*userData);
+void TransferbitsCallback(int, void*userData);
+void generalCallback(int, void*userData);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -59,7 +73,7 @@ int main(int argc, const char **argv)
 
     double aspectRatio{(double)qhyCamera.getCameraInfo()->maxImageWidth / (double)qhyCamera.getCameraInfo()->maxImageHeight};
 
-    double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
+    exposure = (argc > 1 ? atoi(argv[1]) : 20000);
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
 
     const auto concurrentThreads = std::thread::hardware_concurrency();
@@ -80,30 +94,30 @@ int main(int argc, const char **argv)
     cv::setMouseCallback("Live Video", MouseCallBackFunc, NULL);
 
     int gain = 30;
-    cv::createTrackbar("Gain:", "Live Video", nullptr, 50, changeParam, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
-    cv::setTrackbarPos("Gain:", "Live Video", gain);
+    cv::createButton("0.1 ms", exposureCallback, (void *)(long)100, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("1 ms", exposureCallback, (void *)(long)1000, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("10 ms", exposureCallback, (void *)(long)10000, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("100 ms", exposureCallback, (void *)(long)100000, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("1 s", exposureCallback, (void *)(long)1000000, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("+ 10%", exposureCallback, (void *)(long)-1, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("- 10%", exposureCallback, (void *)(long)-2, cv::QT_PUSH_BUTTON, 1);
+    cv::createTrackbar("Gain:", "", nullptr, 54, changeGain, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
+    cv::setTrackbarPos("Gain:", "", gain);
+    cv::createButton("8 bits", TransferbitsCallback, (void *)(long)8, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("16 bits", TransferbitsCallback, (void *)(long)16, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Video Recording", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
 
     cv::Mat frame, processedFrame, saveFrame, frameDebayered;
-    long numFrames{0};
-    long totalNumFrames{0};
-    double totalTime{0.0};
-    double totalProcessedTime{0.0};
-    double totalMeanProcessedTime{0.0};
-    double lastProcessingFPS{0.0};
-    double cameraTime{0.0};
-    double cameraFPS{0.0};
 
     getQhyCameraImage(frame);
-
-    frameWidth = frame.size().width;
-    frameHeight = frame.size().height;
+    frameSize = frame.size();
 
     cv::Mat videoFrame{frame.size(), CV_8UC3};
 
     std::vector<cv::Rect> bboxes;
     bool run = true;
     bool pause = false;
-    bool doEqualization = false;
     std::cout << "Enter loop" << std::endl;
     while (run)
     {
@@ -170,7 +184,7 @@ int main(int argc, const char **argv)
             if (!isVideoOpen)
             {
                 std::cout << "Start recording" << std::endl;
-                isVideoOpen = openVideo(frame, totalNumFrames / totalMeanProcessedTime);
+                isVideoOpen = openVideo(frameSize, totalNumFrames / totalMeanProcessedTime);
             }
             else
             {
@@ -227,7 +241,7 @@ int main(int argc, const char **argv)
     return 0;
 }
 
-void changeParam(int value, void *paramP)
+void changeGain(int value, void *paramP)
 {
     long param = (long)paramP;
     switch (param)
@@ -235,6 +249,53 @@ void changeParam(int value, void *paramP)
     case sky360lib::camera::QHYCamera::ControlParam::Gain:
         qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
         break;
+    }
+}
+
+void exposureCallback(int, void*userData)
+{
+    if ((long)userData == -1)
+    {
+        exposure *= 1.1;
+    }
+    else if ((long)userData == -2)
+    {
+        exposure *= 0.9;
+    }
+    else
+    {
+        exposure = (long)userData;
+    }
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+}
+
+void TransferbitsCallback(int, void*userData)
+{
+    long transferBits = (long)userData;
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, transferBits);
+}
+
+void generalCallback(int, void*userData)
+{
+    long param = (long)userData;
+    switch (param)
+    {
+        case 'e':
+            doEqualization = !doEqualization;
+            break;
+        case 'v':
+            if (!isVideoOpen)
+            {
+                std::cout << "Start recording" << std::endl;
+                isVideoOpen = openVideo(frameSize, totalNumFrames / totalMeanProcessedTime);
+            }
+            else
+            {
+                std::cout << "End recording" << std::endl;
+                isVideoOpen = false;
+                videoWriter.release();
+            }
+            break;
     }
 }
 
@@ -248,17 +309,17 @@ void MouseCallBackFunc(int event, int x, int y, int, void *)
     else if (event == cv::EVENT_MOUSEMOVE)
     {
         //tempFrameBox
-        if (x > (frameWidth - (tempFrameBox.width / 2.0)))
+        if (x > (frameSize.width - (tempFrameBox.width / 2.0)))
         {
-            x = frameWidth - (tempFrameBox.width / 2.0);
+            x = frameSize.width - (tempFrameBox.width / 2.0);
         }
         else if (x < (tempFrameBox.width / 2.0))
         {
             x = (tempFrameBox.width / 2.0);
         }
-        if (y > (frameHeight - (tempFrameBox.height / 2.0)))
+        if (y > (frameSize.height - (tempFrameBox.height / 2.0)))
         {
-            y = frameHeight - (tempFrameBox.height / 2.0);
+            y = frameSize.height - (tempFrameBox.height / 2.0);
         }
         else if (y < (tempFrameBox.height / 2.0))
         {
@@ -351,6 +412,7 @@ bool openQQYCamera()
         qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 65.0);
         qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 78.0);
     }
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
     return true;
 }
 
@@ -391,7 +453,7 @@ inline void equalizeImage(const cv::Mat &imageIn, cv::Mat &imageOut, double clip
     cv::cvtColor(labImage, imageOut, cv::COLOR_YCrCb2BGR);
 }
 
-bool openVideo(const cv::Mat &frame, double meanFps)
+bool openVideo(const cv::Size &size, double meanFps)
 {
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
@@ -400,5 +462,5 @@ bool openVideo(const cv::Mat &frame, double meanFps)
     oss << std::put_time(&tm, "%Y%m%d%H%M%S");
     auto name = "vo" + oss.str() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
-    return videoWriter.open(name, codec, meanFps, frame.size(), true);
+    return videoWriter.open(name, codec, meanFps, size, true);
 }
