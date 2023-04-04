@@ -334,21 +334,21 @@ inline void drawBoxes(const cv::Mat &frame)
 {
     if (frame.elemSize1() == 1)
     {
-        cv::rectangle(frame, tempFrameBox, cv::Scalar(255, 0, 255), 2);
+        cv::rectangle(frame, tempFrameBox, cv::Scalar(255, 0, 255), 5);
     }
     else
     {
-        cv::rectangle(frame, tempFrameBox, cv::Scalar(65535, 0, 65535), 2);
+        cv::rectangle(frame, tempFrameBox, cv::Scalar(65535, 0, 65535), 5);
     }
     if (isBoxSelected)
     {
         if (frame.elemSize1() == 1)
         {
-            cv::rectangle(frame, fullFrameBox, cv::Scalar(0, 0, 255), 2);
+            cv::rectangle(frame, fullFrameBox, cv::Scalar(0, 0, 255), 5);
         }
         else
         {
-            cv::rectangle(frame, fullFrameBox, cv::Scalar(0, 0, 65535), 2);
+            cv::rectangle(frame, fullFrameBox, cv::Scalar(0, 0, 65535), 5);
         }
     }
 }
