@@ -57,7 +57,7 @@ void MouseCallBackFunc(int event, int x, int y, int, void *);
 void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
-cv::Mat createHistogram(const cv::Mat img);
+cv::Mat createHistogram(const cv::Mat& img);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -182,8 +182,8 @@ void createControlPanel()
     cv::createButton("10 ms", exposureCallback, (void *)(long)10000, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("100 ms", exposureCallback, (void *)(long)100000, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("1 s", exposureCallback, (void *)(long)1000000, cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("+ 10%", exposureCallback, (void *)(long)-1, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("- 10%", exposureCallback, (void *)(long)-2, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("+ 10%", exposureCallback, (void *)(long)-1, cv::QT_PUSH_BUTTON, 1);
     int maxGain = (int)qhyCamera.getCameraInfo()->gainLimits.max;
     cv::createTrackbar("Gain:", "", nullptr, maxGain, changeTrackbars, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
     cv::setTrackbarPos("Gain:", "", (int)qhyCamera.getCameraParams().gain);
@@ -205,7 +205,7 @@ void createControlPanel()
 
     cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Recording", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Open Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Histogram On/Off", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
 
@@ -448,11 +448,11 @@ bool openVideo(const cv::Size &size, double meanFps)
     return videoWriter.open(name, codec, meanFps, size, true);
 }
 
-cv::Mat createHistogram(const cv::Mat img)
+cv::Mat createHistogram(const cv::Mat& img)
 {
     // Set up the parameters for the histogram
     int histSize = 256;
-    float range[] = {0, 256};
+    float range[] = {0, img.elemSize1() == 1 ? 256.0f : 65536.0f};
     const float* histRange = {range};
     bool uniform = true;
     bool accumulate = false;
