@@ -41,6 +41,9 @@ namespace sky360lib::camera
               << (hasBin3x3Mode ? " (3x3)" : "")
               << (hasBin4x4Mode ? " (4x4)" : "")
               << std::endl;
+        toStr << "Gain Limits: Min: " << gainLimits.min << ", Max: " << gainLimits.max << ", Step: " << gainLimits.step << std::endl;
+        toStr << "Offset Limits: Min: " << offsetLimits.min << ", Max: " << offsetLimits.max << ", Step: " << offsetLimits.step << std::endl;
+        toStr << "Usb Traffic Limits: Min: " << usbTrafficLimits.min << ", Max: " << usbTrafficLimits.max << ", Step: " << usbTrafficLimits.step << std::endl;
         return toStr.str();
     }
 
@@ -104,15 +107,15 @@ namespace sky360lib::camera
 
     const uint8_t *QHYCamera::getFrame()
     {
-        using fsec = std::chrono::duration<float>;
-        std::chrono::high_resolution_clock timer;
+        using fsec = std::chrono::duration<double>;
         uint32_t w, h, bpp, channels;
-        static fsec fpsTime = fsec::zero();
 
         if (!m_isExposing)
+        {
             beginExposing();
+        }
 
-        auto start = timer.now();
+        auto start = std::chrono::high_resolution_clock::now();
 
         if (m_params.streamMode == SingleFrame)
         {
@@ -129,7 +132,7 @@ namespace sky360lib::camera
             }
         }
 
-        auto stop = timer.now();
+        auto stop = std::chrono::high_resolution_clock::now();
         fsec duration = (stop - start);
         m_lastFrameCaptureTime = duration.count();
 
@@ -173,7 +176,6 @@ namespace sky360lib::camera
         {
             imgQHY.copyTo(frame);
         }
-        // cameraFrame.convertTo(frame, CV_8U, 1 / 256.0f);
 
         return true;
     }
@@ -241,6 +243,13 @@ namespace sky360lib::camera
         ci.hasBin3x3Mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN3X3MODE) == QHYCCD_SUCCESS;
         ci.hasBin4x4Mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN4X4MODE) == QHYCCD_SUCCESS;
 
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_GAIN, &ci.gainLimits.min, &ci.gainLimits.max, &ci.gainLimits.step);
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_OFFSET, &ci.offsetLimits.min, &ci.offsetLimits.max, &ci.offsetLimits.step);
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_USBTRAFFIC, &ci.usbTrafficLimits.min, &ci.usbTrafficLimits.max, &ci.usbTrafficLimits.step);
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBR, &ci.redWBLimits.min, &ci.redWBLimits.max, &ci.redWBLimits.step);
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBG, &ci.greenWBLimits.min, &ci.greenWBLimits.max, &ci.greenWBLimits.step);
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBB, &ci.blueWBLimits.min, &ci.blueWBLimits.max, &ci.blueWBLimits.step);
+
         rc = CloseQHYCCD(camHandle);
         if (rc != QHYCCD_SUCCESS)
         {
@@ -306,7 +315,7 @@ namespace sky360lib::camera
         return m_params;
     }
 
-    float QHYCamera::getLastFrameCaptureTime() const
+    double QHYCamera::getLastFrameCaptureTime() const
     {
         return m_lastFrameCaptureTime;
     }
@@ -379,12 +388,12 @@ namespace sky360lib::camera
                     return true;
                 m_params.redWB = value;
                 break;
-            case BlueWB:
+            case GreenWB:
                 if (!force && m_params.greenWB == value)
                     return true;
                 m_params.greenWB = value;
                 break;
-            case GreenWB:
+            case BlueWB:
                 if (!force && m_params.blueWB == value)
                     return true;
                 m_params.blueWB = value;

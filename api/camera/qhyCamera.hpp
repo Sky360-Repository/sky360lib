@@ -29,6 +29,13 @@ namespace sky360lib::camera
 
         struct CameraInfo
         {
+            struct paramLimits
+            {
+                double min;
+                double max;
+                double step;
+            };
+
             std::string id;
             std::string model;
             std::string serialNum;
@@ -61,6 +68,13 @@ namespace sky360lib::camera
             bool hasBin2x2Mode;
             bool hasBin3x3Mode;
             bool hasBin4x4Mode;
+
+            paramLimits gainLimits;
+            paramLimits offsetLimits;
+            paramLimits usbTrafficLimits;
+            paramLimits redWBLimits;
+            paramLimits greenWBLimits;
+            paramLimits blueWBLimits;
 
             std::string bayerFormatToString() const;
 
@@ -126,9 +140,21 @@ namespace sky360lib::camera
 
         void debayerImage(const cv::Mat& imageIn, cv::Mat& imageOut) const;
 
-        float getLastFrameCaptureTime() const;
+        double getLastFrameCaptureTime() const;
         CameraInfo const * getCameraInfo() const;
         const CameraParams& getCameraParams() const;
+
+        //uint32_t GetQHYCCDHumidity(qhyccd_handle *handle,double *hd);
+
+        //uint32_t GetQHYCCDCameraStatus(qhyccd_handle *handle,uint8_t *buf); 
+        // buf[0] buf[1] buf[2] buf[3]
+        // 00 fe 81 74:idle,camera don't expose and readout
+        // 01 fe 81 74:waiting,a span before starting expose,very short
+        // 02 fe 81 74:exposing,open shutter to start expose,and will close shutter
+        // after expose
+        // 03 fe 81 74:read out image data
+
+        //uint32_t ControlQHYCCDTemp(qhyccd_handle *handle,double targettemp);
 
         bool init();
         void release();
@@ -155,7 +181,7 @@ namespace sky360lib::camera
         std::map<std::string, CameraInfo> m_cameras;
         CameraParams m_params;
         CameraInfo* m_currentInfo;
-        float m_lastFrameCaptureTime;
+        double m_lastFrameCaptureTime;
 
         bool m_camInit{false};
         bool m_camOpen{false};
