@@ -93,7 +93,8 @@ int main(int argc, const char **argv)
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);
     cv::setMouseCallback("Live Video", MouseCallBackFunc, NULL);
 
-    int gain = 30;
+    cv::createTrackbar("USB Traffic:", "", nullptr, 50, changeGain, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::UsbTraffic);
+    cv::setTrackbarPos("USB Traffic:", "", 5);
     cv::createButton("0.1 ms", exposureCallback, (void *)(long)100, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("1 ms", exposureCallback, (void *)(long)1000, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("10 ms", exposureCallback, (void *)(long)10000, cv::QT_PUSH_BUTTON, 1);
@@ -102,7 +103,9 @@ int main(int argc, const char **argv)
     cv::createButton("+ 10%", exposureCallback, (void *)(long)-1, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("- 10%", exposureCallback, (void *)(long)-2, cv::QT_PUSH_BUTTON, 1);
     cv::createTrackbar("Gain:", "", nullptr, 54, changeGain, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
-    cv::setTrackbarPos("Gain:", "", gain);
+    cv::setTrackbarPos("Gain:", "", 30);
+    cv::createTrackbar("Offset:", "", nullptr, 255, changeGain, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::Offset);
+    cv::setTrackbarPos("Offset:", "", 0);
     cv::createButton("8 bits", TransferbitsCallback, (void *)(long)8, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("16 bits", TransferbitsCallback, (void *)(long)16, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
@@ -244,12 +247,7 @@ int main(int argc, const char **argv)
 void changeGain(int value, void *paramP)
 {
     long param = (long)paramP;
-    switch (param)
-    {
-    case sky360lib::camera::QHYCamera::ControlParam::Gain:
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
-        break;
-    }
+    qhyCamera.setControl((sky360lib::camera::QHYCamera::ControlParam)param, (double)value);
 }
 
 void exposureCallback(int, void*userData)
@@ -413,6 +411,7 @@ bool openQQYCamera()
         qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 78.0);
     }
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::UsbTraffic, 5);
     return true;
 }
 
