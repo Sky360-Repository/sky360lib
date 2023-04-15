@@ -456,11 +456,17 @@ namespace sky360lib::camera
             std::cerr << "SetQHYCCDResolution failure, error: " << rc << std::endl;
             return false;
         }
-        allocBufferMemory();
         m_params.roiStartX = startX;
         m_params.roiStartY = startY;
         m_params.roiWidth = width;
         m_params.roiHeight = height;
+
+        if (m_camOpen)
+        {
+            allocBufferMemory();
+            close();
+            open(m_camId);
+        }
 
         return true;
     }
@@ -522,6 +528,7 @@ namespace sky360lib::camera
             setControl(Gain, 30, true);
             setControl(Offset, 0, true);
             setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
+            //setResolution((getCameraInfo()->maxImageWidth - getCameraInfo()->maxImageHeight) / 2, 0, getCameraInfo()->maxImageHeight, getCameraInfo()->maxImageHeight);
             setControl(TransferBits, 16, true);
             setControl(Channels, 1, true);
             setBinMode(Bin_1x1);
@@ -676,13 +683,6 @@ namespace sky360lib::camera
                 std::cerr << "Open QHYCCD failure." << std::endl;
                 return false;
             }
-
-            // uint32_t rc = InitQHYCCD(pCamHandle);
-            // if (rc != QHYCCD_SUCCESS)
-            // {
-            //     std::cerr << "InitQHYCCD faililure" << std::endl;
-            //     return false;
-            // }
 
             setDefaultParams();
             m_camOpen = true;

@@ -23,6 +23,7 @@ cv::Size frameSize;
 double clipLimit = 2.0;
 double exposure;
 bool doEqualization = false;
+bool squareResolution = false;
 double aspectRatio;
 cv::VideoWriter videoWriter;
 bool run = true;
@@ -98,6 +99,8 @@ int main(int argc, const char **argv)
         if (!pauseCapture)
         {
             qhyCamera.getFrame(frame, false);
+            frameSize = frame.size();
+            aspectRatio = (double)frameSize.width / (double)frameSize.height;
             cameraTime += qhyCamera.getLastFrameCaptureTime();
             qhyCamera.debayerImage(frame, frameDebayered);
             if (doEqualization)
@@ -113,11 +116,12 @@ int main(int argc, const char **argv)
 
             drawBoxes(frameDebayered);
             writeText(frameDebayered, "Exposure: " + std::to_string(exposure / 1000.0) + " ms ('+' to +10%, '-' to -10%)", 1);
-            writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 2);
-            writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 4);
-            writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
-            writeText(frameDebayered, "Max Capture FPS: " + std::to_string(cameraFPS), 7);
-            writeText(frameDebayered, "Frame FPS: " + std::to_string(lastProcessingFPS), 8);
+            writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 2);
+            writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 3);
+            writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 5);
+            writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 6);
+            writeText(frameDebayered, "Max Capture FPS: " + std::to_string(cameraFPS), 8);
+            writeText(frameDebayered, "Frame FPS: " + std::to_string(lastProcessingFPS), 9);
 
             ++numFrames;
             ++totalNumFrames;
@@ -202,9 +206,10 @@ void createControlPanel()
     cv::createTrackbar("Blue WB:", "", nullptr, maxBlueWB, changeTrackbars, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::BlueWB);
     cv::setTrackbarPos("Blue WB:", "", (int)qhyCamera.getCameraParams().blueWB);
 
+    cv::createButton("Square Resol. on/off", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Recording", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Histogram On/Off", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Histogram on/off", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
 
@@ -250,6 +255,26 @@ void treatKeyboardpress(char key)
     case '2':
         std::cout << "Setting bits to 16" << std::endl;
         qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16);
+        break;
+    case 's':
+        squareResolution = !squareResolution;
+        isBoxSelected = false;
+        if (squareResolution)
+        {
+            uint32_t x = ((uint32_t)qhyCamera.getCameraInfo()->maxImageWidth - (uint32_t)qhyCamera.getCameraInfo()->maxImageHeight) / 2;
+            uint32_t y = 0;
+            uint32_t width = qhyCamera.getCameraInfo()->maxImageHeight;
+            uint32_t height = qhyCamera.getCameraInfo()->maxImageHeight;
+            qhyCamera.setResolution(x, y, width, height);
+        }
+        else
+        {
+            uint32_t x = 0;
+            uint32_t y = 0;
+            uint32_t width = qhyCamera.getCameraInfo()->maxImageWidth;
+            uint32_t height = qhyCamera.getCameraInfo()->maxImageHeight;
+            qhyCamera.setResolution(x, y, width, height);
+        }
         break;
     case 'h':
         showHistogram = !showHistogram;
