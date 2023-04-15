@@ -512,9 +512,9 @@ namespace sky360lib::camera
         if (!m_defaultSet)
         {
             setDebayer(false);
-            setControl(RedWB, 70.0, true);
-            setControl(GreenWB, 65.0, true);
-            setControl(BlueWB, 88.0, true);
+            setControl(RedWB, 180.0, true);
+            setControl(GreenWB, 128.0, true);
+            setControl(BlueWB, 190.0, true);
             setControl(Exposure, 2000, true);
             setStreamMode(LiveFrame);
             setControl(UsbTraffic, 0, true);

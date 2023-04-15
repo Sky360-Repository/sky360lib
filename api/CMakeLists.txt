@@ -158,4 +158,5 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/api/tracking"
             "${CMAKE_SOURCE_DIR}/api/blobs" 
             "${CMAKE_SOURCE_DIR}/api/camera" 
+            "${CMAKE_SOURCE_DIR}/api/utils" 
 )

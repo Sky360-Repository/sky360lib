@@ -5,6 +5,7 @@
 #include <chrono>
 
 #include "qhyCamera.hpp"
+#include "utils.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
@@ -49,7 +50,6 @@ inline void drawBoxes(const cv::Mat &frame);
 void writeText(const cv::Mat _frame, std::string _text, int _line);
 bool openQQYCamera();
 bool openVideo(const cv::Size &size, double meanFps);
-void equalizeImage(const cv::Mat &imageIn, cv::Mat &imageOut, double clipLimit);
 void createControlPanel();
 void treatKeyboardpress(char key);
 void changeTrackbars(int value, void *paramP);
@@ -57,7 +57,6 @@ void MouseCallBackFunc(int event, int x, int y, int, void *);
 void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
-cv::Mat createHistogram(const cv::Mat& img);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -103,7 +102,7 @@ int main(int argc, const char **argv)
             qhyCamera.debayerImage(frame, frameDebayered);
             if (doEqualization)
             {
-                equalizeImage(frameDebayered, frameDebayered, clipLimit);
+                sky360lib::utils::Utils::equalizeImage(frameDebayered, frameDebayered, clipLimit);
             }
 
             if (isBoxSelected)
@@ -125,7 +124,7 @@ int main(int argc, const char **argv)
             cv::imshow("Live Video", frameDebayered);
             if (showHistogram)
             {
-                cv::Mat hist = createHistogram(frameDebayered);
+                cv::Mat hist = sky360lib::utils::Utils::createHistogram(frameDebayered);
                 cv::imshow("Histogram", hist);
             }
             if (isVideoOpen)
@@ -406,34 +405,13 @@ bool openQQYCamera()
     // check color camera
     if (qhyCamera.getCameraInfo()->isColor)
     {
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 70.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 65.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 78.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 180.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 128.0);
+        qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 190.0);
     }
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::UsbTraffic, 5);
     return true;
-}
-
-inline void equalizeImage(const cv::Mat &imageIn, cv::Mat &imageOut, double clipLimit)
-{
-    cv::Mat labImage;
-
-    cv::cvtColor(imageIn, labImage, cv::COLOR_BGR2YCrCb);
-
-    std::vector<cv::Mat> labChannels(3);
-    cv::split(labImage, labChannels);
-    
-    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
-    clahe->setClipLimit(clipLimit);
-    clahe->setTilesGridSize(cv::Size(32, 32));
-    cv::Mat equalizedL;
-    clahe->apply(labChannels[0], equalizedL);
-
-    labChannels[0] = equalizedL;
-    cv::merge(labChannels, labImage);
-
-    cv::cvtColor(labImage, imageOut, cv::COLOR_YCrCb2BGR);
 }
 
 bool openVideo(const cv::Size &size, double meanFps)
@@ -446,61 +424,4 @@ bool openVideo(const cv::Size &size, double meanFps)
     auto name = "vo" + oss.str() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
     return videoWriter.open(name, codec, meanFps, size, true);
-}
-
-cv::Mat createHistogram(const cv::Mat& img)
-{
-    // Set up the parameters for the histogram
-    int histSize = 256;
-    float range[] = {0, img.elemSize1() == 1 ? 256.0f : 65536.0f};
-    const float* histRange = {range};
-    bool uniform = true;
-    bool accumulate = false;
-
-    // Calculate the histograms for each channel
-    std::vector<cv::Mat> bgr_planes;
-    cv::split(img, bgr_planes);
-
-    cv::Mat b_hist, g_hist, r_hist;
-    cv::calcHist(&bgr_planes[0], 1, 0, cv::Mat(), b_hist, 1, &histSize, &histRange, uniform, accumulate);
-    cv::calcHist(&bgr_planes[1], 1, 0, cv::Mat(), g_hist, 1, &histSize, &histRange, uniform, accumulate);
-    cv::calcHist(&bgr_planes[2], 1, 0, cv::Mat(), r_hist, 1, &histSize, &histRange, uniform, accumulate);
-
-    // Create an image for the histogram
-    int hist_w = 512;
-    int hist_h = 400;
-    int bin_w = cvRound(static_cast<double>(hist_w) / histSize);
-    cv::Mat hist_img(hist_h, hist_w, CV_8UC3, cv::Scalar(0, 0, 0));
-
-    // Normalize the histograms for better visualization
-    cv::normalize(b_hist, b_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
-    cv::normalize(g_hist, g_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
-    cv::normalize(r_hist, r_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
-
-    // Draw the histograms
-    for (int i = 1; i < histSize; ++i) {
-        cv::line(hist_img,
-                 cv::Point(bin_w * (i - 1), hist_h - cvRound(b_hist.at<float>(i - 1))),
-                 cv::Point(bin_w * i, hist_h - cvRound(b_hist.at<float>(i))),
-                 cv::Scalar(255, 0, 0),
-                 2,
-                 8,
-                 0);
-        cv::line(hist_img,
-                 cv::Point(bin_w * (i - 1), hist_h - cvRound(g_hist.at<float>(i - 1))),
-                 cv::Point(bin_w * i, hist_h - cvRound(g_hist.at<float>(i))),
-                 cv::Scalar(0, 255, 0),
-                 2,
-                 8,
-                 0);
-        cv::line(hist_img,
-                 cv::Point(bin_w * (i - 1), hist_h - cvRound(r_hist.at<float>(i - 1))),
-                 cv::Point(bin_w * i, hist_h - cvRound(r_hist.at<float>(i))),
-                 cv::Scalar(0, 0, 255),
-                 2,
-                 8,
-                 0);
-    }
-
-    return hist_img;
 }
