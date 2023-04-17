@@ -29,6 +29,8 @@ cv::VideoWriter videoWriter;
 bool run = true;
 bool pauseCapture = false;
 bool showHistogram = false;
+bool settingCircle = false;
+bool circleSet = false;
 
 long numFrames{0};
 long totalNumFrames{0};
@@ -40,6 +42,11 @@ double cameraFPS{0.0};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
 cv::Rect tempFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
+cv::Point2d circleInit;
+cv::Point2d circleEnd;
+cv::Point2d circleCenter;
+double circleRadius{0.0f};
+double cameraCircleMaxFov{0.0};
 
 /////////////////////////////////////////////////////////////
 // Camera Detector
@@ -54,10 +61,11 @@ bool openVideo(const cv::Size &size, double meanFps);
 void createControlPanel();
 void treatKeyboardpress(char key);
 void changeTrackbars(int value, void *paramP);
-void MouseCallBackFunc(int event, int x, int y, int, void *);
+void mouseCallBackFunc(int event, int x, int y, int, void *);
 void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
+void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -115,6 +123,14 @@ int main(int argc, const char **argv)
             }
 
             drawBoxes(frameDebayered);
+            if (!squareResolution)
+            {
+                drawFOV(frameDebayered, 220.0, circleCenter, circleRadius);
+            }
+            else
+            {
+                drawFOV(frameDebayered, cameraCircleMaxFov, circleCenter, circleRadius);
+            }
             writeText(frameDebayered, "Exposure: " + std::to_string(exposure / 1000.0) + " ms ('+' to +10%, '-' to -10%)", 1);
             writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 2);
             writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 3);
@@ -173,7 +189,7 @@ void createControlPanel()
 {
     cv::namedWindow("Live Video", cv::WINDOW_NORMAL);
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);
-    cv::setMouseCallback("Live Video", MouseCallBackFunc, NULL);
+    cv::setMouseCallback("Live Video", mouseCallBackFunc, NULL);
 
     cv::namedWindow("Window Cut", cv::WINDOW_AUTOSIZE);
 
@@ -261,11 +277,24 @@ void treatKeyboardpress(char key)
         isBoxSelected = false;
         if (squareResolution)
         {
-            uint32_t x = ((uint32_t)qhyCamera.getCameraInfo()->maxImageWidth - (uint32_t)qhyCamera.getCameraInfo()->maxImageHeight) / 2;
-            uint32_t y = 0;
-            uint32_t width = qhyCamera.getCameraInfo()->maxImageHeight;
-            uint32_t height = qhyCamera.getCameraInfo()->maxImageHeight;
-            qhyCamera.setResolution(x, y, width, height);
+            if (circleSet)
+            {
+                double max_radius = std::min(std::min(circleCenter.y, qhyCamera.getCameraInfo()->maxImageHeight - circleCenter.y), circleRadius);
+                uint32_t height = max_radius * 2;
+                uint32_t width = max_radius * 2;
+                uint32_t x = (uint32_t)(circleCenter.x - max_radius);
+                uint32_t y = 0;
+                qhyCamera.setResolution(x, y, width, height);
+            }
+            else
+            {
+                uint32_t x = ((uint32_t)qhyCamera.getCameraInfo()->maxImageWidth - (uint32_t)qhyCamera.getCameraInfo()->maxImageHeight) / 2;
+                uint32_t y = 0;
+                uint32_t width = qhyCamera.getCameraInfo()->maxImageHeight;
+                uint32_t height = qhyCamera.getCameraInfo()->maxImageHeight;
+                qhyCamera.setResolution(x, y, width, height);
+            }
+            circleSet = false;
         }
         else
         {
@@ -321,34 +350,119 @@ void generalCallback(int, void*userData)
     treatKeyboardpress((char)param);
 }
 
-void MouseCallBackFunc(int event, int x, int y, int, void *)
+std::string formatFOVText(float fov) 
 {
-    if (event == cv::EVENT_LBUTTONUP)
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(1) << fov;
+    return ss.str();
+}
+
+void drawFov(cv::Mat& frame, double fov, double max_fov, const cv::Scalar& color)
+{
+    if (max_fov >= fov)
     {
-        fullFrameBox = tempFrameBox;
-        isBoxSelected = true;
+        cv::Point2f text_offset(25, 60);
+        int font_face = cv::FONT_HERSHEY_COMPLEX;
+        double font_scale = 2.6;
+        int font_thickness = 7;
+
+        double radius = circleRadius * (fov / max_fov);
+        cv::circle(frame, circleCenter, radius, color, 8);
+
+        std::string fov_text = formatFOVText(fov);
+        cv::Size text_size = cv::getTextSize(fov_text, font_face, font_scale, font_thickness, nullptr);
+        double textX = std::max(circleCenter.x - radius + text_offset.x, 0.0);
+        cv::Point2f text_position(textX, circleCenter.y + text_size.height / 2 + text_offset.y);
+        cv::putText(frame, fov_text, text_position, font_face, font_scale, color, font_thickness, cv::LINE_AA);
     }
-    else if (event == cv::EVENT_MOUSEMOVE)
+}
+
+void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius)
+{
+    if (settingCircle || circleSet)
     {
-        //tempFrameBox
-        if (x > (frameSize.width - (tempFrameBox.width / 2.0)))
+        cv::Scalar color;
+        if (frame.elemSize1() == 1)
         {
-            x = frameSize.width - (tempFrameBox.width / 2.0);
+            color = cv::Scalar(128, 128, 255);
         }
-        else if (x < (tempFrameBox.width / 2.0))
+        else
         {
-            x = (tempFrameBox.width / 2.0);
+            color = cv::Scalar(32767, 32767, 65535);
         }
-        if (y > (frameSize.height - (tempFrameBox.height / 2.0)))
-        {
-            y = frameSize.height - (tempFrameBox.height / 2.0);
-        }
-        else if (y < (tempFrameBox.height / 2.0))
-        {
-            y = (tempFrameBox.height / 2.0);
-        }
-        tempFrameBox.x = x - (tempFrameBox.width / 2.0);
-        tempFrameBox.y = y - (tempFrameBox.height / 2.0);
+        cv::circle(frame, center, radius, color, 8);
+        cv::line(frame, cv::Point2d(center.x, center.y - radius), cv::Point2d(center.x, center.y + radius), color, 8);
+        cv::line(frame, cv::Point2d(center.x - radius, center.y), cv::Point2d(center.x + radius, center.y), color, 8);
+
+        drawFov(frame, 220.0, max_fov, color);
+        drawFov(frame, 180.0, max_fov, color);
+        drawFov(frame, 90.0, max_fov, color);
+        drawFov(frame, 30.0, max_fov, color);
+        drawFov(frame, 0.0f, max_fov, color);
+
+        double max_radius = std::min(std::min(center.y, frame.size().height - center.y), radius);
+        cameraCircleMaxFov = (max_radius / radius) * max_fov;
+        drawFov(frame, cameraCircleMaxFov, max_fov, color);
+    }
+}
+
+void mouseCallBackFunc(int event, int x, int y, int flags, void *)
+{
+    switch (event)
+    {
+        case cv::EVENT_LBUTTONDOWN:
+            if (flags & cv::EVENT_FLAG_SHIFTKEY)
+            {
+                settingCircle = true;
+                circleInit.x = x;
+                circleInit.y = y;
+            }
+            break;
+        case cv::EVENT_LBUTTONUP:
+            if (flags & cv::EVENT_FLAG_SHIFTKEY)
+            {
+                settingCircle = false;
+                circleSet = true;
+            }
+            else
+            {
+                fullFrameBox = tempFrameBox;
+                isBoxSelected = true;
+            }
+            break;
+        case cv::EVENT_MOUSEMOVE:
+            if (!settingCircle)
+            {
+                //tempFrameBox
+                if (x > (frameSize.width - (tempFrameBox.width / 2.0)))
+                {
+                    x = frameSize.width - (tempFrameBox.width / 2.0);
+                }
+                else if (x < (tempFrameBox.width / 2.0))
+                {
+                    x = (tempFrameBox.width / 2.0);
+                }
+                if (y > (frameSize.height - (tempFrameBox.height / 2.0)))
+                {
+                    y = frameSize.height - (tempFrameBox.height / 2.0);
+                }
+                else if (y < (tempFrameBox.height / 2.0))
+                {
+                    y = (tempFrameBox.height / 2.0);
+                }
+                tempFrameBox.x = x - (tempFrameBox.width / 2.0);
+                tempFrameBox.y = y - (tempFrameBox.height / 2.0);
+            }
+            else
+            {
+                circleEnd.x = x;
+                circleEnd.y = y;
+
+                circleCenter.x = std::abs((circleInit.x + circleEnd.x) / 2);
+                circleCenter.y = std::abs((circleInit.y + circleEnd.y) / 2);
+                circleRadius = std::sqrt((circleCenter.x - circleInit.x) * (circleCenter.x - circleInit.x) + (circleCenter.y - circleInit.y) * (circleCenter.y - circleInit.y));
+            }
+            break;
     }
 }
 
@@ -378,7 +492,7 @@ inline void drawBoxes(const cv::Mat &frame)
 int getMaxTextHeight()
 {
     const std::string text = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz(){}[]!|$#^0123456789";
-    const int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+    const int fontFace = cv::FONT_HERSHEY_COMPLEX;
     const double fontScale = 1.0;
     const int thickness = 5;
     int baseline = 0;
@@ -405,10 +519,10 @@ void writeText(const cv::Mat _frame, std::string _text, int _line)
 {
     static const int maxHeight = getMaxTextHeight();
     static const double fontScale = calcFontScale(maxHeight);
-    const int fontFace = cv::FONT_HERSHEY_SIMPLEX;
-    const int thickness = 5;
-    const cv::Scalar color{0, 200, 200, 0};
-    const cv::Scalar color16{0, 200 * 255, 200 * 255, 0};
+    const int fontFace = cv::FONT_HERSHEY_COMPLEX;
+    const int thickness = 7;
+    const cv::Scalar color{0, 180, 180, 0};
+    const cv::Scalar color16{0, 180 * 255, 180 * 255, 0};
     const int height = calcHeight(_line);
 
     cv::putText(_frame, _text, cv::Point(maxHeight, height), fontFace, fontScale, _frame.elemSize1() == 1 ? color : color16, thickness);
