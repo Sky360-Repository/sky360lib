@@ -129,7 +129,7 @@ int main(int argc, const char **argv)
             }
             else
             {
-                drawFOV(frameDebayered, cameraCircleMaxFov, circleCenter, circleRadius);
+                drawFOV(frameDebayered, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             writeText(frameDebayered, "Exposure: " + std::to_string(exposure / 1000.0) + " ms ('+' to +10%, '-' to -10%)", 1);
             writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 2);
@@ -191,8 +191,6 @@ void createControlPanel()
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);
     cv::setMouseCallback("Live Video", mouseCallBackFunc, NULL);
 
-    cv::namedWindow("Window Cut", cv::WINDOW_AUTOSIZE);
-
     int maxUsbTraffic = (int)qhyCamera.getCameraInfo()->usbTrafficLimits.max;
     cv::createTrackbar("USB Traffic:", "", nullptr, maxUsbTraffic, changeTrackbars, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::UsbTraffic);
     cv::setTrackbarPos("USB Traffic:", "", (int)qhyCamera.getCameraParams().usbTraffic);
@@ -222,7 +220,7 @@ void createControlPanel()
     cv::createTrackbar("Blue WB:", "", nullptr, maxBlueWB, changeTrackbars, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::BlueWB);
     cv::setTrackbarPos("Blue WB:", "", (int)qhyCamera.getCameraParams().blueWB);
 
-    cv::createButton("Square Resol. on/off", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Square Res. on/off", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Recording", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram on/off", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
@@ -280,10 +278,13 @@ void treatKeyboardpress(char key)
             if (circleSet)
             {
                 double max_radius = std::min(std::min(circleCenter.y, qhyCamera.getCameraInfo()->maxImageHeight - circleCenter.y), circleRadius);
-                uint32_t height = max_radius * 2;
-                uint32_t width = max_radius * 2;
-                uint32_t x = (uint32_t)(circleCenter.x - max_radius);
-                uint32_t y = 0;
+                cameraCircleMaxFov = (max_radius / circleRadius) * 220.0;
+
+                uint32_t width = ((uint32_t)max_radius * 2);
+                uint32_t height = width;
+                uint32_t x = (uint32_t)(circleCenter.x - (width / 2)) & ~0x1;
+                uint32_t y = (uint32_t)(circleCenter.y - (height / 2)) & ~0x1;
+
                 qhyCamera.setResolution(x, y, width, height);
             }
             else
@@ -292,9 +293,9 @@ void treatKeyboardpress(char key)
                 uint32_t y = 0;
                 uint32_t width = qhyCamera.getCameraInfo()->maxImageHeight;
                 uint32_t height = qhyCamera.getCameraInfo()->maxImageHeight;
+
                 qhyCamera.setResolution(x, y, width, height);
             }
-            circleSet = false;
         }
         else
         {
@@ -357,7 +358,7 @@ std::string formatFOVText(float fov)
     return ss.str();
 }
 
-void drawFov(cv::Mat& frame, double fov, double max_fov, const cv::Scalar& color)
+void drawOneFov(cv::Mat& frame, cv::Point2d center, double fov, double max_fov, const cv::Scalar& color)
 {
     if (max_fov >= fov)
     {
@@ -366,13 +367,13 @@ void drawFov(cv::Mat& frame, double fov, double max_fov, const cv::Scalar& color
         double font_scale = 2.6;
         int font_thickness = 7;
 
-        double radius = circleRadius * (fov / max_fov);
-        cv::circle(frame, circleCenter, radius, color, 8);
+        double radius = circleRadius * (fov / 220.0);
+        cv::circle(frame, center, radius, color, 8);
 
         std::string fov_text = formatFOVText(fov);
         cv::Size text_size = cv::getTextSize(fov_text, font_face, font_scale, font_thickness, nullptr);
-        double textX = std::max(circleCenter.x - radius + text_offset.x, 0.0);
-        cv::Point2f text_position(textX, circleCenter.y + text_size.height / 2 + text_offset.y);
+        double textX = std::max(center.x - radius + text_offset.x, 0.0);
+        cv::Point2f text_position(textX, center.y + text_size.height / 2 + text_offset.y);
         cv::putText(frame, fov_text, text_position, font_face, font_scale, color, font_thickness, cv::LINE_AA);
     }
 }
@@ -390,19 +391,19 @@ void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius)
         {
             color = cv::Scalar(32767, 32767, 65535);
         }
-        cv::circle(frame, center, radius, color, 8);
         cv::line(frame, cv::Point2d(center.x, center.y - radius), cv::Point2d(center.x, center.y + radius), color, 8);
         cv::line(frame, cv::Point2d(center.x - radius, center.y), cv::Point2d(center.x + radius, center.y), color, 8);
 
-        drawFov(frame, 220.0, max_fov, color);
-        drawFov(frame, 180.0, max_fov, color);
-        drawFov(frame, 90.0, max_fov, color);
-        drawFov(frame, 30.0, max_fov, color);
-        drawFov(frame, 0.0f, max_fov, color);
+        drawOneFov(frame, center, 220.0, max_fov, color);
+        drawOneFov(frame, center, 180.0, max_fov, color);
+        drawOneFov(frame, center, 90.0, max_fov, color);
+        drawOneFov(frame, center, 30.0, max_fov, color);
+        drawOneFov(frame, center, 0.0f, max_fov, color);
 
         double max_radius = std::min(std::min(center.y, frame.size().height - center.y), radius);
-        cameraCircleMaxFov = (max_radius / radius) * max_fov;
-        drawFov(frame, cameraCircleMaxFov, max_fov, color);
+        double circleMaxFov = (max_radius / radius) * max_fov;
+        drawOneFov(frame, center, circleMaxFov, max_fov, color);
+        //std::cout << "max_radius: " << max_radius << ", radius: " << radius << ", circleMaxFov: " << circleMaxFov << ", max_fov: " << max_fov << std::endl;
     }
 }
 
@@ -498,32 +499,32 @@ int getMaxTextHeight()
     int baseline = 0;
     cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, &baseline);
 
-    return textSize.height;
+    return textSize.height + baseline;
 }
 
-inline double calcFontScale(int fontHeight)
+inline double calcFontScale(int fontHeight, uint32_t screenHeight)
 {
     const double numLines = 40;
-    const double lineHeight = (double)qhyCamera.getCameraInfo()->maxImageHeight /  numLines;
-    return lineHeight / ((double)fontHeight * 1.5);
+    const double lineHeight = (double)screenHeight /  numLines;
+    return lineHeight / ((double)fontHeight * 1.05);
 }
 
-inline int calcHeight(int line)
+inline double calcHeight(int line, uint32_t screenHeight)
 {
     const double numLines = 40;
-    const double lineHeight = (double)qhyCamera.getCameraInfo()->maxImageHeight /  numLines;
+    const double lineHeight = (double)screenHeight /  numLines;
     return line * lineHeight;
 }
 
 void writeText(const cv::Mat _frame, std::string _text, int _line)
 {
     static const int maxHeight = getMaxTextHeight();
-    static const double fontScale = calcFontScale(maxHeight);
+    const double fontScale = calcFontScale(maxHeight, _frame.size().height);
     const int fontFace = cv::FONT_HERSHEY_COMPLEX;
-    const int thickness = 7;
+    const int thickness = (int)(3.5 * fontScale);
     const cv::Scalar color{0, 180, 180, 0};
     const cv::Scalar color16{0, 180 * 255, 180 * 255, 0};
-    const int height = calcHeight(_line);
+    const int height = calcHeight(_line, _frame.size().height);
 
     cv::putText(_frame, _text, cv::Point(maxHeight, height), fontFace, fontScale, _frame.elemSize1() == 1 ? color : color16, thickness);
 }

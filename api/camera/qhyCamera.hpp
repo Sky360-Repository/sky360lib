@@ -177,7 +177,7 @@ namespace sky360lib::camera
         bool m_debugInfo;
         std::string m_camId;
         qhyccd_handle *pCamHandle{nullptr};
-        uint8_t *m_pImgData{nullptr};
+        std::unique_ptr<uint8_t[]> m_pImgData{nullptr};
         std::map<std::string, CameraInfo> m_cameras;
         CameraParams m_params;
         CameraInfo* m_currentInfo;
@@ -191,7 +191,6 @@ namespace sky360lib::camera
         bool fillCameraInfo(std::string camId, CameraInfo &ci);
         bool scanCameras();
         bool allocBufferMemory();
-        void releaseBufferMemory();
         void setDefaultParams();
         void applyParams();
         bool getSingle(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint8_t *imgData);

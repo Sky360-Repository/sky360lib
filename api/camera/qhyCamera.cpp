@@ -119,14 +119,14 @@ namespace sky360lib::camera
 
         if (m_params.streamMode == SingleFrame)
         {
-            if (!getSingle(&w, &h, &bpp, &channels, m_pImgData))
+            if (!getSingle(&w, &h, &bpp, &channels, m_pImgData.get()))
             {
                 return nullptr;
             }
         }
         else
         {
-            if (!getLive(&w, &h, &bpp, &channels, m_pImgData))
+            if (!getLive(&w, &h, &bpp, &channels, m_pImgData.get()))
             {
                 return nullptr;
             }
@@ -136,7 +136,7 @@ namespace sky360lib::camera
         fsec duration = (stop - start);
         m_lastFrameCaptureTime = duration.count();
 
-        return m_pImgData;
+        return m_pImgData.get();
     }
 
     static inline int convertBayerPattern(uint32_t bayerFormat)
@@ -582,27 +582,15 @@ namespace sky360lib::camera
 
     bool QHYCamera::allocBufferMemory()
     {
-        if (m_pImgData != nullptr)
-        {
-            releaseBufferMemory();
-        }
         uint32_t size = getMemoryNeededForFrame();
         if (size == 0)
         {
             std::cerr << "Cannot get memory for frame." << std::endl;
             return false;
         }
-
-        m_pImgData = new uint8_t[size];
-        memset(m_pImgData, 0, size);
+        m_pImgData = std::make_unique_for_overwrite<uint8_t[]>(size);
 
         return true;
-    }
-
-    void QHYCamera::releaseBufferMemory()
-    {
-        delete[] m_pImgData;
-        m_pImgData = nullptr;
     }
 
     void QHYCamera::endExposing()
@@ -706,8 +694,6 @@ namespace sky360lib::camera
             }
 
             CloseQHYCCD(pCamHandle);
-
-            releaseBufferMemory();
 
             pCamHandle = nullptr;
             m_camId = "";
