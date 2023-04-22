@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <thread>
 
-#include <easy/profiler.h>
-
 #include "qhyCamera.hpp"
 
 #include <opencv2/opencv.hpp>
@@ -73,8 +71,6 @@ static void changeParam(int value, void* paramP)
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    EASY_PROFILER_ENABLE;
-
     BGSType bgsType{WMV};
 
     blobDetector.setMinDistance(40);
@@ -134,15 +130,11 @@ int main(int argc, const char **argv)
     {
         auto startFrameTime = std::chrono::high_resolution_clock::now();
 
-        EASY_BLOCK("Loop pass");
         if (!pause)
         {
-            EASY_BLOCK("Capture");
             auto startProcessedTime = std::chrono::high_resolution_clock::now();
             getQhyCameraImage(frame);
             cameraTime += qhyCamera.getLastFrameCaptureTime();
-            EASY_END_BLOCK;
-            EASY_BLOCK("Process");
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
             if (doBlobDetection)
@@ -150,17 +142,12 @@ int main(int argc, const char **argv)
                 bboxes = findBlobs(bgsMask);
             }
             auto endProcessedTime = std::chrono::high_resolution_clock::now();
-            EASY_END_BLOCK;
-            EASY_BLOCK("Debayering Image");
             debayerImage(frame, frameDebayered);
-            EASY_END_BLOCK;
-            EASY_BLOCK("Drawing bboxes");
             if (doBlobDetection)
             {
                 // drawBboxes(bboxes, bgsMask);
                 drawBboxes(bboxes, frameDebayered);
             }
-            EASY_END_BLOCK;
 
             if (frameDebayered.elemSize1() > 1)
             {
@@ -182,16 +169,12 @@ int main(int argc, const char **argv)
             totalProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
             totalMeanProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
             ++totalNumFrames;
-            EASY_BLOCK("Show/resize windows");
             cv::imshow("BGS", bgsMask);
             cv::imshow("Live Video", videoFrame);
-            EASY_END_BLOCK;
-            EASY_BLOCK("Saving frame");
             if (isVideoOpen)
             {
                 videoWriter.write(videoFrame);
             }
-            EASY_END_BLOCK;
         }
 
         char key = (char)cv::waitKey(1);
@@ -262,7 +245,6 @@ int main(int argc, const char **argv)
             totalProcessedTime = 0.0;
             numFrames = 0;
         }
-        EASY_END_BLOCK;
     }
     std::cout << "Exit loop\n"
               << std::endl;
@@ -272,8 +254,6 @@ int main(int argc, const char **argv)
     cv::destroyAllWindows();
 
     qhyCamera.close();
-
-    profiler::dumpBlocksToFile("test_profile.prof");
 
     return 0;
 }
@@ -315,10 +295,8 @@ std::string getBGSName(BGSType _type)
 
 inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
 {
-    EASY_FUNCTION(profiler::colors::Green);
     cv::Mat tmpFrame;
 
-    EASY_BLOCK("Greyscale");
     if (applyGreyscale && input.channels() > 1)
     {
         cv::cvtColor(input, tmpFrame, cv::COLOR_RGB2GRAY);
@@ -327,8 +305,6 @@ inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
     {
         tmpFrame = input;
     }
-    EASY_END_BLOCK;
-    EASY_BLOCK("Noise Reduction");
     if (applyNoiseReduction)
     {
         cv::GaussianBlur(tmpFrame, output, cv::Size(blur_radius, blur_radius), 0);
@@ -337,12 +313,10 @@ inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
     {
         output = tmpFrame;
     }
-    EASY_END_BLOCK;
 }
 
 inline void appyBGS(const cv::Mat &input, cv::Mat &output)
 {
-    EASY_FUNCTION(profiler::colors::Red);
     if (bgsPtr != nullptr)
     {
         bgsPtr->apply(input, output);
@@ -380,8 +354,6 @@ inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
 // Finds the connected components in the image and returns a list of bounding boxes
 inline std::vector<cv::Rect> findBlobs(const cv::Mat &image)
 {
-    EASY_FUNCTION(profiler::colors::Blue);
-
     std::vector<cv::Rect> blobs;
     blobDetector.detect(image, blobs);
 
@@ -415,15 +387,11 @@ bool openQQYCamera()
 
 inline bool getQhyCameraImage(cv::Mat &cameraFrame)
 {
-    EASY_FUNCTION(profiler::colors::Purple);
-
     return qhyCamera.getFrame(cameraFrame, false);
 }
 
 inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut)
 {
-    EASY_FUNCTION(profiler::colors::Yellow);
-
     qhyCamera.debayerImage(imageIn, imageOut);
 }
 

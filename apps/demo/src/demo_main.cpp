@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <thread>
 
-#include <easy/profiler.h>
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/videoio.hpp>
@@ -56,8 +54,6 @@ int getIntArg(std::string arg);
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    EASY_PROFILER_ENABLE;
-
     std::string videoFile{"Dahua-20220901-184734.mp4"};
     // std::string videoFile{"birds_and_plane.mp4"};
     // std::string videoFile{"brad_drone_1.mp4"};
@@ -127,11 +123,9 @@ int main(int argc, const char **argv)
     while (true)
     {
         auto startFrameTime = std::chrono::high_resolution_clock::now();
-        EASY_BLOCK("Loop pass");
         if (!pause)
         {
             auto startProcessedTime = std::chrono::high_resolution_clock::now();
-            EASY_BLOCK("Capture");
             cap.read(frame);
             if (frame.empty())
             {
@@ -139,28 +133,21 @@ int main(int argc, const char **argv)
                 break;
             }
             frame.convertTo(frame16, CV_16UC3, 256.0f);
-            EASY_END_BLOCK;
-            EASY_BLOCK("Process");
             appyPreProcess(frame16, processedFrame);
             appyBGS(processedFrame, bgsMask);
             findBlobs(bgsMask, bboxes);
             //applyTracker(blobs, processedFrame);
             auto endProcessedTime = std::chrono::high_resolution_clock::now();
-            EASY_END_BLOCK;
-            EASY_BLOCK("Drawing bboxes");
             drawBboxes(bboxes, bgsMask);
             drawBboxes(bboxes, frame);
-            EASY_END_BLOCK;
             ++numFrames;
             totalProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
             totalMeanProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
             ++totalNumFrames;
-            EASY_BLOCK("Show/resize windows");
             cv::imshow("BGS Demo", bgsMask);
             cv::resizeWindow("BGS Demo", 1024, 1024);
             cv::imshow("Live Video", frame);
             cv::resizeWindow("Live Video", 1024, 1024);
-            EASY_END_BLOCK;
         }
         char key = (char)cv::waitKey(1);
         if (key == 27)
@@ -196,7 +183,6 @@ int main(int argc, const char **argv)
             totalProcessedTime = 0.0;
             numFrames = 0;
         }
-        EASY_END_BLOCK;
     }
     std::cout << "Exit loop\n"
               << std::endl;
@@ -206,8 +192,6 @@ int main(int argc, const char **argv)
     cap.release();
 
     cv::destroyAllWindows();
-
-    profiler::dumpBlocksToFile("test_profile.prof");
 
     return 0;
 }
@@ -228,33 +212,26 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
 // Do image pre-processing
 inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
 {
-    EASY_FUNCTION(profiler::colors::Green);
     cv::Mat tmpFrame;
 
-    EASY_BLOCK("Greyscale");
     if (applyGreyscale)
         cv::cvtColor(input, tmpFrame, cv::COLOR_RGB2GRAY);
     else
         tmpFrame = input;
-    EASY_END_BLOCK;
-    EASY_BLOCK("Noise Reduction");
     if (applyNoiseReduction)
         cv::GaussianBlur(tmpFrame, output, cv::Size(blur_radius, blur_radius), 0);
     else
         output = tmpFrame;
-    EASY_END_BLOCK;
 }
 
 // Apply background subtraction
 inline void appyBGS(const cv::Mat &input, cv::Mat &output)
 {
-    EASY_FUNCTION(profiler::colors::Red);
     bgsPtr->apply(input, output);
 }
 
 inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame)
 {
-    EASY_FUNCTION(profiler::colors::Yellow);
     videoTracker.create_trackers_from_keypoints(keypoints, frame);
 }
 
@@ -278,8 +255,6 @@ inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
 // Finds the connected components in the image and returns a list of bounding boxes
 inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs)
 {
-    EASY_FUNCTION(profiler::colors::Blue);
-
     blobDetector.detect(image, blobs);
 }
 
