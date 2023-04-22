@@ -57,7 +57,7 @@ public:
         m_stationary_track_counter = 0;
         m_active_track_counter = 0;
         m_bbox_to_check = bbox;
-        m_start = getAbsoluteTime();
+        //m_start = getAbsoluteTime();
         m_second_counter = 0;
         m_tracked_boxes.push_back(bbox);
         //self.track_predictor = TrackPrediction(id, bbox)
@@ -101,12 +101,12 @@ public:
                 // identify and try and track false positives. This validaiton logic is in place to try and limit this
                 bool validate_bbox = false;
 
-                if ((size_t)(getAbsoluteTime() - m_start) > m_second_counter)
-                {
-                    m_tracked_boxes.push_back(bbox);
-                    ++m_second_counter;
-                    validate_bbox = true;
-                }
+                // if ((size_t)(getAbsoluteTime() - m_start) > m_second_counter)
+                // {
+                //     m_tracked_boxes.push_back(bbox);
+                //     ++m_second_counter;
+                //     validate_bbox = true;
+                // }
 
                 // Mike: grab the validation config options from the settings dictionary
                 size_t stationary_scavanage_threshold = (size_t)(m_settings.stationary_track_threshold * 1.5);

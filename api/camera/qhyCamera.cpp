@@ -70,7 +70,7 @@ namespace sky360lib::camera
         ExpQHYCCDSingleFrame(pCamHandle);
         while (GetQHYCCDSingleFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
         {
-            usleep(10000);
+            std::this_thread::sleep_for(std::chrono::microseconds(10000));
             if (++tries > DEFAULT_CAPTURE_RETRIES)
             {
                 std::cout << "retries: " << tries << ", aborting." << std::endl;
@@ -91,7 +91,7 @@ namespace sky360lib::camera
         int tries = 0;
         while (GetQHYCCDLiveFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
         {
-            usleep(10000);
+            std::this_thread::sleep_for(std::chrono::microseconds(10000));
             if (++tries > DEFAULT_CAPTURE_RETRIES)
             {
                 std::cout << "retries: " << tries << ", aborting." << std::endl;
@@ -617,7 +617,7 @@ namespace sky360lib::camera
                 // std::cout << "ExpQHYCCDSingleFrame returned: " << rc << std::endl;
                 if (rc == QHYCCD_READ_DIRECTLY)
                 {
-                    usleep(1);
+                    std::this_thread::sleep_for(std::chrono::microseconds(10));
                 }
             }
             else

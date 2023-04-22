@@ -101,7 +101,6 @@ target_sources(
             "bgs/WeightedMovingVariance/WeightedMovingVarianceCL.cpp" 
             "blobs/connectedBlobDetection.cpp"
         PUBLIC
-            "include/profiling.hpp" 
             "bgs/bgs.hpp"
 )
 

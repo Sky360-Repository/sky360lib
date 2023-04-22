@@ -13,7 +13,6 @@
 #include <opencv2/highgui.hpp>
 
 #include "bgs.hpp"
-#include "profiling.hpp"
 #include "connectedBlobDetection.hpp"
 
 /////////////////////////////////////////////////////////////
@@ -103,8 +102,6 @@ int main(int argc, const char **argv)
         std::cout << "Has OpenCL support, using it on OpenCV" << std::endl;
     }
 
-    initFrequency();
-
     cv::namedWindow("BGS", cv::WINDOW_NORMAL);
     cv::namedWindow("Live Video", cv::WINDOW_NORMAL);
 
@@ -137,12 +134,13 @@ int main(int argc, const char **argv)
     std::cout << "Enter loop" << std::endl;
     while (run)
     {
-        double startFrameTime = getAbsoluteTime();
+        auto startFrameTime = std::chrono::high_resolution_clock::now();
+
         EASY_BLOCK("Loop pass");
         if (!pause)
         {
             EASY_BLOCK("Capture");
-            double startProcessedTime = getAbsoluteTime();
+            auto startProcessedTime = std::chrono::high_resolution_clock::now();
             getQhyCameraImage(frame);
             cameraTime += qhyCamera.getLastFrameCaptureTime();
             EASY_END_BLOCK;
@@ -153,7 +151,7 @@ int main(int argc, const char **argv)
             {
                 bboxes = findBlobs(bgsMask);
             }
-            double endProcessedTime = getAbsoluteTime();
+            auto endProcessedTime = std::chrono::high_resolution_clock::now();
             EASY_END_BLOCK;
             EASY_BLOCK("Debayering Image");
             debayerImage(frame, frameDebayered);
@@ -183,8 +181,8 @@ int main(int argc, const char **argv)
             writeText(videoFrame, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 7);
 
             ++numFrames;
-            totalProcessedTime += endProcessedTime - startProcessedTime;
-            totalMeanProcessedTime += endProcessedTime - startProcessedTime;
+            totalProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
+            totalMeanProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
             ++totalNumFrames;
             EASY_BLOCK("Show/resize windows");
             cv::imshow("BGS", bgsMask);
@@ -254,8 +252,8 @@ int main(int argc, const char **argv)
                 break;
         }
 
-        double endFrameTime = getAbsoluteTime();
-        totalTime += endFrameTime - startFrameTime;
+        auto endFrameTime = std::chrono::high_resolution_clock::now();
+        totalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endFrameTime - startFrameTime).count() * 1e-9;
         if (totalTime > 1.0)
         {
             lastProcessingFPS = numFrames / totalProcessedTime;

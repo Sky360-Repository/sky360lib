@@ -11,7 +11,6 @@
 #include <opencv2/highgui.hpp>
 
 #include "bgs.hpp"
-#include "profiling.hpp"
 #include "connectedBlobDetection.hpp"
 
 #include "demoUtils.hpp"
@@ -71,8 +70,6 @@ int main(int argc, const char **argv)
         std::cout << "Has OpenCL support, using: " << (cv::ocl::useOpenCL() ? "Yes" : "No") << std::endl;
     }
 
-    initFrequency();
-
     std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
 
     bgsPtr = createBGS(BGSType::Vibe);
@@ -130,11 +127,11 @@ int main(int argc, const char **argv)
     std::cout << "Enter loop" << std::endl;
     while (true)
     {
-        double startFrameTime = getAbsoluteTime();
+        auto startFrameTime = std::chrono::high_resolution_clock::now();
         EASY_BLOCK("Loop pass");
         if (!pause)
         {
-            double startProcessedTime = getAbsoluteTime();
+            auto startProcessedTime = std::chrono::high_resolution_clock::now();
             EASY_BLOCK("Capture");
             cap.read(frame);
             if (frame.empty())
@@ -149,15 +146,15 @@ int main(int argc, const char **argv)
             appyBGS(processedFrame, bgsMask);
             findBlobs(bgsMask, bboxes);
             //applyTracker(blobs, processedFrame);
-            double endProcessedTime = getAbsoluteTime();
+            auto endProcessedTime = std::chrono::high_resolution_clock::now();
             EASY_END_BLOCK;
             EASY_BLOCK("Drawing bboxes");
             drawBboxes(bboxes, bgsMask);
             drawBboxes(bboxes, frame);
             EASY_END_BLOCK;
             ++numFrames;
-            totalProcessedTime += endProcessedTime - startProcessedTime;
-            totalMeanProcessedTime += endProcessedTime - startProcessedTime;
+            totalProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
+            totalMeanProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
             ++totalNumFrames;
             EASY_BLOCK("Show/resize windows");
             cv::imshow("BGS Demo", bgsMask);
@@ -191,8 +188,8 @@ int main(int argc, const char **argv)
             std::cout << "Got threshold: " << threshold << std::endl;
             params.setThreshold(threshold - 5);
         }
-        double endFrameTime = getAbsoluteTime();
-        totalTime += endFrameTime - startFrameTime;
+        auto endFrameTime = std::chrono::high_resolution_clock::now();
+        totalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endFrameTime - startFrameTime).count() * 1e-9;
         if (totalTime > 2.0)
         {
             std::cout << "Framerate: " << (numFrames / totalProcessedTime) << " fps" << std::endl;
