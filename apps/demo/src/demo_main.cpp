@@ -28,8 +28,7 @@ int sensitivity{1};
 enum BGSType
 {
     Vibe,
-    WMV,
-    WMVCL
+    WMV
 };
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -221,8 +220,6 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
         return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 24, 1, 8));
     case BGSType::WMV:
         return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
-    case BGSType::WMVCL:
-        return std::make_unique<sky360lib::bgs::WeightedMovingVarianceCL>();
     default:
         return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     }

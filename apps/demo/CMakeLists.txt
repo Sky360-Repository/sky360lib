@@ -18,7 +18,6 @@ target_link_libraries(
         PUBLIC
             "${OpenCV_LIBS}"
             sky360lib_api
-            easy_profiler
 )
 
 set_target_properties(
@@ -58,7 +57,6 @@ target_link_libraries(
         PUBLIC
             "${OpenCV_LIBS}"
             sky360lib_api
-            easy_profiler
 )
 
 set_target_properties(
@@ -98,7 +96,6 @@ target_link_libraries(
         PUBLIC
             "${OpenCV_LIBS}"
             sky360lib_api
-            easy_profiler
 )
 
 set_target_properties(

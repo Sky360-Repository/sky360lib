@@ -17,8 +17,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(easy_profiler REQUIRED)
-
 include(GNUInstallDirs)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
@@ -39,9 +37,9 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:_D
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 option(USE_LINK_TIME_OPTIM "Enable link time optimization" ON)
-option(USE_INLINE_INTRINSIC_FUNCS "Enable use of built-in inline intrinsic functions" ON)
 option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
+option(SKY360_PYTHON_SUPPORT ON)
 
 find_package(OpenCV 4.0 REQUIRED)
 message(STATUS "Found OpenCV >=4.0")
@@ -93,7 +91,6 @@ endif ()
 add_subdirectory(api)
 add_subdirectory(apps)
 
-SET(SKY360_PYTHON_SUPPORT ON)
 if(SKY360_PYTHON_SUPPORT)
     message(STATUS "Building Python bindings lib")
     if(NOT DEFINED SKY360_PYTHON_VERSION)
