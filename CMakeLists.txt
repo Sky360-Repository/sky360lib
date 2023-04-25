@@ -39,7 +39,8 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 option(USE_LINK_TIME_OPTIM "Enable link time optimization" ON)
 option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
-option(SKY360_PYTHON_SUPPORT ON)
+
+set(SKY360_PYTHON_SUPPORT ON)
 
 find_package(OpenCV 4.0 REQUIRED)
 message(STATUS "Found OpenCV >=4.0")
@@ -91,11 +92,11 @@ endif ()
 add_subdirectory(api)
 add_subdirectory(apps)
 
-if(SKY360_PYTHON_SUPPORT)
+if (SKY360_PYTHON_SUPPORT)
     message(STATUS "Building Python bindings lib")
-    if(NOT DEFINED SKY360_PYTHON_VERSION)
+    if (NOT DEFINED SKY360_PYTHON_VERSION)
         set(SKY360_PYTHON_VERSION 3)
-    endif()
+    endif ()
     set(PYBIND11_LTO_CXX_FLAGS "")
     set(PYBIND11_PYTHON_VERSION ${SKY360_PYTHON_VERSION})
 
@@ -106,12 +107,12 @@ if(SKY360_PYTHON_SUPPORT)
     message(STATUS "    library: ${PYTHON_LIBRARY}")
     message(STATUS "    include path: ${PYTHON_INCLUDE_DIRS}")
 
-    if(NOT NUMPY_INCLUDE_DIR)
+    if (NOT NUMPY_INCLUDE_DIR)
         exec_program ("${PYTHON_EXECUTABLE}"
             ARGS "-c \"import numpy; print(numpy.get_include())\""
             OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
             RETURN_VALUE NUMPY_NOT_FOUND)
-    endif()
+    endif ()
     message(STATUS "NUMPY_INCLUDE_DIR: ${NUMPY_INCLUDE_DIR}\n")
 
     file(GLOB_RECURSE sky360_python_src wrapper/python/*.cpp)
@@ -127,7 +128,7 @@ if(SKY360_PYTHON_SUPPORT)
     target_compile_definitions(sky360_python PRIVATE SKY360_PYTHON_SUPPORT=1)
     set_property(TARGET sky360_python PROPERTY OUTPUT_NAME "pysky360")
 
-    if(UNIX)
+    if (UNIX)
         execute_process(
             COMMAND "${PYTHON_EXECUTABLE}" -c "if True:
                 from distutils import sysconfig as sc
@@ -140,5 +141,5 @@ if(SKY360_PYTHON_SUPPORT)
         message(STATUS "The sky360 library python package will be installed at: ${PYTHON_SITE}\n")
 
         install(TARGETS sky360_python DESTINATION ${PYTHON_SITE})
-    endif()
-endif()
+    endif ()
+endif ()
