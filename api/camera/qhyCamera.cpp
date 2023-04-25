@@ -70,7 +70,7 @@ namespace sky360lib::camera
         ExpQHYCCDSingleFrame(pCamHandle);
         while (GetQHYCCDSingleFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
         {
-            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
             if (++tries > DEFAULT_CAPTURE_RETRIES)
             {
                 std::cout << "retries: " << tries << ", aborting." << std::endl;
@@ -91,7 +91,7 @@ namespace sky360lib::camera
         int tries = 0;
         while (GetQHYCCDLiveFrame(pCamHandle, w, h, bpp, channels, imgData) != QHYCCD_SUCCESS)
         {
-            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
             if (++tries > DEFAULT_CAPTURE_RETRIES)
             {
                 std::cout << "retries: " << tries << ", aborting." << std::endl;
@@ -180,6 +180,13 @@ namespace sky360lib::camera
         return true;
     }
 
+    cv::Mat QHYCamera::getFrameRet(bool debayer)
+    {
+        cv::Mat returnFrame;
+        getFrame(returnFrame, debayer);
+        return returnFrame;
+    }
+
     void QHYCamera::debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut) const
     {
         if (imageIn.channels() == 1)
@@ -192,11 +199,11 @@ namespace sky360lib::camera
         }
     }
 
-    cv::Mat QHYCamera::getFrameRet(bool debayer)
+    cv::Mat QHYCamera::debayerImageRet(const cv::Mat& imageIn) const
     {
-        cv::Mat returnFrame;
-        getFrame(returnFrame, debayer);
-        return returnFrame;
+        cv::Mat imageOut;
+        debayerImage(imageIn, imageOut);
+        return imageOut;
     }
 
     bool QHYCamera::fillCameraInfo(std::string camId, CameraInfo &ci)
@@ -269,7 +276,7 @@ namespace sky360lib::camera
 
         m_cameras.clear();
 
-        const int camCount = ScanQHYCCD();
+        uint32_t camCount = ScanQHYCCD();
         if (camCount <= 0)
         {
             std::cerr << "No QHYCCD camera found, please check USB or power." << std::endl;
@@ -277,7 +284,7 @@ namespace sky360lib::camera
         }
 
         char camId[64];
-        for (int i{0}; i < camCount; ++i)
+        for (uint32_t i{0}; i < camCount; ++i)
         {
             uint32_t rc = GetQHYCCDId(i, camId);
             if (rc == QHYCCD_SUCCESS)
@@ -318,6 +325,17 @@ namespace sky360lib::camera
     double QHYCamera::getLastFrameCaptureTime() const
     {
         return m_lastFrameCaptureTime;
+    }
+
+    bool QHYCamera::setControlLowLevel(ControlParam controlParam, double value)
+    {
+        uint32_t rc = SetQHYCCDParam(pCamHandle, (CONTROL_ID)controlParam, value);
+        if (rc != QHYCCD_SUCCESS)
+        {
+            std::cerr << "setControl failed: " << controlParam << std::endl;
+            return false;
+        }
+        return true;
     }
 
     bool QHYCamera::setControl(ControlParam controlParam, double value, bool force)
@@ -362,6 +380,13 @@ namespace sky360lib::camera
                 if (!force && m_params.exposureTime == (uint32_t)value)
                     return true;
                 m_params.exposureTime = value;
+                if (m_camOpen)
+                {
+                    //endExposing();
+                    // setControlLowLevel(controlParam, value);
+                    // setStreamMode(m_params.streamMode);
+                    // return true;
+                }
                 break;
             case UsbTraffic:
                 if (!force && m_params.usbTraffic == (uint32_t)value)
@@ -406,13 +431,7 @@ namespace sky360lib::camera
             default:
                 break;
             }
-            rc = SetQHYCCDParam(pCamHandle, (CONTROL_ID)controlParam, value);
-            if (rc != QHYCCD_SUCCESS)
-            {
-                std::cerr << "setControl failed: " << controlParam << std::endl;
-                return false;
-            }
-
+            return setControlLowLevel(controlParam, value);
         }
         else if (m_debugInfo)
         {
@@ -523,13 +542,13 @@ namespace sky360lib::camera
             setControl(BlueWB, 190.0, true);
             setControl(Exposure, 2000, true);
             setStreamMode(LiveFrame);
-            setControl(UsbTraffic, 0, true);
+            //setStreamMode(SingleFrame);
+            setControl(UsbTraffic, 5, true);
             setControl(UsbSpeed, 0, true);
             setControl(Gain, 30, true);
             setControl(Offset, 0, true);
             setResolution(0, 0, getCameraInfo()->maxImageWidth, getCameraInfo()->maxImageHeight);
-            //setResolution((getCameraInfo()->maxImageWidth - getCameraInfo()->maxImageHeight) / 2, 0, getCameraInfo()->maxImageHeight, getCameraInfo()->maxImageHeight);
-            setControl(TransferBits, 16, true);
+            setControl(TransferBits, 8, true);
             setControl(Channels, 1, true);
             setBinMode(Bin_1x1);
             setControl(Contrast, 0.0, true);
@@ -595,22 +614,26 @@ namespace sky360lib::camera
 
     void QHYCamera::endExposing()
     {
-        if (m_params.streamMode == SingleFrame)
+        if (m_isExposing)
         {
-            CancelQHYCCDExposingAndReadout(pCamHandle);
+            if (m_params.streamMode == SingleFrame)
+            {
+                CancelQHYCCDExposingAndReadout(pCamHandle);
+            }
+            else
+            {
+                StopQHYCCDLive(pCamHandle);
+            }
+            m_isExposing = false;
         }
-        else
-        {
-            StopQHYCCDLive(pCamHandle);
-        }
-        m_isExposing = false;
     }
 
     bool QHYCamera::beginExposing()
     {
         if (m_params.streamMode == SingleFrame)
         {
-            CancelQHYCCDExposingAndReadout(pCamHandle);
+            if (m_isExposing)
+                CancelQHYCCDExposingAndReadout(pCamHandle);
             uint32_t rc = ExpQHYCCDSingleFrame(pCamHandle);
             if (rc != QHYCCD_ERROR)
             {
@@ -628,7 +651,8 @@ namespace sky360lib::camera
         }
         else
         {
-            StopQHYCCDLive(pCamHandle);
+            if (m_isExposing)
+                StopQHYCCDLive(pCamHandle);
             uint32_t rc = BeginQHYCCDLive(pCamHandle);
             if (rc != QHYCCD_SUCCESS)
             {
@@ -701,5 +725,4 @@ namespace sky360lib::camera
             m_isExposing = false;
         }
     }
-
 }

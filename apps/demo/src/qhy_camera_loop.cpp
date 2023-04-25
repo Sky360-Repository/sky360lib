@@ -1,19 +1,17 @@
 #include <iostream>
 #include <string>
-#include <algorithm>
-#include <thread>
-#include <chrono>
 
 #include "qhyCamera.hpp"
 #include "utils.hpp"
+#include "profiler.hpp"
+#include "textWriter.hpp"
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/core/ocl.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
 /////////////////////////////////////////////////////////////
-// Default parameters
+// Variables
 const int DEFAULT_WINDOW_WIDTH{1024};
 const int DEFAULT_BOX_SIZE{500};
 
@@ -21,24 +19,13 @@ bool isVideoOpen = false;
 bool isBoxSelected = false;
 cv::Size frameSize;
 double clipLimit = 2.0;
-double exposure;
 bool doEqualization = false;
 bool squareResolution = false;
-double aspectRatio;
-cv::VideoWriter videoWriter;
 bool run = true;
 bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
-
-long numFrames{0};
-long totalNumFrames{0};
-double frameTime{0.0};
-double totalTime{0.0};
-double lastProcessingFPS{0.0};
-double cameraTime{0.0};
-double cameraFPS{0.0};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
 cv::Rect tempFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -48,14 +35,15 @@ cv::Point2d circleCenter;
 double circleRadius{0.0f};
 double cameraCircleMaxFov{0.0};
 
-/////////////////////////////////////////////////////////////
-// Camera Detector
+cv::VideoWriter videoWriter;
+sky360lib::utils::DataMap profileData;
+sky360lib::utils::Profiler profiler;
 sky360lib::camera::QHYCamera qhyCamera;
+sky360lib::utils::TextWriter textWriter;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
 inline void drawBoxes(const cv::Mat &frame);
-void writeText(const cv::Mat _frame, std::string _text, int _line);
 bool openQQYCamera();
 bool openVideo(const cv::Size &size, double meanFps);
 void createControlPanel();
@@ -77,18 +65,8 @@ int main(int argc, const char **argv)
     }
     std::cout << qhyCamera.getCameraInfo()->toString() << std::endl;
 
-    aspectRatio = (double)qhyCamera.getCameraInfo()->maxImageWidth / (double)qhyCamera.getCameraInfo()->maxImageHeight;
-
-    exposure = (argc > 1 ? atoi(argv[1]) : 20000);
+    double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
-
-    const auto concurrentThreads = std::thread::hardware_concurrency();
-    std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
-
-    if (cv::ocl::haveOpenCL())
-    {
-        std::cout << "Has OpenCL support, using it on OpenCV" << std::endl;
-    }
 
     createControlPanel();
 
@@ -103,17 +81,21 @@ int main(int argc, const char **argv)
     std::cout << "Enter loop" << std::endl;
     while (run)
     {
-        auto startFrameTime = std::chrono::high_resolution_clock::now();
+        profiler.start("Frame");
         if (!pauseCapture)
         {
+            profiler.start("GetImage");
             qhyCamera.getFrame(frame, false);
+            profiler.stop("GetImage");
             frameSize = frame.size();
-            aspectRatio = (double)frameSize.width / (double)frameSize.height;
-            cameraTime += qhyCamera.getLastFrameCaptureTime();
+            profiler.start("Debayer");
             qhyCamera.debayerImage(frame, frameDebayered);
+            profiler.stop("Debayer");
             if (doEqualization)
             {
+                profiler.start("Equalization");
                 sky360lib::utils::Utils::equalizeImage(frameDebayered, frameDebayered, clipLimit);
+                profiler.stop("Equalization");
             }
 
             if (isBoxSelected)
@@ -131,16 +113,15 @@ int main(int argc, const char **argv)
             {
                 drawFOV(frameDebayered, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
-            writeText(frameDebayered, "Exposure: " + std::to_string(exposure / 1000.0) + " ms ('+' to +10%, '-' to -10%)", 1);
-            writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 2);
-            writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 3);
-            writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 5);
-            writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 6);
-            writeText(frameDebayered, "Max Capture FPS: " + std::to_string(cameraFPS), 8);
-            writeText(frameDebayered, "Frame FPS: " + std::to_string(lastProcessingFPS), 9);
+            exposure = (double)qhyCamera.getCameraParams().exposureTime;
+            textWriter.writeText(frameDebayered, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms ('+' to +10%, '-' to -10%)", 1);
+            textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 2);
+            textWriter.writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 3);
+            textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 5);
+            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 6);
+            textWriter.writeText(frameDebayered, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
+            textWriter.writeText(frameDebayered, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
 
-            ++numFrames;
-            ++totalNumFrames;
             cv::imshow("Live Video", frameDebayered);
             if (showHistogram)
             {
@@ -163,22 +144,17 @@ int main(int argc, const char **argv)
 
         treatKeyboardpress((char)cv::waitKey(1)); 
 
-        auto endFrameTime = std::chrono::high_resolution_clock::now();
-        totalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endFrameTime - startFrameTime).count() * 1e-9;
-        frameTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endFrameTime - startFrameTime).count() * 1e-9;
-        if (frameTime > 1.0)
+        profiler.stop("Frame");
+        if (profiler.getData("Frame").durationInSeconds() > 1.0)
         {
-            lastProcessingFPS = numFrames / frameTime;
-            cameraFPS = numFrames / cameraTime;
-            frameTime = 0.0;
-            cameraTime = 0.0;
-            numFrames = 0;
+            profileData = profiler.getData();
+            profiler.reset();
         }
     }
     std::cout << "Exit loop\n"
               << std::endl;
 
-    cv::destroyAllWindows();
+    //cv::destroyAllWindows();
 
     qhyCamera.close();
 
@@ -187,6 +163,7 @@ int main(int argc, const char **argv)
 
 void createControlPanel()
 {
+    double aspectRatio = (double)qhyCamera.getCameraInfo()->maxImageWidth / (double)qhyCamera.getCameraInfo()->maxImageHeight;
     cv::namedWindow("Live Video", cv::WINDOW_NORMAL);
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);
     cv::setMouseCallback("Live Video", mouseCallBackFunc, NULL);
@@ -245,7 +222,7 @@ void treatKeyboardpress(char key)
         if (!isVideoOpen)
         {
             std::cout << "Start recording" << std::endl;
-            isVideoOpen = openVideo(frameSize, totalNumFrames / totalTime);
+            isVideoOpen = openVideo(frameSize, profileData["Frame"].fps());
         }
         else
         {
@@ -255,12 +232,16 @@ void treatKeyboardpress(char key)
         }
         break;
     case '+':
-        exposure *= 1.1;
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+        {
+            double exposure = (double)qhyCamera.getCameraParams().exposureTime * 1.1;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+        }
         break;
     case '-':
-        exposure *= 0.9;
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+        {
+            double exposure = (double)qhyCamera.getCameraParams().exposureTime * 0.9;
+            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+        }
         break;
     case '1':
         std::cout << "Setting bits to 8" << std::endl;
@@ -324,17 +305,14 @@ void changeTrackbars(int value, void *paramP)
 
 void exposureCallback(int, void*userData)
 {
+    double exposure = (double)(long)userData;
     if ((long)userData == -1)
     {
-        exposure *= 1.1;
+        exposure = (double)qhyCamera.getCameraParams().exposureTime * 1.1;
     }
     else if ((long)userData == -2)
     {
-        exposure *= 0.9;
-    }
-    else
-    {
-        exposure = (long)userData;
+        exposure = (double)qhyCamera.getCameraParams().exposureTime * 0.9;
     }
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
 }
@@ -351,13 +329,6 @@ void generalCallback(int, void*userData)
     treatKeyboardpress((char)param);
 }
 
-std::string formatFOVText(float fov) 
-{
-    std::stringstream ss;
-    ss << std::fixed << std::setprecision(1) << fov;
-    return ss.str();
-}
-
 void drawOneFov(cv::Mat& frame, cv::Point2d center, double fov, double max_fov, const cv::Scalar& color)
 {
     if (max_fov >= fov)
@@ -370,7 +341,7 @@ void drawOneFov(cv::Mat& frame, cv::Point2d center, double fov, double max_fov, 
         double radius = circleRadius * (fov / 220.0);
         cv::circle(frame, center, radius, color, 8);
 
-        std::string fov_text = formatFOVText(fov);
+        std::string fov_text = sky360lib::utils::Utils::formatDouble(fov, 2);
         cv::Size text_size = cv::getTextSize(fov_text, font_face, font_scale, font_thickness, nullptr);
         double textX = std::max(center.x - radius + text_offset.x, 0.0);
         cv::Point2f text_position(textX, center.y + text_size.height / 2 + text_offset.y);
@@ -490,45 +461,6 @@ inline void drawBoxes(const cv::Mat &frame)
     }
 }
 
-int getMaxTextHeight()
-{
-    const std::string text = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz(){}[]!|$#^0123456789";
-    const int fontFace = cv::FONT_HERSHEY_COMPLEX;
-    const double fontScale = 1.0;
-    const int thickness = 5;
-    int baseline = 0;
-    cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, &baseline);
-
-    return textSize.height + baseline;
-}
-
-inline double calcFontScale(int fontHeight, uint32_t screenHeight)
-{
-    const double numLines = 40;
-    const double lineHeight = (double)screenHeight /  numLines;
-    return lineHeight / ((double)fontHeight * 1.05);
-}
-
-inline double calcHeight(int line, uint32_t screenHeight)
-{
-    const double numLines = 40;
-    const double lineHeight = (double)screenHeight /  numLines;
-    return line * lineHeight;
-}
-
-void writeText(const cv::Mat _frame, std::string _text, int _line)
-{
-    static const int maxHeight = getMaxTextHeight();
-    const double fontScale = calcFontScale(maxHeight, _frame.size().height);
-    const int fontFace = cv::FONT_HERSHEY_COMPLEX;
-    const int thickness = (int)(3.5 * fontScale);
-    const cv::Scalar color{0, 180, 180, 0};
-    const cv::Scalar color16{0, 180 * 255, 180 * 255, 0};
-    const int height = calcHeight(_line, _frame.size().height);
-
-    cv::putText(_frame, _text, cv::Point(maxHeight, height), fontFace, fontScale, _frame.elemSize1() == 1 ? color : color16, thickness);
-}
-
 bool openQQYCamera()
 {
     auto cameras = qhyCamera.getCameras();
@@ -542,15 +474,12 @@ bool openQQYCamera()
         return false;
     }
 
-    // check color camera
     if (qhyCamera.getCameraInfo()->isColor)
     {
         qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 180.0);
         qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 128.0);
         qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 190.0);
     }
-    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
-    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::UsbTraffic, 5);
     return true;
 }
 

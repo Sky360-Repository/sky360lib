@@ -10,6 +10,7 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
+#include "profiler.hpp"
 #include "bgs.hpp"
 #include "connectedBlobDetection.hpp"
 
@@ -21,6 +22,7 @@ bool applyGreyscale{false};
 bool applyNoiseReduction{true};
 bool isVideoOpen = false;
 cv::VideoWriter videoWriter;
+sky360lib::utils::Profiler profiler;
 
 /////////////////////////////////////////////////////////////
 // Background subtractor to use
@@ -37,7 +39,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 sky360lib::blobs::ConnectedBlobDetection blobDetector;
 
 /////////////////////////////////////////////////////////////
-// Camera Detector
+// Camera
 sky360lib::camera::QHYCamera qhyCamera;
 
 /////////////////////////////////////////////////////////////
@@ -133,7 +135,9 @@ int main(int argc, const char **argv)
         if (!pause)
         {
             auto startProcessedTime = std::chrono::high_resolution_clock::now();
+            profiler.start("GetImage");
             getQhyCameraImage(frame);
+            profiler.stop("GetImage");
             cameraTime += qhyCamera.getLastFrameCaptureTime();
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
@@ -244,6 +248,7 @@ int main(int argc, const char **argv)
             cameraTime = 0.0;
             totalProcessedTime = 0.0;
             numFrames = 0;
+            profiler.report();
         }
     }
     std::cout << "Exit loop\n"

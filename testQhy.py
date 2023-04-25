@@ -16,9 +16,11 @@ cv2.resizeWindow("BGS", (1024, 1024))
 cv2.resizeWindow("Live Video", (1024, 1024));
 
 camera.open('')
-camera.setControl(pysky360.ControlParam.Exposure, 40000)
+camera.setControl(pysky360.ControlParam.Exposure, 40000, False)
 
 while True:
+    # greyFrame = camera.getFrame(False)
+    # frame = camera.debayerImage(greyFrame)
     frame = camera.getFrame(True)
 
     cv2.imshow('Live Video', frame)

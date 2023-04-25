@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sstream>
+#include <iomanip>
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
@@ -84,6 +87,13 @@ namespace sky360lib::utils
             }
 
             return hist_img;
+        }
+
+        static std::string formatDouble(double value, int decimal_places = 2) 
+        {
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(decimal_places) << value;
+            return oss.str();
         }
     };
 }

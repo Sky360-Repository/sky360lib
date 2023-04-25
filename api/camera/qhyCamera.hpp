@@ -139,6 +139,7 @@ namespace sky360lib::camera
         cv::Mat getFrameRet(bool debayer);
 
         void debayerImage(const cv::Mat& imageIn, cv::Mat& imageOut) const;
+        cv::Mat debayerImageRet(const cv::Mat& imageIn) const;
 
         double getLastFrameCaptureTime() const;
         CameraInfo const * getCameraInfo() const;
@@ -188,6 +189,7 @@ namespace sky360lib::camera
         bool m_isExposing{false};
         bool m_defaultSet{false};
 
+        bool setControlLowLevel(ControlParam controlParam, double value);
         bool fillCameraInfo(std::string camId, CameraInfo &ci);
         bool scanCameras();
         bool allocBufferMemory();
