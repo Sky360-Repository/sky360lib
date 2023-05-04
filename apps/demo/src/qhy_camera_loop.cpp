@@ -71,7 +71,12 @@ int main(int argc, const char **argv)
     double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
 
-    double gain = 10.0;
+    double gain = 5.0;
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, gain);
+
+    // autoExposureControl.set_targetMSV(1.11); // night
+    autoExposureControl.set_targetMSV(2.0); // day
+
     int frame_counter = 0;
     int auto_exposure_frame_interval = 5; 
 
@@ -135,7 +140,7 @@ int main(int argc, const char **argv)
             }
             exposure = (double)qhyCamera.getCameraParams().exposureTime;
             textWriter.writeText(frameDebayered, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms ('+' to +10%, '-' to -10%)", 1);
-            textWriter.writeText(frameDebayered, "Gain: " + sky360lib::utils::Utils::formatDouble(gain, 2), 2);
+            textWriter.writeText(frameDebayered, "Gain: " + std::to_string(qhyCamera.getCameraParams().gain), 2);
             textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 3);
             textWriter.writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 4);
             textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 5);
@@ -331,6 +336,10 @@ void changeTrackbars(int value, void *paramP)
 
 void exposureCallback(int, void*userData)
 {
+    if (doAutoExposure) {
+        return; // Do not perform any action if autoexposure is enabled
+    }
+
     double exposure = (double)(long)userData;
     if ((long)userData == -1)
     {

@@ -6,7 +6,7 @@ namespace sky360lib::utils{
 
     class AutoExposureControl {
     public:
-        AutoExposureControl(double targetMSV = 2.0, double max_exposure = 50000, double min_gain = 10, double max_exposure_step = 2000)
+        AutoExposureControl(double targetMSV = 1.5, double max_exposure = 50000, double min_gain = 5, double max_exposure_step = 4000)
             : targetMSV_(targetMSV), max_exposure_(max_exposure), min_gain_(min_gain), max_exposure_step_(max_exposure_step), err_i_(0.0) {}
 
         double get_targetMSV() const { return targetMSV_; }
@@ -61,8 +61,8 @@ namespace sky360lib::utils{
             mean_sample_value /= (rows * cols);
 
             // Proportional and integral constants (k_p and k_i)
-            double k_p = 1600;
-            double k_i = 320;
+            double k_p = 400;
+            double k_i = 80;
             double max_i = 3;
 
             double err_p = targetMSV_ - mean_sample_value;
@@ -74,7 +74,7 @@ namespace sky360lib::utils{
                 err_i_ = std::copysign(max_i, err_i_);
             }
 
-            if (std::abs(err_p) > 0.1)
+            if (std::abs(err_p) > 0.2) // To get a stable exposure 
             {
                 double new_exposure, new_gain;
                 if (err_p < 0 && current_gain > min_gain_)
