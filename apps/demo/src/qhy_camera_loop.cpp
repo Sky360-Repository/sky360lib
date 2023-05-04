@@ -3,6 +3,7 @@
 
 #include "qhyCamera.hpp"
 #include "utils.hpp"
+#include "autoExposureControl.hpp"
 #include "profiler.hpp"
 #include "textWriter.hpp"
 
@@ -20,6 +21,7 @@ bool isBoxSelected = false;
 cv::Size frameSize;
 double clipLimit = 2.0;
 bool doEqualization = false;
+bool doAutoExposure = false;
 bool squareResolution = false;
 bool run = true;
 bool pauseCapture = false;
@@ -40,6 +42,7 @@ sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QHYCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
+sky360lib::utils::AutoExposureControl autoExposureControl;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -67,6 +70,15 @@ int main(int argc, const char **argv)
 
     double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+
+    double gain = 5.0;
+    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, gain);
+
+    // autoExposureControl.set_targetMSV(1.11); // night
+    autoExposureControl.set_targetMSV(2.0); // day
+
+    int frame_counter = 0;
+    int auto_exposure_frame_interval = 5; 
 
     createControlPanel();
 
@@ -98,6 +110,19 @@ int main(int argc, const char **argv)
                 profiler.stop("Equalization");
             }
 
+            if (doAutoExposure)
+            {
+                frame_counter++;
+
+                if (frame_counter % auto_exposure_frame_interval == 0) { // to improve fps
+                    std::pair<double, double> exposure_gain = autoExposureControl.calculate_exposure_gain(frameDebayered, exposure, gain);
+                    exposure = exposure_gain.first;
+                    gain = exposure_gain.second;
+                    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+                    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, gain);
+                }
+            }
+
             if (isBoxSelected)
             {
                 cv::Mat cropFrame = frameDebayered(fullFrameBox);
@@ -115,16 +140,17 @@ int main(int argc, const char **argv)
             }
             exposure = (double)qhyCamera.getCameraParams().exposureTime;
             textWriter.writeText(frameDebayered, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms ('+' to +10%, '-' to -10%)", 1);
-            textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 2);
-            textWriter.writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 3);
+            textWriter.writeText(frameDebayered, "Gain: " + std::to_string(qhyCamera.getCameraParams().gain), 2);
+            textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 3);
+            textWriter.writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 4);
             textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 5);
-            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 6);
+            textWriter.writeText(frameDebayered, "Auto Exposure / Gain: " + std::string(doAutoExposure ? "On" : "Off") + " ('a' to toggle)", 6);
+            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 7);
             textWriter.writeText(frameDebayered, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.writeText(frameDebayered, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
 
             cv::imshow("Live Video", frameDebayered);
-            if (showHistogram)
-            {
+            if (showHistogram){
                 cv::Mat hist = sky360lib::utils::Utils::createHistogram(frameDebayered);
                 cv::imshow("Histogram", hist);
             }
@@ -197,6 +223,7 @@ void createControlPanel()
     cv::createTrackbar("Blue WB:", "", nullptr, maxBlueWB, changeTrackbars, (void *)(long)sky360lib::camera::QHYCamera::ControlParam::BlueWB);
     cv::setTrackbarPos("Blue WB:", "", (int)qhyCamera.getCameraParams().blueWB);
 
+    cv::createButton("AE on/off", generalCallback, (void *)(long)'a', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res. on/off", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Recording", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
@@ -294,7 +321,11 @@ void treatKeyboardpress(char key)
             cv::destroyWindow("Histogram");
         }
         break;
+    case 'a':
+        doAutoExposure = !doAutoExposure;
+        break;
     }
+
 }
 
 void changeTrackbars(int value, void *paramP)
@@ -305,6 +336,10 @@ void changeTrackbars(int value, void *paramP)
 
 void exposureCallback(int, void*userData)
 {
+    if (doAutoExposure) {
+        return; // Do not perform any action if autoexposure is enabled
+    }
+
     double exposure = (double)(long)userData;
     if ((long)userData == -1)
     {

@@ -18,13 +18,13 @@ namespace sky360lib
         }
 
         ImgSize(int _width, int _height, int _numChannels, int _bytesPerPixel, size_t _originalPixelPos)
-            : width(_width),
-              height(_height),
-              numChannels(_numChannels),
-              bytesPerPixel(_bytesPerPixel),
-              numPixels(_width * _height),
-              sizeInBytes(_width * _height * _numChannels * _bytesPerPixel),
-              originalPixelPos{_originalPixelPos}
+            : width(_width)
+            , height(_height)
+            , numChannels(_numChannels)
+            , bytesPerPixel(_bytesPerPixel)
+            , numPixels(_width * _height)
+            , sizeInBytes(_width * _height * _numChannels * _bytesPerPixel)
+            , originalPixelPos{_originalPixelPos}
         {
         }
 
@@ -46,9 +46,9 @@ namespace sky360lib
     struct Img
     {
         Img(uint8_t* _data, const ImgSize& _imgSize, std::unique_ptr<uint8_t[]> _dataPtr = nullptr)
-            : data{_data},
-              size{_imgSize},
-              dataPtr{std::move(_dataPtr)}
+            : data{_data}
+            , size{_imgSize}
+            , dataPtr{std::move(_dataPtr)}
         {
         }
 
