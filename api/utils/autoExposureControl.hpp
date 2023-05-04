@@ -2,12 +2,21 @@
 
 #include <opencv2/opencv.hpp>
 
-namespace sky360lib::utils{
-
-    class AutoExposureControl {
+namespace sky360lib::utils
+{
+    class AutoExposureControl
+    {
     public:
-        AutoExposureControl(double targetMSV = 1.5, double max_exposure = 50000, double min_gain = 5, double max_exposure_step = 4000)
-            : targetMSV_(targetMSV), max_exposure_(max_exposure), min_gain_(min_gain), max_exposure_step_(max_exposure_step), err_i_(0.0) {}
+        AutoExposureControl(double targetMSV = 1.5, 
+                            double max_exposure = 50000, 
+                            double min_gain = 5, 
+                            double max_exposure_step = 4000)
+        : targetMSV_(targetMSV)
+        , max_exposure_(max_exposure)
+        , min_gain_(min_gain)
+        , max_exposure_step_(max_exposure_step)
+        , err_i_(0.0)
+        {}
 
         double get_targetMSV() const { return targetMSV_; }
         void set_targetMSV(double targetMSV) { targetMSV_ = targetMSV; }
@@ -21,23 +30,13 @@ namespace sky360lib::utils{
         double get_max_exposure_step() const { return max_exposure_step_; }
         void set_max_exposure_step(double max_exposure_step) { max_exposure_step_ = max_exposure_step; }
 
-        double calculate_brightness(const cv::Mat &frame)
-        {
-            cv::Mat gray;
-            cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-            cv::Scalar mean_scalar = cv::mean(gray);
-            double brightness = mean_scalar[0];
-            return brightness;
-        }
-
-        std::pair<double, double> calculate_exposure_gain(const cv::Mat& cv_image, double current_exposure, double current_gain)
+        std::pair<double, double> calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain)
         {
             int rows = cv_image.rows;
             int cols = cv_image.cols;
-            int channels = cv_image.channels();
             cv::Mat brightness_image;
 
-            if (channels == 3)
+            if (cv_image.channels() == 3)
             {
                 cv::cvtColor(cv_image, brightness_image, cv::COLOR_BGR2HSV);
                 std::vector<cv::Mat> hsv_channels;
@@ -74,7 +73,7 @@ namespace sky360lib::utils{
                 err_i_ = std::copysign(max_i, err_i_);
             }
 
-            if (std::abs(err_p) > 0.2) // To get a stable exposure 
+            if (std::abs(err_p) > 0.2) // To get a stable exposure
             {
                 double new_exposure, new_gain;
                 if (err_p < 0 && current_gain > min_gain_)
@@ -118,5 +117,4 @@ namespace sky360lib::utils{
         double max_exposure_step_;
         double err_i_;
     };
-
 }

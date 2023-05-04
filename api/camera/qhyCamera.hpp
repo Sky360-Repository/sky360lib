@@ -5,7 +5,7 @@
 #include <map>
 #include <iostream>
 
-#include <qhyccd.h>
+#include "qhyccd_wrap.h"
 #include <opencv2/opencv.hpp>
 
 namespace sky360lib::camera
@@ -13,7 +13,7 @@ namespace sky360lib::camera
     class QHYCamera
     {
     public:
-    static const int DEFAULT_CAPTURE_RETRIES = 1000;
+        static const int DEFAULT_CAPTURE_RETRIES = 1000;
         enum BinMode
         {
             Bin_1x1 = 1,
