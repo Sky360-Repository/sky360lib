@@ -74,11 +74,8 @@ int main(int argc, const char **argv)
     double gain = 5.0;
     qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, gain);
 
-    // autoExposureControl.set_targetMSV(1.11); // night
-    autoExposureControl.set_targetMSV(2.0); // day
-
     int frame_counter = 0;
-    int auto_exposure_frame_interval = 5; 
+    int auto_exposure_frame_interval = 3; 
 
     createControlPanel();
 
@@ -144,8 +141,9 @@ int main(int argc, const char **argv)
             textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.getCameraParams().roiWidth) + " x " + std::to_string(qhyCamera.getCameraParams().roiHeight), 3);
             textWriter.writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 4);
             textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 5);
-            textWriter.writeText(frameDebayered, "Auto Exposure / Gain: " + std::string(doAutoExposure ? "On" : "Off") + " ('a' to toggle)", 6);
-            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 7);
+            textWriter.writeText(frameDebayered, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + " ('a' to toggle)", 6);
+            textWriter.writeText(frameDebayered, "TargetMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_targetMSV()) + " '+' to +10%, '-' to -10%", 7);
+            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 8);
             textWriter.writeText(frameDebayered, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.writeText(frameDebayered, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
 
@@ -262,12 +260,22 @@ void treatKeyboardpress(char key)
         {
             double exposure = (double)qhyCamera.getCameraParams().exposureTime * 1.1;
             qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+            if(doAutoExposure)
+            {
+                double targetMSV = autoExposureControl.get_targetMSV();
+                autoExposureControl.set_targetMSV(targetMSV * 1.1);
+            }
         }
         break;
     case '-':
         {
             double exposure = (double)qhyCamera.getCameraParams().exposureTime * 0.9;
             qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+            if(doAutoExposure)
+            {
+                double targetMSV = autoExposureControl.get_targetMSV();
+                autoExposureControl.set_targetMSV(targetMSV * 0.9);
+            }
         }
         break;
     case '1':
@@ -336,11 +344,23 @@ void changeTrackbars(int value, void *paramP)
 
 void exposureCallback(int, void*userData)
 {
-    if (doAutoExposure) {
-        return; // Do not perform any action if autoexposure is enabled
+    double exposure = (double)(long)userData;
+
+    if(doAutoExposure)
+    {
+        if ((long)userData == -1)
+        {
+            double targetMSV = autoExposureControl.get_targetMSV();
+            autoExposureControl.set_targetMSV(targetMSV * 1.1);
+        }
+        else if ((long)userData == -2)
+        {
+            double targetMSV = autoExposureControl.get_targetMSV();
+            autoExposureControl.set_targetMSV(targetMSV * 0.9);
+        }
+        return;
     }
 
-    double exposure = (double)(long)userData;
     if ((long)userData == -1)
     {
         exposure = (double)qhyCamera.getCameraParams().exposureTime * 1.1;
