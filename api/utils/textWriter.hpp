@@ -8,7 +8,7 @@ namespace sky360lib::utils
     class TextWriter
     {
     public:
-        TextWriter(cv::Scalar _color = cv::Scalar{0, 180, 180, 0}, int _numMaxLines = 40)
+        TextWriter(cv::Scalar _color = cv::Scalar{0, 180, 180, 0}, int _numMaxLines = 32)
         : m_fontFace{cv::FONT_HERSHEY_COMPLEX}
         , m_numLines{_numMaxLines}
         , m_color{_color}

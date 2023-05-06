@@ -10,6 +10,7 @@ namespace sky360lib::camera
 {
     class QhyCamera
     {
+    public:
         enum BinMode
         {
             Bin1x1 = 1,
@@ -140,8 +141,8 @@ namespace sky360lib::camera
         void debayer_image(const cv::Mat& _image_in, cv::Mat& _image_out) const;
         cv::Mat debayer_image_ret(const cv::Mat& _image_in) const;
 
-        CameraInfo const& get_camera_info() const;
-        const CameraParams& get_camera_params() const;
+        CameraInfo const* get_camera_info() const { return m_current_info; }
+        const CameraParams& get_camera_params() const { return m_params; }
 
         bool open(const std::string& _camera_id);
         void close();
@@ -156,6 +157,7 @@ namespace sky360lib::camera
         static const int DEFAULT_CAPTURE_RETRIES = 1000;
 
         std::string m_cam_id;
+        std::string m_old_cam_id;
         qhyccd_handle *m_cam_handle{nullptr};
         std::unique_ptr<uint8_t[]> m_img_data{nullptr};
         std::map<std::string, CameraInfo> m_cameras;
@@ -174,7 +176,8 @@ namespace sky360lib::camera
 
         bool check_force(ControlParam _control_param, double _value, bool _force);
         void change_internal_param(ControlParam _control_param, double _value);
-        void apply_side_effects_of_change_param(ControlParam _control_param);
+        bool check_apply_direct_change(ControlParam _control_param);
+        void apply_open_after_change(ControlParam _control_param, bool _wasOpen);
         bool get_frame();
         bool begin_exposing();
         bool set_control_low_level(ControlParam _controlParam, double _value);

@@ -11,7 +11,7 @@
 
 #include "bgs.hpp"
 #include "connectedBlobDetection.hpp"
-#include "qhyCamera.hpp"
+#include "qhy_camera.hpp"
 
 namespace py = pybind11;
 using namespace sky360lib::bgs;
@@ -68,45 +68,40 @@ PYBIND11_MODULE(pysky360, m)
         .def("setAreaThreshold", &ConnectedBlobDetection::setAreaThreshold)
         .def("setMinDistance", &ConnectedBlobDetection::setMinDistance);
 
-    py::class_<QHYCamera>(m, "QHYCamera")
+    py::class_<QhyCamera>(m, "QHYCamera")
         .def(py::init<>())
-        .def("setDebugInfo", &QHYCamera::setDebugInfo)
-        .def("getFrame", &QHYCamera::getFrameRet)
-        .def("debayerImage", &QHYCamera::debayerImageRet)
-        .def("getLastFrameCaptureTime", &QHYCamera::getLastFrameCaptureTime)
-        .def("getCameraInfo", &QHYCamera::getCameraInfo)
-        .def("getCameraParams", &QHYCamera::getCameraParams)
-        .def("init", &QHYCamera::init)
-        .def("release", &QHYCamera::release)
-        .def("open", &QHYCamera::open)
-        .def("close", &QHYCamera::close)
-        .def("beginExposing", &QHYCamera::beginExposing)
-        .def("endExposing", &QHYCamera::beginExposing)
-        .def("setControl", &QHYCamera::setControl)
-        .def("setDebayer", &QHYCamera::setDebayer)
-        .def("setBinMode", &QHYCamera::setBinMode)
-        .def("setResolution", &QHYCamera::setResolution)
-        .def("setStreamMode", &QHYCamera::setStreamMode)
-        .def("getMemoryNeededForFrame", &QHYCamera::getMemoryNeededForFrame);
+        .def("setDebugInfo", &QhyCamera::set_debug_info)
+        .def("getFrame", &QhyCamera::get_frame_ret)
+        .def("debayerImage", &QhyCamera::debayer_image_ret)
+        .def("getLastFrameCaptureTime", &QhyCamera::get_last_frame_capture_time)
+        .def("getCameraInfo", &QhyCamera::get_camera_info)
+        .def("getCameraParams", &QhyCamera::get_camera_params)
+        .def("open", &QhyCamera::open)
+        .def("close", &QhyCamera::close)
+        .def("setControl", &QhyCamera::set_control)
+        .def("setDebayer", &QhyCamera::set_debayer)
+        .def("setBinMode", &QhyCamera::set_bin_mode)
+        .def("setResolution", &QhyCamera::set_resolution)
+        .def("setStreamMode", &QhyCamera::set_stream_mode);
 
-    py::class_<QHYCamera::CameraInfo>(m, "QHYCamera.CameraInfo")
+    py::class_<QhyCamera::CameraInfo>(m, "QHYCamera.CameraInfo")
         .def(py::init<>())
-        .def("bayerFormatToString", &QHYCamera::CameraInfo::bayerFormatToString)
-        .def("toString", &QHYCamera::CameraInfo::toString);
+        .def("bayerFormatToString", &QhyCamera::CameraInfo::bayer_format_to_string)
+        .def("toString", &QhyCamera::CameraInfo::to_string);
 
-    py::enum_<QHYCamera::ControlParam>(m, "ControlParam")
-        .value("Brightness", QHYCamera::ControlParam::Brightness)
-        .value("Exposure", QHYCamera::ControlParam::Exposure)
-        .value("Contrast", QHYCamera::ControlParam::Contrast)
-        .value("UsbTraffic", QHYCamera::ControlParam::UsbTraffic)
-        .value("UsbSpeed", QHYCamera::ControlParam::UsbSpeed)
-        .value("Gain", QHYCamera::ControlParam::Gain)
-        .value("Offset", QHYCamera::ControlParam::Offset)
-        .value("TransferBits", QHYCamera::ControlParam::TransferBits)
-        .value("RedWB", QHYCamera::ControlParam::RedWB)
-        .value("GreenWB", QHYCamera::ControlParam::GreenWB)
-        .value("BlueWB", QHYCamera::ControlParam::BlueWB)
-        .value("Gamma", QHYCamera::ControlParam::Gamma)
-        .value("Channels", QHYCamera::ControlParam::Channels)
+    py::enum_<QhyCamera::ControlParam>(m, "ControlParam")
+        .value("Brightness", QhyCamera::ControlParam::Brightness)
+        .value("Exposure", QhyCamera::ControlParam::Exposure)
+        .value("Contrast", QhyCamera::ControlParam::Contrast)
+        .value("UsbTraffic", QhyCamera::ControlParam::UsbTraffic)
+        .value("UsbSpeed", QhyCamera::ControlParam::UsbSpeed)
+        .value("Gain", QhyCamera::ControlParam::Gain)
+        .value("Offset", QhyCamera::ControlParam::Offset)
+        .value("TransferBits", QhyCamera::ControlParam::TransferBits)
+        .value("RedWB", QhyCamera::ControlParam::RedWB)
+        .value("GreenWB", QhyCamera::ControlParam::GreenWB)
+        .value("BlueWB", QhyCamera::ControlParam::BlueWB)
+        .value("Gamma", QhyCamera::ControlParam::Gamma)
+        .value("Channels", QhyCamera::ControlParam::Channels)
         .export_values();
 }

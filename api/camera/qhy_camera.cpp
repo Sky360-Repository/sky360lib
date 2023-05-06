@@ -79,12 +79,12 @@ namespace sky360lib::camera
             close();
         }
 
-        // release sdk resources
         uint32_t rc = ReleaseQHYCCDResource();
         if (QHYCCD_SUCCESS != rc)
         {
             std::cerr << "Cannot release SDK resources, error: " << rc << std::endl;
         }
+        m_is_cam_init = false;
     }
 
     void QhyCamera::close()
@@ -102,6 +102,8 @@ namespace sky360lib::camera
 
             CloseQHYCCD(m_cam_handle);
 
+            m_old_cam_id = m_cam_id;
+            m_img_data = nullptr;
             m_cam_handle = nullptr;
             m_cam_id = "";
             m_is_cam_open = false;
@@ -236,7 +238,7 @@ namespace sky360lib::camera
                 }
                 camera_id = m_cameras.begin()->second.id;
             }
-            else if (camera_id != m_cam_id)
+            else if (camera_id != m_old_cam_id)
             {
                 m_is_default_set = false;
             }
@@ -262,6 +264,10 @@ namespace sky360lib::camera
     {
         if (!m_is_default_set)
         {
+            if (m_is_debug_info)
+            {
+                std::cout << "set_default_params: Set default params." << std::endl;
+            }
             set_debayer(false);
             set_control(RedWB, 180.0, true);
             set_control(GreenWB, 128.0, true);
@@ -284,23 +290,27 @@ namespace sky360lib::camera
         }
         else
         {
+            if (m_is_debug_info)
+            {
+                std::cout << "set_default_params: Set current params." << std::endl;
+            }
             set_debayer(m_params.apply_debayer);
-            set_control(RedWB, m_params.red_white_balance);
-            set_control(GreenWB, m_params.green_white_balance);
-            set_control(BlueWB, m_params.blue_white_balance);
-            set_control(Exposure, m_params.exposure);
+            set_control(RedWB, m_params.red_white_balance, true);
+            set_control(GreenWB, m_params.green_white_balance, true);
+            set_control(BlueWB, m_params.blue_white_balance, true);
+            set_control(Exposure, m_params.exposure, true);
             set_stream_mode(m_params.stream_mode);
-            set_control(UsbTraffic, m_params.usb_traffic);
-            set_control(UsbSpeed, m_params.usb_speed);
-            set_control(Gain, m_params.gain);
-            set_control(Offset, m_params.offset);
+            set_control(UsbTraffic, m_params.usb_traffic, true);
+            set_control(UsbSpeed, m_params.usb_speed, true);
+            set_control(Gain, m_params.gain, true);
+            set_control(Offset, m_params.offset, true);
             set_resolution(m_params.roi.start_x, m_params.roi.start_y, m_params.roi.width, m_params.roi.height);
-            set_control(TransferBits, m_params.bpp);
-            set_control(Channels, m_params.channels);
+            set_control(TransferBits, m_params.bpp, true);
+            set_control(Channels, m_params.channels, true);
             set_bin_mode(m_params.bin_mode);
-            set_control(Contrast, m_params.contrast);
-            set_control(Brightness, m_params.brightness);
-            set_control(Gamma, m_params.gamma);
+            set_control(Contrast, m_params.contrast, true);
+            set_control(Brightness, m_params.brightness, true);
+            set_control(Gamma, m_params.gamma, true);
         }
     }
 
@@ -400,20 +410,29 @@ namespace sky360lib::camera
 
     bool QhyCamera::set_control(ControlParam _control_param, double _value, bool _force)
     {
+        if (m_is_debug_info)
+        {
+            std::cout << "set_control: Param: " << _control_param << ", value: " << _value << ", force: " << _force << std::endl;
+        }
         uint32_t rc = IsQHYCCDControlAvailable(m_cam_handle, (CONTROL_ID)_control_param);
         if (rc == QHYCCD_SUCCESS)
         {
             auto change = check_force(_control_param, _value, _force);
             if (change)
             {
-                auto changed = set_control_low_level(_control_param, _value);
-                if (!changed) {
-                    std::cerr << "Control could not change: " << _control_param << std::endl;
-                    return false;
+                auto apply_direct_change = check_apply_direct_change(_control_param);
+                if (apply_direct_change)
+                {
+                    auto changed = set_control_low_level(_control_param, _value);
+                    if (!changed) {
+                        std::cerr << "Control could not change: " << _control_param << std::endl;
+                        return false;
+                    }
                 }
 
                 change_internal_param(_control_param, _value);
-                apply_side_effects_of_change_param(_control_param);
+
+                apply_open_after_change(_control_param, apply_direct_change);
             }
         } 
         else if (m_is_debug_info)
@@ -471,19 +490,30 @@ namespace sky360lib::camera
         };
     }
 
-    void QhyCamera::apply_side_effects_of_change_param(ControlParam _control_param)
+    bool QhyCamera::check_apply_direct_change(ControlParam _control_param)
     {
         if (m_is_cam_open)
         {
             switch (_control_param)
             {
-                case ControlParam::Channels:
-                    alloc_buffer_memory();
-                    break;
                 case ControlParam::TransferBits:
-                    alloc_buffer_memory();
-                    close();
-                    open(m_cam_id);
+                    release();
+                    return false;
+                default:
+                    break;
+            };
+        }
+        return true;
+    }
+
+    void QhyCamera::apply_open_after_change(ControlParam _control_param, bool _apply_direct_change)
+    {
+        if (!_apply_direct_change)
+        {
+            switch (_control_param)
+            {
+                case ControlParam::TransferBits:
+                    open(m_old_cam_id);
                     break;
                 default:
                     break;

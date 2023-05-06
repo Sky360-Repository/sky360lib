@@ -37,10 +37,9 @@ target_sources(
 target_sources(
     sky360lib_api
         PRIVATE
-            "camera/qhyCamera.cpp"
             "camera/qhy_camera.cpp"
         PUBLIC
-            "camera/qhyCamera.hpp"
+            "camera/qhy_camera.hpp"
 )
 
 target_link_libraries(sky360lib_api

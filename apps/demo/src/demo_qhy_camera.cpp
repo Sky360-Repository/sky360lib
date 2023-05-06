@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <thread>
 
-#include "qhyCamera.hpp"
+#include "qhy_camera.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
@@ -40,7 +40,7 @@ sky360lib::blobs::ConnectedBlobDetection blobDetector;
 
 /////////////////////////////////////////////////////////////
 // Camera
-sky360lib::camera::QHYCamera qhyCamera;
+sky360lib::camera::QhyCamera qhyCamera;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -63,8 +63,8 @@ static void changeParam(int value, void* paramP)
     long param = (long)paramP;
     switch (param)
     {
-        case sky360lib::camera::QHYCamera::ControlParam::Gain:
-            qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Gain, (double)value);
+        case sky360lib::camera::QhyCamera::ControlParam::Gain:
+            qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, (double)value);
             break;
     }
 }
@@ -81,12 +81,12 @@ int main(int argc, const char **argv)
     {
         return -1;
     }
-    std::cout << qhyCamera.getCameraInfo()->toString() << std::endl;
+    std::cout << qhyCamera.get_camera_info()->to_string() << std::endl;
 
-    double aspectRatio{(double)qhyCamera.getCameraInfo()->maxImageWidth / (double)qhyCamera.getCameraInfo()->maxImageHeight};
+    double aspectRatio{(double)qhyCamera.get_camera_info()->chip.max_image_width / (double)qhyCamera.get_camera_info()->chip.max_image_height};
 
     double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
-    qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
 
     const auto concurrentThreads = std::thread::hardware_concurrency();
     std::cout << "Available number of concurrent threads = " << concurrentThreads << std::endl;
@@ -105,7 +105,7 @@ int main(int argc, const char **argv)
     cv::resizeWindow("Live Video", DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_WIDTH / aspectRatio);
 
     int gain = 30;
-    cv::createTrackbar("Gain:", "Live Video", nullptr, 50, changeParam, (void*)(long)sky360lib::camera::QHYCamera::ControlParam::Gain);
+    cv::createTrackbar("Gain:", "Live Video", nullptr, 50, changeParam, (void*)(long)sky360lib::camera::QhyCamera::ControlParam::Gain);
     cv::setTrackbarPos("Gain:", "Live Video", gain);
 
     cv::Mat frame, processedFrame, saveFrame, frameDebayered;
@@ -138,7 +138,7 @@ int main(int argc, const char **argv)
             profiler.start("GetImage");
             getQhyCameraImage(frame);
             profiler.stop("GetImage");
-            cameraTime += qhyCamera.getLastFrameCaptureTime();
+            cameraTime += qhyCamera.get_last_frame_capture_time();
             appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
             if (doBlobDetection)
@@ -167,7 +167,7 @@ int main(int argc, const char **argv)
             writeText(videoFrame, "Blob Detection: " + std::string(doBlobDetection ? "On" : "Off") + " ('b' to toggle)", 4);
             writeText(videoFrame, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
             writeText(videoFrame, "BGS: " + getBGSName(bgsType) + " ('s' to toggle)", 6);
-            writeText(videoFrame, "Bits: " + std::to_string(qhyCamera.getCameraParams().transferBits) + " ('1' to 8 bits, '2' to 16 bits)", 7);
+            writeText(videoFrame, "Bits: " + std::to_string(qhyCamera.get_camera_params().bpp) + " ('1' to 8 bits, '2' to 16 bits)", 7);
 
             ++numFrames;
             totalProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
@@ -218,21 +218,21 @@ int main(int argc, const char **argv)
             case '+':
                 exposure *= 1.1;
                 std::cout << "Setting exposure to: " << exposure << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
                 break;
             case '-':
                 exposure *= 0.9;
                 std::cout << "Setting exposure to: " << exposure << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::Exposure, exposure);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
                 break;
             case '1':
                 std::cout << "Setting bits to 8" << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 8);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 8);
                 bgsPtr = createBGS(bgsType);
                 break;
             case '2':
                 std::cout << "Setting bits to 16" << std::endl;
-                qhyCamera.setControl(sky360lib::camera::QHYCamera::ControlParam::TransferBits, 16);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 16);
                 bgsPtr->restart();
                 break;
         }
@@ -367,7 +367,7 @@ inline std::vector<cv::Rect> findBlobs(const cv::Mat &image)
 
 bool openQQYCamera()
 {
-    auto cameras = qhyCamera.getCameras();
+    auto cameras = qhyCamera.get_cameras();
     if (cameras.size() == 0)
     {
         return false;
@@ -378,26 +378,17 @@ bool openQQYCamera()
         return false;
     }
 
-    // qhyCamera.setStreamMode(sky360lib::camera::QHYCamera::SingleFrame);
-
-    // check color camera
-    if (qhyCamera.getCameraInfo()->isColor)
-    {
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::RedWB, 70.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::GreenWB, 65.0);
-        qhyCamera.setControl(sky360lib::camera::QHYCamera::BlueWB, 88.0);
-    }
     return true;
 }
 
 inline bool getQhyCameraImage(cv::Mat &cameraFrame)
 {
-    return qhyCamera.getFrame(cameraFrame, false);
+    return qhyCamera.get_frame(cameraFrame, false);
 }
 
 inline void debayerImage(const cv::Mat &imageIn, cv::Mat &imageOut)
 {
-    qhyCamera.debayerImage(imageIn, imageOut);
+    qhyCamera.debayer_image(imageIn, imageOut);
 }
 
 bool openVideo(const cv::Mat &frame, double meanFps)
