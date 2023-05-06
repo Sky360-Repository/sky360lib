@@ -44,6 +44,8 @@ namespace sky360lib::utils
         double get_max_exposure_step() const { return max_exposure_step_; }
         void set_max_exposure_step(double max_exposure_step) { max_exposure_step_ = max_exposure_step; }
 
+        bool is_day() const { return !is_night_; }
+
         void toggle_day_night()
         {
             is_night_ = !is_night_;
@@ -52,8 +54,6 @@ namespace sky360lib::utils
 
         std::pair<double, double> calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain)
         {
-            int rows = cv_image.rows;
-            int cols = cv_image.cols;
             cv::Mat brightness_image;
 
             if (cv_image.channels() == 3)
@@ -77,14 +77,14 @@ namespace sky360lib::utils
                 mean_sample_value += hist.at<float>(i) * (i + 1);
             }
 
-            mean_sample_value /= (rows * cols);
+            mean_sample_value /= cv_image.size().area();
 
             // Proportional and integral constants (k_p and k_i)
-            double k_p = 400;
-            double k_i = 80;
-            double max_i = 3;
+            const double k_p = 400;
+            const double k_i = 80;
+            const double max_i = 3;
 
-            double err_p = targetMSV_ - mean_sample_value;
+            const double err_p = targetMSV_ - mean_sample_value;
 
             err_i_ += err_p;
 
@@ -167,14 +167,14 @@ namespace sky360lib::utils
 
     private:
         double targetMSV_;
+        double day_targetMSV_;
+        double night_targetMSV_;
         double min_exposure_;
         double max_exposure_;
         double min_gain_;
         double max_gain_;
         double max_exposure_step_;
         double err_i_;
-        double day_targetMSV_;
-        double night_targetMSV_;
         bool is_night_;
     };
 }
