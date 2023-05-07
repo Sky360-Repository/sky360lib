@@ -120,6 +120,10 @@ int main(int argc, const char **argv)
                     auto exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure_gain.exposure);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, exposure_gain.gain);
+                    if (exposure_gain.gain != gain) 
+                    {
+                        cv::setTrackbarPos("Gain:", "", (int)exposure_gain.gain);
+                    }
                     profiler.stop("AutoExposure");
                     aeFPS = profileData["AutoExposure"].fps();
                 }
@@ -145,10 +149,13 @@ int main(int argc, const char **argv)
             textWriter.writeText(frameDebayered, "Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 2);
             textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height), 3);
             textWriter.writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.get_camera_params().bpp) + " ('1' to 8 bits, '2' to 16 bits)", 4);
-            textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 5);
-            textWriter.writeText(frameDebayered, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night") + " ('a' to toggle)", 6);
-            textWriter.writeText(frameDebayered, "TargetMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_targetMSV()) + " '+' to +10%, '-' to -10%", 7);
-            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 8);
+            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
+            textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 6);
+
+            textWriter.writeText(frameDebayered, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night") + " ('a' to toggle)", 8);
+            textWriter.writeText(frameDebayered, "TargetMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_targetMSV()) + " '+' to +10%, '-' to -10%", 9);
+            textWriter.writeText(frameDebayered, "CurrentMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 10);
+
             textWriter.writeText(frameDebayered, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.writeText(frameDebayered, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
             textWriter.writeText(frameDebayered, "AutoExposure FPS: " + sky360lib::utils::Utils::formatDouble(aeFPS, 2), 3, true);
@@ -352,7 +359,7 @@ void exposureCallback(int, void*userData)
 {
     double exposure = (double)(long)userData;
 
-    if(doAutoExposure)
+    if (doAutoExposure)
     {
         if ((long)userData == -1)
         {
