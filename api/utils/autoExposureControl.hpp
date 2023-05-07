@@ -13,16 +13,16 @@ namespace sky360lib::utils
             double gain;
         };
 
-        AutoExposureControl(double day_targetMSV = 1.8, 
-                            double night_targetMSV = 0.98,
+        AutoExposureControl(double day_target_msv = 1.8, 
+                            double night_target_msv = 0.98,
                             double min_exposure = 100, 
                             double max_exposure = 50000, 
                             double min_gain = 5, 
                             double max_gain = 20, 
                             double max_exposure_step = 4000)
-        : targetMSV_(day_targetMSV)
-        , day_targetMSV_(day_targetMSV)
-        , night_targetMSV_(night_targetMSV)
+        : target_msv_(day_target_msv)
+        , day_target_msv_(day_target_msv)
+        , night_target_msv_(night_target_msv)
         , current_msv_(0.0)
         , min_exposure_(min_exposure)
         , max_exposure_(max_exposure)
@@ -33,8 +33,8 @@ namespace sky360lib::utils
         , is_night_(false)
         {}
 
-        double get_targetMSV() const { return targetMSV_; }
-        void set_targetMSV(double targetMSV) { targetMSV_ = std::clamp(targetMSV, 0.9, 5.0); }
+        double get_target_msv() const { return target_msv_; }
+        void set_target_msv(double target_msv) { target_msv_ = std::clamp(target_msv, 0.9, 5.0); }
 
         double get_min_exposure() const { return min_exposure_; }
         void set_min_exposure(double min_exposure) { min_exposure_ = min_exposure; }
@@ -58,19 +58,22 @@ namespace sky360lib::utils
         void toggle_day_night()
         {
             is_night_ = !is_night_;
-            targetMSV_ = is_night_ ? night_targetMSV_ : day_targetMSV_;
+            target_msv_ = is_night_ ? night_target_msv_ : day_target_msv_;
         }
 
         ExposureAdjustment calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain)
         {
+            const static double MULT_8_BITS = 1.0 / 51.0;
+            const static double MULT_16_BITS = 1.0 / (51.0 * 256);
+
             cv::Mat brightness_image;
 
             if (cv_image.channels() == 3)
             {
-                cv::cvtColor(cv_image, brightness_image, cv::COLOR_BGR2HSV);
+                cv::cvtColor(cv_image, brightness_image, cv::COLOR_BGR2YCrCb);
                 std::vector<cv::Mat> hsv_channels;
                 cv::split(brightness_image, hsv_channels);
-                brightness_image = hsv_channels[2];
+                brightness_image = hsv_channels[0];
             }
             else
             {
@@ -78,14 +81,13 @@ namespace sky360lib::utils
             }
 
             cv::Scalar mean_intensity = cv::mean(brightness_image);
-            current_msv_ = mean_intensity[0] / 51.0; // To simulate the histogram bucket of 5 (255/5)
-
+            current_msv_ = mean_intensity[0] * (cv_image.elemSize1() == 1 ? MULT_8_BITS : MULT_16_BITS);
             // Proportional and integral constants (k_p and k_i)
             const double k_p = 400;
             const double k_i = 80;
             const double max_i = 3;
 
-            const double err_p = targetMSV_ - current_msv_;
+            const double err_p = target_msv_ - current_msv_;
 
             err_i_ += err_p;
 
@@ -146,7 +148,7 @@ namespace sky360lib::utils
                 if (new_exposure > max_exposure_)
                 {
                     new_exposure = max_exposure_;
-                    const double gain_increment = (targetMSV_ - current_msv_) * 1.1;
+                    const double gain_increment = (target_msv_ - current_msv_) * 1.1;
                     new_gain = std::min(std::max(current_gain + gain_increment, min_gain_), max_gain_);
 
                     // If we are unable to set exposure or gain anymore to achieve the target brightness, toggle between day and night
@@ -198,7 +200,7 @@ namespace sky360lib::utils
             const double k_i = 80;
             const double max_i = 3;
 
-            const double err_p = targetMSV_ - current_msv_;
+            const double err_p = target_msv_ - current_msv_;
 
             err_i_ += err_p;
 
@@ -259,7 +261,7 @@ namespace sky360lib::utils
                 if (new_exposure > max_exposure_)
                 {
                     new_exposure = max_exposure_;
-                    const double gain_increment = (targetMSV_ - current_msv_) * 1.1;
+                    const double gain_increment = (target_msv_ - current_msv_) * 1.1;
                     new_gain = std::min(std::max(current_gain + gain_increment, min_gain_), max_gain_);
 
                     // If we are unable to set exposure or gain anymore to achieve the target brightness, toggle between day and night
@@ -280,9 +282,9 @@ namespace sky360lib::utils
         }
 
     private:
-        double targetMSV_;
-        double day_targetMSV_;
-        double night_targetMSV_;
+        double target_msv_;
+        double day_target_msv_;
+        double night_target_msv_;
         double current_msv_;
         double min_exposure_;
         double max_exposure_;

@@ -23,7 +23,7 @@ namespace sky360lib::utils
 
             cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
             clahe->setClipLimit(clipLimit);
-            clahe->setTilesGridSize(cv::Size(4, 4));
+            clahe->setTilesGridSize(cv::Size(6, 6));
             cv::Mat equalizedL;
             clahe->apply(labChannels[0], equalizedL);
 

@@ -19,7 +19,7 @@ const int DEFAULT_BOX_SIZE{500};
 bool isVideoOpen = false;
 bool isBoxSelected = false;
 cv::Size frameSize;
-double clipLimit = 2.0;
+double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = false;
 bool squareResolution = false;
@@ -153,7 +153,7 @@ int main(int argc, const char **argv)
             textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 6);
 
             textWriter.writeText(frameDebayered, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night") + " ('a' to toggle)", 8);
-            textWriter.writeText(frameDebayered, "TargetMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_targetMSV()) + " '+' to +10%, '-' to -10%", 9);
+            textWriter.writeText(frameDebayered, "TargetMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + " ('+' to +10%, '-' to -10%)", 9);
             textWriter.writeText(frameDebayered, "CurrentMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 10);
 
             textWriter.writeText(frameDebayered, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
@@ -161,7 +161,8 @@ int main(int argc, const char **argv)
             textWriter.writeText(frameDebayered, "AutoExposure FPS: " + sky360lib::utils::Utils::formatDouble(aeFPS, 2), 3, true);
 
             cv::imshow("Live Video", frameDebayered);
-            if (showHistogram){
+            if (showHistogram)
+            {
                 cv::Mat hist = sky360lib::utils::Utils::createHistogram(frameDebayered);
                 cv::imshow("Histogram", hist);
             }
@@ -275,8 +276,8 @@ void treatKeyboardpress(char key)
             qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
             if(doAutoExposure)
             {
-                double targetMSV = autoExposureControl.get_targetMSV();
-                autoExposureControl.set_targetMSV(targetMSV * 1.1);
+                double targetMSV = autoExposureControl.get_target_msv();
+                autoExposureControl.set_target_msv(targetMSV * 1.1);
             }
         }
         break;
@@ -286,8 +287,8 @@ void treatKeyboardpress(char key)
             qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
             if(doAutoExposure)
             {
-                double targetMSV = autoExposureControl.get_targetMSV();
-                autoExposureControl.set_targetMSV(targetMSV * 0.9);
+                double targetMSV = autoExposureControl.get_target_msv();
+                autoExposureControl.set_target_msv(targetMSV * 0.9);
             }
         }
         break;
@@ -363,13 +364,13 @@ void exposureCallback(int, void*userData)
     {
         if ((long)userData == -1)
         {
-            double targetMSV = autoExposureControl.get_targetMSV();
-            autoExposureControl.set_targetMSV(targetMSV * 1.1);
+            double targetMSV = autoExposureControl.get_target_msv();
+            autoExposureControl.set_target_msv(targetMSV * 1.1);
         }
         else if ((long)userData == -2)
         {
-            double targetMSV = autoExposureControl.get_targetMSV();
-            autoExposureControl.set_targetMSV(targetMSV * 0.9);
+            double targetMSV = autoExposureControl.get_target_msv();
+            autoExposureControl.set_target_msv(targetMSV * 0.9);
         }
         return;
     }
