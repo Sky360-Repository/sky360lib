@@ -7,6 +7,12 @@ namespace sky360lib::utils
     class AutoExposureControl
     {
     public:
+        struct ExposureAdjustment
+        {
+            double exposure;
+            double gain;
+        };
+
         AutoExposureControl(double day_targetMSV = 1.8, 
                             double night_targetMSV = 0.98,
                             double min_exposure = 100, 
@@ -52,7 +58,7 @@ namespace sky360lib::utils
             targetMSV_ = is_night_ ? night_targetMSV_ : day_targetMSV_;
         }
 
-        std::pair<double, double> calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain)
+        ExposureAdjustment calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain)
         {
             cv::Mat brightness_image;
 
@@ -69,7 +75,7 @@ namespace sky360lib::utils
             }
 
             cv::Mat hist;
-            cv::calcHist(std::vector<cv::Mat>{brightness_image}, {0}, cv::Mat(), hist, {5}, {0, 256});
+            cv::calcHist(std::vector<cv::Mat>{brightness_image}, {0}, cv::Mat(), hist, {5}, {0, cv_image.elemSize1() == 1 ? 255.0f : 65535.0f});
 
             double mean_sample_value = 0;
             for (int i = 0; i < hist.rows; ++i)
@@ -102,7 +108,7 @@ namespace sky360lib::utils
                 {
                     if (current_gain > min_gain_)
                     {
-                        double gain_decrement = std::abs(err_p) * 1.1;
+                        const double gain_decrement = std::abs(err_p) * 1.1;
                         new_gain = std::min(std::max(current_gain - gain_decrement, min_gain_), max_gain_);
                     }
                     else
@@ -113,8 +119,8 @@ namespace sky360lib::utils
                     // Decrease exposure if the gain has reached its minimum value
                     if (new_gain == current_gain)
                     {
-                        double desired_exposure_change = k_p * err_p + k_i * err_i_;
-                        double exposure_change = std::clamp(desired_exposure_change, -max_exposure_step_, max_exposure_step_);
+                        const double desired_exposure_change = k_p * err_p + k_i * err_i_;
+                        const double exposure_change = std::clamp(desired_exposure_change, -max_exposure_step_, max_exposure_step_);
                         new_exposure = current_exposure + exposure_change;
                     }
                     else
@@ -128,15 +134,15 @@ namespace sky360lib::utils
                         toggle_day_night();
                     }
 
-                    return std::make_pair(new_exposure, new_gain);
+                    return { .exposure = new_exposure, .gain = new_gain };
                 }
 
 
                 // Calculate the desired exposure change
-                double desired_exposure_change = k_p * err_p + k_i * err_i_;
+                const double desired_exposure_change = k_p * err_p + k_i * err_i_;
 
                 // Limit the exposure change to max_exposure_step_
-                double exposure_change = std::clamp(desired_exposure_change, -max_exposure_step_, max_exposure_step_);
+                const double exposure_change = std::clamp(desired_exposure_change, -max_exposure_step_, max_exposure_step_);
 
                 // Update the exposure value
                 new_exposure = current_exposure + exposure_change;
@@ -145,7 +151,7 @@ namespace sky360lib::utils
                 if (new_exposure > max_exposure_)
                 {
                     new_exposure = max_exposure_;
-                    double gain_increment = (targetMSV_ - mean_sample_value) * 1.1;
+                    const double gain_increment = (targetMSV_ - mean_sample_value) * 1.1;
                     new_gain = std::min(std::max(current_gain + gain_increment, min_gain_), max_gain_);
 
                     // If we are unable to set exposure or gain anymore to achieve the target brightness, toggle between day and night
@@ -154,14 +160,14 @@ namespace sky360lib::utils
                         toggle_day_night();
                     }
 
-                    return std::make_pair(new_exposure, new_gain);
+                    return { .exposure = new_exposure, .gain = new_gain };
                 }
 
-                return std::make_pair(new_exposure, current_gain);
+                return { .exposure = new_exposure, .gain = current_gain };
             }
             else
             {
-                return std::make_pair(current_exposure, current_gain);
+                return { .exposure = current_exposure, .gain = current_gain };
             }
         }
 

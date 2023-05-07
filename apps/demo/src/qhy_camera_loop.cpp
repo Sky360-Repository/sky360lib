@@ -69,11 +69,8 @@ int main(int argc, const char **argv)
     std::cout << qhyCamera.get_camera_info()->to_string() << std::endl;
     qhyCamera.set_debug_info(false);
 
-    double exposure = (argc > 1 ? atoi(argv[1]) : 20000);
-    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
-
-    double gain = 5.0;
-    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, gain);
+    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 20000));
+    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 5.0);
 
     int frame_counter = 0;
     int auto_exposure_frame_interval = 3; 
@@ -114,14 +111,15 @@ int main(int argc, const char **argv)
             {
                 frame_counter++;
 
+                // to improve fps
                 if (frame_counter % auto_exposure_frame_interval == 0) 
-                { // to improve fps
+                { 
                     profiler.start("AutoExposure");
-                    std::pair<double, double> exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain);
-                    exposure = exposure_gain.first;
-                    gain = exposure_gain.second;
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, gain);
+                    const double exposure = (double)qhyCamera.get_camera_params().exposure;
+                    const double gain = (double)qhyCamera.get_camera_params().gain;
+                    auto exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure_gain.exposure);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, exposure_gain.gain);
                     profiler.stop("AutoExposure");
                     aeFPS = profileData["AutoExposure"].fps();
                 }
@@ -142,7 +140,7 @@ int main(int argc, const char **argv)
             {
                 drawFOV(frameDebayered, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
-            exposure = (double)qhyCamera.get_camera_params().exposure;
+            const double exposure = (double)qhyCamera.get_camera_params().exposure; 
             textWriter.writeText(frameDebayered, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms ('+' to +10%, '-' to -10%)", 1);
             textWriter.writeText(frameDebayered, "Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 2);
             textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height), 3);
