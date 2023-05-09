@@ -320,7 +320,7 @@ namespace sky360lib::camera
             set_control(Brightness, 0.0, true);
             set_control(Gamma, 1.0, true);
             set_control(Cooler, 10.0, true);
-            set_cool_temp(-10.0, true);
+            set_cool_temp(-5.0, false);
 
             m_is_default_set = true;
         }

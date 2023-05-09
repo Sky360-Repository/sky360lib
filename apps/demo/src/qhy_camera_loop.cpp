@@ -178,7 +178,7 @@ int main(int argc, const char **argv)
 
             textWriter.writeText(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
             textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 5, true);
-            textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Target: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
+            textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
 
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
@@ -255,7 +255,21 @@ void createControlPanel()
     cv::createTrackbar("Blue WB:", "", nullptr, maxBlueWB, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::BlueWB);
     cv::setTrackbarPos("Blue WB:", "", (int)qhyCamera.get_camera_params().blue_white_balance);
 
-    cv::createButton("AE on/off", generalCallback, (void *)(long)'a', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Cooling on/off", generalCallback, (void *)(long)'k', cv::QT_PUSH_BUTTON, 1);
+
+    auto temperature_limits = qhyCamera.get_camera_info()->temperature_limits;
+    cv::createTrackbar("Temperature Control:", "", nullptr, temperature_limits.max, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::Cooler);
+    cv::setTrackbarMin("Temperature Control:", "", (int)temperature_limits.min);
+    cv::setTrackbarMax("Temperature Control:", "", (int)temperature_limits.max);
+    cv::setTrackbarPos("Temperature Control:", "", (int)qhyCamera.get_camera_params().target_temp);
+
+    cv::createButton("Auto-Exposure on/off", generalCallback, (void *)(long)'a', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("- 10%", exposureCallback, (void *)(long)-4, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("+ 10%", exposureCallback, (void *)(long)-3, cv::QT_PUSH_BUTTON, 1);
+
+    cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
+    cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
+
     cv::createButton("Square Res. on/off", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Recording", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
@@ -371,6 +385,13 @@ void treatKeyboardpress(char key)
     case 'a':
         doAutoExposure = !doAutoExposure;
         break;
+    case 'k':
+        {
+            bool is_cool_enabled = qhyCamera.get_camera_params().cool_enabled;
+            double target_value = qhyCamera.get_camera_params().target_temp;
+            qhyCamera.set_cool_temp(target_value, !is_cool_enabled);
+        }
+        break;
     }
 
 }
@@ -378,27 +399,17 @@ void treatKeyboardpress(char key)
 void changeTrackbars(int value, void *paramP)
 {
     long param = (long)paramP;
+    if (param == -1)
+    {
+        autoExposureControl.set_target_msv((double)value / 100.0);
+        return;
+    }
     qhyCamera.set_control((sky360lib::camera::QhyCamera::ControlParam)param, (double)value);
 }
 
 void exposureCallback(int, void*userData)
 {
     double exposure = (double)(long)userData;
-
-    if (doAutoExposure)
-    {
-        if ((long)userData == -1)
-        {
-            double targetMSV = autoExposureControl.get_target_msv();
-            autoExposureControl.set_target_msv(targetMSV * 1.1);
-        }
-        else if ((long)userData == -2)
-        {
-            double targetMSV = autoExposureControl.get_target_msv();
-            autoExposureControl.set_target_msv(targetMSV * 0.9);
-        }
-        return;
-    }
 
     if ((long)userData == -1)
     {
@@ -408,6 +419,19 @@ void exposureCallback(int, void*userData)
     {
         exposure = (double)qhyCamera.get_camera_params().exposure * 0.9;
     }
+    else if ((long)userData == -3)
+    {
+        double targetMSV = autoExposureControl.get_target_msv();
+        autoExposureControl.set_target_msv(targetMSV * 1.1);
+        return;
+    }
+    else if ((long)userData == -4)
+    {
+        double targetMSV = autoExposureControl.get_target_msv();
+        autoExposureControl.set_target_msv(targetMSV * 0.9);
+        return;
+    }
+
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
 }
 
