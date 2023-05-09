@@ -17,7 +17,7 @@ namespace sky360lib::utils
                             double night_target_msv = 0.05,
                             double min_exposure = 100, 
                             double max_exposure = 50000, 
-                            double min_gain = 1.0, 
+                            double min_gain = 0.0, 
                             double max_gain = 30.0, 
                             double step_gain = 1.0,
                             double max_exposure_step = 4000)
