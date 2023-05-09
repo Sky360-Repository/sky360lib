@@ -33,6 +33,7 @@ namespace sky360lib::camera
         toStr << "Max Image Size width x height: " << chip.max_image_width << " x " << chip.max_image_height << std::endl;
         toStr << "Max Bits per Pixel: " << chip.max_bpp << std::endl;
         toStr << "Camera is color: " << (is_color ? "Yes" : "No") << ", Bayer Pattern: " << bayer_format_to_string() << std::endl;
+        toStr << "Camera is cooled: " << (is_cool ? "Yes" : "No") << std::endl;
         toStr << "Available Bin modes:"
               << (has_bin1x1_mode ? " (1x1)" : "")
               << (has_bin2x2_mode ? " (2x2)" : "")
@@ -42,6 +43,7 @@ namespace sky360lib::camera
         toStr << "Gain Limits: Min: " << gain_limits.min << ", Max: " << gain_limits.max << ", Step: " << gain_limits.step << std::endl;
         toStr << "Offset Limits: Min: " << offset_limits.min << ", Max: " << offset_limits.max << ", Step: " << offset_limits.step << std::endl;
         toStr << "Usb Traffic Limits: Min: " << usb_traffic_limits.min << ", Max: " << usb_traffic_limits.max << ", Step: " << usb_traffic_limits.step << std::endl;
+        toStr << "Temperature Limits: Min: " << temperature_limits.min << ", Max: " << temperature_limits.max << ", Step: " << temperature_limits.step << std::endl;
         return toStr.str();
     }
 
@@ -196,6 +198,8 @@ namespace sky360lib::camera
         _ci.bayer_format = IsQHYCCDControlAvailable(camHandle, CAM_COLOR);
         _ci.is_color = (_ci.bayer_format == BAYER_GB || _ci.bayer_format == BAYER_GR || _ci.bayer_format == BAYER_BG || _ci.bayer_format == BAYER_RG);
 
+        _ci.is_cool = IsQHYCCDControlAvailable(camHandle, CONTROL_COOLER) == QHYCCD_SUCCESS;
+
         _ci.has_bin1x1_mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN1X1MODE) == QHYCCD_SUCCESS;
         _ci.has_bin2x2_mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN2X2MODE) == QHYCCD_SUCCESS;
         _ci.has_bin3x3_mode = IsQHYCCDControlAvailable(camHandle, CAM_BIN3X3MODE) == QHYCCD_SUCCESS;
@@ -207,6 +211,7 @@ namespace sky360lib::camera
         GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBR, &_ci.red_wb_limits.min, &_ci.red_wb_limits.max, &_ci.red_wb_limits.step);
         GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBG, &_ci.green_wb_limits.min, &_ci.green_wb_limits.max, &_ci.green_wb_limits.step);
         GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBB, &_ci.blue_wb_limits.min, &_ci.blue_wb_limits.max, &_ci.blue_wb_limits.step);
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_COOLER, &_ci.temperature_limits.min, &_ci.temperature_limits.max, &_ci.temperature_limits.step);
 
         rc = CloseQHYCCD(camHandle);
         if (rc != QHYCCD_SUCCESS)
@@ -260,6 +265,35 @@ namespace sky360lib::camera
         return m_is_cam_open;
     }
 
+    double QhyCamera::get_current_temp() const
+    {
+        return GetQHYCCDParam(m_cam_handle, CONTROL_CURTEMP);
+    }
+
+    bool QhyCamera::set_cool_temp(double _target_temp, bool _enable)
+    {
+        if (!m_current_info->is_cool)
+        {
+            return false;
+        }
+
+        m_params.cool_enabled = _enable;
+        if (!_enable)
+        {
+            set_control_low_level(ManualPwm, 0);
+            return true;
+        }
+
+        if (!set_control_low_level(Cooler, _target_temp))
+        {
+            return false;
+        }
+
+        m_params.target_temp = _target_temp;
+
+        return true;
+    }
+
     void QhyCamera::set_default_params()
     {
         if (!m_is_default_set)
@@ -285,6 +319,8 @@ namespace sky360lib::camera
             set_control(Contrast, 0.0, true);
             set_control(Brightness, 0.0, true);
             set_control(Gamma, 1.0, true);
+            set_control(Cooler, 10.0, true);
+            set_cool_temp(-10.0, true);
 
             m_is_default_set = true;
         }
@@ -311,6 +347,7 @@ namespace sky360lib::camera
             set_control(Contrast, m_params.contrast, true);
             set_control(Brightness, m_params.brightness, true);
             set_control(Gamma, m_params.gamma, true);
+            set_cool_temp(m_params.target_temp, m_params.cool_enabled);
         }
     }
 
@@ -463,6 +500,8 @@ namespace sky360lib::camera
                 case ControlParam::Offset: currentValue = (double)m_params.offset; break;
                 case ControlParam::TransferBits: currentValue = (double)m_params.bpp; break;
                 case ControlParam::Gamma: currentValue = m_params.gamma; break;
+                case ControlParam::Cooler: currentValue = m_params.target_temp; break;
+                default: return false;
             };
            return currentValue != _value;
         }
@@ -487,6 +526,8 @@ namespace sky360lib::camera
             case ControlParam::Offset: m_params.offset = (uint32_t)_value; break;
             case ControlParam::TransferBits: m_params.bpp = (uint32_t)_value; break;
             case ControlParam::Gamma: m_params.gamma = _value; break;
+            case ControlParam::Cooler: m_params.target_temp = _value; break;
+            default: break;
         };
     }
 

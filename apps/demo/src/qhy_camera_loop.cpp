@@ -6,10 +6,18 @@
 #include "autoExposureControl.hpp"
 #include "profiler.hpp"
 #include "textWriter.hpp"
+#include "bgs.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+
+enum BGSType
+{
+    NoBGS
+    ,Vibe
+    ,WMV
+};
 
 /////////////////////////////////////////////////////////////
 // Variables
@@ -28,6 +36,7 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
+BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
 cv::Rect tempFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -43,6 +52,7 @@ sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
 sky360lib::utils::AutoExposureControl autoExposureControl;
+std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -57,6 +67,8 @@ void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
 void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
+std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
+std::string getBGSName(BGSType _type);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -84,7 +96,7 @@ int main(int argc, const char **argv)
 
     cv::Mat videoFrame{frame.size(), CV_8UC3};
 
-    double aeFPS = 0.0;
+    // double aeFPS = 0.0;
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -125,7 +137,7 @@ int main(int argc, const char **argv)
                         cv::setTrackbarPos("Gain:", "", (int)exposure_gain.gain);
                     }
                     profiler.stop("AutoExposure");
-                    aeFPS = profileData["AutoExposure"].fps();
+                    //aeFPS = profileData["AutoExposure"].fps();
                 }
             }
 
@@ -134,33 +146,41 @@ int main(int argc, const char **argv)
                 cv::Mat cropFrame = frameDebayered(fullFrameBox);
                 cv::imshow("Window Cut", cropFrame);
             }
-
-            drawBoxes(frameDebayered);
-            if (!squareResolution)
+            
+            cv::Mat displayFrame;
+            if (bgsType != NoBGS)
             {
-                drawFOV(frameDebayered, 220.0, circleCenter, circleRadius);
+                bgsPtr->apply(frame, displayFrame);
             }
             else
             {
-                drawFOV(frameDebayered, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
+                displayFrame = frameDebayered;
+            }
+
+            drawBoxes(displayFrame);
+            if (!squareResolution)
+            {
+                drawFOV(displayFrame, 220.0, circleCenter, circleRadius);
+            }
+            else
+            {
+                drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             const double exposure = (double)qhyCamera.get_camera_params().exposure; 
-            textWriter.writeText(frameDebayered, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms ('+' to +10%, '-' to -10%)", 1);
-            textWriter.writeText(frameDebayered, "Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 2);
-            textWriter.writeText(frameDebayered, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height), 3);
-            textWriter.writeText(frameDebayered, "Bits: " + std::to_string(qhyCamera.get_camera_params().bpp) + " ('1' to 8 bits, '2' to 16 bits)", 4);
-            textWriter.writeText(frameDebayered, "Video Recording: " + std::string(isVideoOpen ? "Yes" : "No") + " ('v' to toggle)", 5);
-            textWriter.writeText(frameDebayered, "Image Equalization: " + std::string(doEqualization ? "On" : "Off") + " ('e' to toggle)", 6);
+            textWriter.writeText(displayFrame, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
+            textWriter.writeText(displayFrame, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
+            textWriter.writeText(displayFrame, "Video Recording: " + std::string(isVideoOpen ? "On" : "Off"), 3);
+            textWriter.writeText(displayFrame, "Image Equalization: " + std::string(doEqualization ? "On" : "Off"), 4);
+            textWriter.writeText(displayFrame, "BGS: " + getBGSName(bgsType), 5);
 
-            textWriter.writeText(frameDebayered, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night") + " ('a' to toggle)", 8);
-            textWriter.writeText(frameDebayered, "TargetMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + " ('+' to +10%, '-' to -10%)", 9);
-            textWriter.writeText(frameDebayered, "CurrentMSV: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 10);
+            textWriter.writeText(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
+            textWriter.writeText(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
 
-            textWriter.writeText(frameDebayered, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
-            textWriter.writeText(frameDebayered, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
-            textWriter.writeText(frameDebayered, "AutoExposure FPS: " + sky360lib::utils::Utils::formatDouble(aeFPS, 2), 3, true);
+            textWriter.writeText(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
+            textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 5, true);
+            textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Target: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
 
-            cv::imshow("Live Video", frameDebayered);
+            cv::imshow("Live Video", displayFrame);
             if (showHistogram)
             {
                 cv::Mat hist = sky360lib::utils::Utils::createHistogram(frameDebayered);
@@ -299,6 +319,11 @@ void treatKeyboardpress(char key)
     case '2':
         std::cout << "Setting bits to 16" << std::endl;
         qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 16);
+        break;
+    case 'b':
+        bgsType = bgsType == BGSType::WMV ? BGSType::Vibe : (bgsType == BGSType::Vibe ? BGSType::NoBGS : BGSType::WMV);
+        bgsPtr = createBGS(bgsType);
+        std::cout << "Setting BGS to: " << std::to_string(bgsType) << std::endl;
         break;
     case 's':
         squareResolution = !squareResolution;
@@ -556,4 +581,28 @@ bool openVideo(const cv::Size &size, double meanFps)
     auto name = "vo" + oss.str() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
     return videoWriter.open(name, codec, meanFps, size, true);
+}
+
+std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
+{
+    switch (_type)
+    {
+    case BGSType::Vibe:
+        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 24, 1, 2));
+    case BGSType::WMV:
+        return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
+    default:
+        return nullptr;
+    }
+}
+
+std::string getBGSName(BGSType _type)
+{
+    switch (_type)
+    {
+        case NoBGS: return "No BGS";
+        case Vibe: return "Vibe";
+        case WMV: return "Weighted Moving Variance";
+    }
+    return "ERROR!";
 }
