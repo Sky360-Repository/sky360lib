@@ -67,6 +67,8 @@ namespace sky360lib::camera
             uint32_t bayer_format;
             bool is_color;
 
+            bool is_cool;
+
             bool has_bin1x1_mode;
             bool has_bin2x2_mode;
             bool has_bin3x3_mode;
@@ -78,6 +80,7 @@ namespace sky360lib::camera
             ParamLimits red_wb_limits;
             ParamLimits green_wb_limits;
             ParamLimits blue_wb_limits;
+            ParamLimits temperature_limits;
 
             std::string bayer_format_to_string() const;
 
@@ -107,6 +110,9 @@ namespace sky360lib::camera
             uint32_t offset;
             BinMode bin_mode;
 
+            double target_temp;
+            bool cool_enabled;
+
             uint32_t bpp;
         };
 
@@ -124,7 +130,9 @@ namespace sky360lib::camera
             BlueWB = CONTROL_WBB, //!< blue of white balance
             GreenWB = CONTROL_WBG, //!< the green of white balance
             Gamma = CONTROL_GAMMA, //!< screen gamma
-            Channels = CONTROL_CHANNELS //!< image channels
+            Channels = CONTROL_CHANNELS, //!< image channels
+            Cooler = CONTROL_COOLER,
+            ManualPwm = CONTROL_MANULPWM
         };
 
         QhyCamera();
@@ -147,6 +155,9 @@ namespace sky360lib::camera
         bool open(const std::string& _camera_id);
         void close();
 
+        double get_current_temp() const;
+
+        bool set_cool_temp(double _target_temp, bool _enable);
         bool set_control(ControlParam _control_param, double _value, bool _force = false);
         bool set_debayer(bool _enable);
         bool set_bin_mode(BinMode _mode);
