@@ -42,6 +42,14 @@ target_sources(
             "camera/qhy_camera.hpp"
 )
 
+target_sources(
+    sky360lib_api
+        PRIVATE
+            "utils/ImageAssessMetric.cpp"
+        PUBLIC
+            "utils/ImageAssessMetric.h"
+)
+
 target_link_libraries(sky360lib_api
                     PRIVATE
                         "${OpenCV_LIBS}"

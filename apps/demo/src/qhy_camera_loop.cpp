@@ -1,9 +1,14 @@
 #include <iostream>
 #include <string>
+#include <chrono>
+#include <fstream>
+#include <iomanip>
 
 #include "qhy_camera.hpp"
 #include "utils.hpp"
 #include "autoExposureControl.hpp"
+#include "noiseEsimator.hpp"
+#include "ImageAssessMetric.h"
 #include "profiler.hpp"
 #include "textWriter.hpp"
 #include "bgs.hpp"
@@ -52,7 +57,10 @@ sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
 sky360lib::utils::AutoExposureControl autoExposureControl;
+sky360lib::utils::NoiseEstimator noiseEstimator;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
+
+IMAGE_QUALITY_ESTIMATOR imageQuality;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -67,6 +75,8 @@ void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
 void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double image_quality);
+cv::Mat subsample(const cv::Mat& input, int factor);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 
@@ -97,6 +107,8 @@ int main(int argc, const char **argv)
     cv::Mat videoFrame{frame.size(), CV_8UC3};
 
     // double aeFPS = 0.0;
+    double noise_level = 0.0;
+    double image_quality = 0.0;
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -119,6 +131,11 @@ int main(int argc, const char **argv)
                 profiler.stop("Equalization");
             }
 
+            cv::Mat subsampled_img = subsample(frame, 8);  // subsample with a factor of 2
+
+            noise_level = noiseEstimator.estimate_noise(subsampled_img);
+            image_quality = imageQuality.GetImgQualityValue(frame, 0.125, 0);
+
             if (doAutoExposure)
             {
                 frame_counter++;
@@ -132,14 +149,30 @@ int main(int argc, const char **argv)
                     auto exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure_gain.exposure);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, exposure_gain.gain);
+                    
+                   
+                    // Log exposure update
+                    if (exposure_gain.exposure != exposure) 
+                    {
+                        std::string action = "Update Exposure";
+                        std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, image_quality);
+                    }
+
+                    // Log gain update
                     if (exposure_gain.gain != gain) 
                     {
                         cv::setTrackbarPos("Gain:", "", (int)exposure_gain.gain);
+
+                        std::string action = "Update Gain";
+                        std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, image_quality);
                     }
                     profiler.stop("AutoExposure");
                     //aeFPS = profileData["AutoExposure"].fps();
                 }
-            }
+
+            }        
 
             if (isBoxSelected)
             {
@@ -179,6 +212,8 @@ int main(int argc, const char **argv)
             textWriter.writeText(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
             textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 5, true);
             textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
+            textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::formatDouble(noise_level), 8, true);
+            textWriter.writeText(displayFrame, "Image quality: " + sky360lib::utils::Utils::formatDouble(image_quality), 9, true);
 
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
@@ -433,6 +468,45 @@ void exposureCallback(int, void*userData)
     }
 
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
+}
+
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double image_quality)
+{
+    auto now = std::chrono::system_clock::now();
+    std::time_t time = std::chrono::system_clock::to_time_t(now);
+    std::ofstream log_file(log_file_name, std::ios_base::app);
+
+    log_file << std::put_time(std::localtime(&time), "%F %T") << ", "
+             << action << ", "
+             << "msv: " << msv << ", "
+             << "targetMSV: " << targetMSV << ", "
+             << "exposure: " << exposure << ", "
+             << "gain: " << gain << ", "
+             << "noise: " << noise_level << ", "
+             << "quality: " << image_quality << "\n";
+
+    log_file.close();
+}
+
+
+#include <opencv2/opencv.hpp>
+
+cv::Mat subsample(const cv::Mat& input, int factor)
+{
+    cv::Mat output(input.rows / factor, input.cols / factor, input.type());
+
+    for (int y = 0; y < output.rows; ++y)
+    {
+        for (int x = 0; x < output.cols; ++x)
+        {
+            int y_in = std::min(y * factor, input.rows - 1);
+            int x_in = std::min(x * factor, input.cols - 1);
+
+            output.at<uchar>(y, x) = input.at<uchar>(y_in, x_in);
+        }
+    }
+
+    return output;
 }
 
 void TransferbitsCallback(int, void*userData)
