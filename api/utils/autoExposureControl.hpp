@@ -15,7 +15,7 @@ namespace sky360lib::utils
 
         AutoExposureControl(double day_target_msv = 0.24, 
                             double night_target_msv = 0.05,
-                            double min_exposure = 100, 
+                            double min_exposure = 100, // Should be lower for outdoors
                             double max_exposure = 50000, 
                             double min_gain = 0.0, 
                             double max_gain = 30.0, 
@@ -33,10 +33,13 @@ namespace sky360lib::utils
         , max_exposure_step_(max_exposure_step)
         , err_i_(0.0)
         , is_night_(false)
+        , transition_duration_(200) 
+        , transition_frame_(-1)
+        , start_target_msv_(day_target_msv_)
         {} 
 
         double get_target_msv() const { return target_msv_; }
-        void set_target_msv(double target_msv) { target_msv_ = std::clamp(target_msv, 0.18, 1.0); }
+        void set_target_msv(double target_msv) { target_msv_ = std::clamp(target_msv, 0.05, 1.0); }
 
         double get_min_exposure() const { return min_exposure_; }
         void set_min_exposure(double min_exposure) { min_exposure_ = min_exposure; }
@@ -79,16 +82,39 @@ namespace sky360lib::utils
             cv::Scalar mean_intensity = cv::mean(brightness_image);
             current_msv_ = mean_intensity[0] * (cv_image.elemSize1() == 1 ? MULT_8_BITS : MULT_16_BITS);
             
-            // switching mechanism
+            // when switching from day to night
             if (current_exposure >= max_exposure_ && current_gain >= max_gain_)
             {
-                is_night_ = true;
-                target_msv_ = night_target_msv_;
+                if (!is_night_) { // start transition
+                    is_night_ = true;
+                    start_target_msv_ = target_msv_;
+                    transition_frame_ = 0;
+                    min_exposure_ = 4000;
+                }
             }
+
+            // when switching from night to day
             else if (current_exposure <= min_exposure_ && current_gain <= min_gain_)
             {
-                is_night_ = false;
-                target_msv_ = day_target_msv_;
+                if (is_night_) { // start transition
+                    is_night_ = false;
+                    start_target_msv_ = target_msv_;
+                    transition_frame_ = 0;
+                    min_exposure_ = 100;
+                }
+            }
+
+            // if a transition is ongoing
+            if (transition_frame_ >= 0 && transition_frame_ < transition_duration_)
+            {
+                double end_target_msv = is_night_ ? night_target_msv_ : day_target_msv_;
+                target_msv_ = start_target_msv_ + 
+                            (end_target_msv - start_target_msv_) * transition_frame_ / transition_duration_;
+                transition_frame_++;
+            }
+            else if (transition_frame_ >= transition_duration_)
+            {
+                transition_frame_ = -1; // end transition
             }
 
             // Proportional and integral constants (k_p and k_i)
@@ -106,7 +132,7 @@ namespace sky360lib::utils
             }
             // std::cout << "err_p: " << err_p << ", err_i: " << err_i_ << std::endl;
 
-            if (std::abs(err_p) > 0.01) // To get a stable exposure
+            if (std::abs(err_p) > 0.03) // To get a stable exposure
             {
                 double new_exposure, new_gain;
 
@@ -186,5 +212,9 @@ namespace sky360lib::utils
         double max_exposure_step_;
         double err_i_;
         bool is_night_;
+
+        int transition_duration_; // the number of frames over which the transition occurs
+        int transition_frame_; // the current frame during the transition
+        double start_target_msv_; // target msv at the start of transition
     };
 }
