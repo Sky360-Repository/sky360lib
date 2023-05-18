@@ -33,6 +33,34 @@ namespace sky360lib::utils
             cv::cvtColor(labImage, imageOut, cv::COLOR_YCrCb2BGR);
         }
 
+        // https://stackoverflow.com/questions/6123443/calculating-image-acutance/6129542#6129542
+        static double calculateSharpness(cv::Mat& img)
+        {
+            cv::Mat img_gray;
+            if (img.channels() == 3) 
+            {
+                cv::cvtColor(img, img_gray, cv::COLOR_BGR2GRAY);
+            } 
+            else 
+            {
+                img_gray = img.clone();
+            }
+
+            // Calculate gradients in x and y directions
+            cv::Mat grad_x, grad_y;
+            cv::Sobel(img_gray, grad_x, CV_64F, 1, 0, 3);
+            cv::Sobel(img_gray, grad_y, CV_64F, 0, 1, 3);
+
+            // Calculate gradient magnitude
+            cv::Mat grad_mag;
+            cv::magnitude(grad_x, grad_y, grad_mag);
+
+            // Calculate mean of gradient magnitude
+            cv::Scalar mean = cv::mean(grad_mag);
+
+            return mean[0];
+        }
+        
         static cv::Mat createHistogram(const cv::Mat &img, int hist_w = 512, int hist_h = 400)
         {
             const int histSize = 256;
