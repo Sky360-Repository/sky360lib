@@ -263,42 +263,55 @@ float ImageQualityEstimator::CalImageEntropy(const cv::Mat src)
     return entropy_value;
 }
 
-double ImageQualityEstimator::GetImgQualityValue(const cv::Mat &image, float resize_factor /*= 1.0*/, int flag_boost)
+double ImageQualityEstimator::CalSharpness(const cv::Mat &grayImg)
 {
-    static const float norm_8bits_mult = 1.0f / 255.0f;
-    cv::Mat resized_image;
-    cv::Mat gray_image;
-    // 0. resize
-    cv::Size size = image.size();
-    cv::resize(image, resized_image, cv::Size(resize_factor * size.width, resize_factor * size.height));
-    if (resized_image.channels() == 3)
-    {
-        cv::cvtColor(resized_image, gray_image, cv::COLOR_BGR2GRAY);
-    }
-    else if (resized_image.channels() == 1)
-    {
-        gray_image = resized_image;
-    }
+    // Calculate gradients in x and y directions
+    cv::Mat grad_x, grad_y;
+    cv::Mat gradientImag(grayImg.rows, grayImg.cols, CV_32F);
+    CalImgGradient(grayImg, gradientImag);
 
-    // 0. Additional term for the control exception handling
-    const double Intensity_Value = cv::mean(gray_image)(0);
-    CurIntensity = Intensity_Value * norm_8bits_mult; // normalize to 1
+    // Calculate mean of gradient magnitude
+    cv::Scalar mean = cv::mean(gradientImag);
 
-    // 1. Compute gradient domain value
-    const double Gradient_value = CalBalanceGradient(gray_image, 10 * 10 * 10, 0.06, 10);
-    CurGradInfo = Gradient_value;
-
-    // 2. Compute entropy domain value
-    const float Entropy_value = CalImageEntropy(gray_image);
-    CurEntroInfo = Entropy_value;
-
-    // 3. Compute noise variance
-    const double Noise_variance = CalImageNoiseVariance(resized_image, flag_boost);
-    CurNoiseInfo = Noise_variance * resize_factor;
-
-    // 4. Compute Image Quality Value based on 1~3 values.
-    const double Image_Quality_Value = alpha * Gradient_value + (1 - alpha) * Entropy_value - beta * Noise_variance;
-    // double Image_Quality_Value = Noise_variance;
-
-    return Image_Quality_Value;
+    return mean[0];
 }
+
+// double ImageQualityEstimator::GetImgQualityValue(const cv::Mat &image, float resize_factor /*= 1.0*/, int flag_boost)
+// {
+//     static const float norm_8bits_mult = 1.0f / 255.0f;
+//     cv::Mat resized_image;
+//     cv::Mat gray_image;
+//     // 0. resize
+//     cv::Size size = image.size();
+//     cv::resize(image, resized_image, cv::Size(resize_factor * size.width, resize_factor * size.height));
+//     if (resized_image.channels() == 3)
+//     {
+//         cv::cvtColor(resized_image, gray_image, cv::COLOR_BGR2GRAY);
+//     }
+//     else if (resized_image.channels() == 1)
+//     {
+//         gray_image = resized_image;
+//     }
+
+//     // 0. Additional term for the control exception handling
+//     const double Intensity_Value = cv::mean(gray_image)(0);
+//     CurIntensity = Intensity_Value * norm_8bits_mult; // normalize to 1
+
+//     // 1. Compute gradient domain value
+//     const double Gradient_value = CalBalanceGradient(gray_image, 10 * 10 * 10, 0.06, 10);
+//     CurGradInfo = Gradient_value;
+
+//     // 2. Compute entropy domain value
+//     const float Entropy_value = CalImageEntropy(gray_image);
+//     CurEntroInfo = Entropy_value;
+
+//     // 3. Compute noise variance
+//     const double Noise_variance = CalImageNoiseVariance(resized_image, flag_boost);
+//     CurNoiseInfo = Noise_variance * resize_factor;
+
+//     // 4. Compute Image Quality Value based on 1~3 values.
+//     const double Image_Quality_Value = alpha * Gradient_value + (1 - alpha) * Entropy_value - beta * Noise_variance;
+//     // double Image_Quality_Value = Noise_variance;
+
+//     return Image_Quality_Value;
+// }

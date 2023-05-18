@@ -41,7 +41,7 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
-bool doNoiseEstimation = false;
+bool doImageMetrics = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -76,8 +76,7 @@ void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
 void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double image_quality);
-cv::Mat subsample(const cv::Mat& input, int factor);
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 
@@ -109,7 +108,9 @@ int main(int argc, const char **argv)
 
     // double aeFPS = 0.0;
     double noise_level = 0.0;
-    double image_quality = 0.0;
+    double balance_gradient = 0.0;
+    double entropy = 0.0;
+    double sharpness = 0.0;
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -131,12 +132,16 @@ int main(int argc, const char **argv)
                 sky360lib::utils::Utils::equalizeImage(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
-            if (doNoiseEstimation)
+            if (doImageMetrics)
             {
-                cv::Mat subsampled_img = subsample(frame, 8);  // subsample with a factor of 2
+                int roiSize = std::min(frame.rows, frame.cols) * 0.35; // % of the image size
+                cv::Rect roi((frame.cols - roiSize) / 2, (frame.rows - roiSize) / 2, roiSize, roiSize); 
+                cv::Mat img_roi = frame(roi);
 
-                noise_level = noiseEstimator.estimate_noise(subsampled_img);
-                image_quality = imageQuality.GetImgQualityValue(frame, 0.125, 0);
+                noise_level = noiseEstimator.estimate_noise(img_roi);
+                balance_gradient = imageQuality.CalBalanceGradient(img_roi, 1000, 0.06, 10);
+                entropy = imageQuality.CalImageEntropy(img_roi);
+                sharpness = imageQuality.CalSharpness(img_roi);
             }
             if (doAutoExposure)
             {
@@ -157,7 +162,7 @@ int main(int argc, const char **argv)
                     {
                         std::string action = "Update Exposure";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, image_quality);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level);
                     }
 
                     // Log gain update
@@ -167,7 +172,7 @@ int main(int argc, const char **argv)
 
                         std::string action = "Update Gain";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, image_quality);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level);
                     }
                     profiler.stop("AutoExposure");
                     //aeFPS = profileData["AutoExposure"].fps();
@@ -213,10 +218,12 @@ int main(int argc, const char **argv)
             textWriter.writeText(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
             textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 5, true);
             textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
-            if (doNoiseEstimation)
+            if (doImageMetrics)
             {
                 textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::formatDouble(noise_level), 8, true);
-                textWriter.writeText(displayFrame, "Image quality: " + sky360lib::utils::Utils::formatDouble(image_quality), 9, true);
+                textWriter.writeText(displayFrame, "Balance gradient: " + sky360lib::utils::Utils::formatDouble(balance_gradient), 9, true);
+                textWriter.writeText(displayFrame, "Entropy: " + sky360lib::utils::Utils::formatDouble(entropy), 10, true);
+                textWriter.writeText(displayFrame, "Sharpness: " + sky360lib::utils::Utils::formatDouble(sharpness), 11, true);
             }
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
@@ -311,7 +318,7 @@ void createControlPanel()
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Noise Est.", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Image met.", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
@@ -432,7 +439,7 @@ void treatKeyboardpress(char key)
         }
         break;
     case 'n':
-        doNoiseEstimation = !doNoiseEstimation;
+        doImageMetrics = !doImageMetrics;
         break;
     }
 
@@ -477,7 +484,7 @@ void exposureCallback(int, void*userData)
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
 }
 
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double image_quality)
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level)
 {
     auto now = std::chrono::system_clock::now();
     std::time_t time = std::chrono::system_clock::to_time_t(now);
@@ -489,31 +496,9 @@ void log_changes(const std::string& log_file_name, const std::string& action, do
              << "targetMSV: " << targetMSV << ", "
              << "exposure: " << exposure << ", "
              << "gain: " << gain << ", "
-             << "noise: " << noise_level << ", "
-             << "quality: " << image_quality << "\n";
+             << "noise: " << noise_level << "\n";
 
     log_file.close();
-}
-
-
-#include <opencv2/opencv.hpp>
-
-cv::Mat subsample(const cv::Mat& input, int factor)
-{
-    cv::Mat output(input.rows / factor, input.cols / factor, input.type());
-
-    for (int y = 0; y < output.rows; ++y)
-    {
-        for (int x = 0; x < output.cols; ++x)
-        {
-            int y_in = std::min(y * factor, input.rows - 1);
-            int x_in = std::min(x * factor, input.cols - 1);
-
-            output.at<uchar>(y, x) = input.at<uchar>(y_in, x_in);
-        }
-    }
-
-    return output;
 }
 
 void TransferbitsCallback(int, void*userData)

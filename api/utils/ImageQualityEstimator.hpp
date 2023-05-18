@@ -22,15 +22,7 @@ class ImageQualityEstimator
 public :
 
 	ImageQualityEstimator();
-	double GetImgQualityValue(const cv::Mat &image, float resize_factor = 1.0, int flag_boost = 0);
-
-private:
-	float alpha;
-	float beta;
-	double CurIntensity;
-	double CurGradInfo;
-	double CurEntroInfo;
-	double CurNoiseInfo;
+	//double GetImgQualityValue(const cv::Mat &image, float resize_factor = 1.0, int flag_boost = 0);
 
 	//@brief Calculate Image gradient based on Sobel operator
 	double CalImgGradient(const cv::Mat &grayImg, cv::Mat &output_gradient);
@@ -40,4 +32,14 @@ private:
 	float CalImageEntropy(const cv::Mat src);
 	//@brief Calculate Noise Value
 	double CalImageNoiseVariance(const cv::Mat& rgbImg, int flag_boost = 0);
+	//@brief Calculate Sharpess
+	double CalSharpness(const cv::Mat& grayImg);
+
+private:
+	float alpha;
+	float beta;
+	double CurIntensity;
+	double CurGradInfo;
+	double CurEntroInfo;
+	double CurNoiseInfo;
 };
