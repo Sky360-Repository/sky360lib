@@ -8,7 +8,7 @@
 #include "utils.hpp"
 #include "autoExposureControl.hpp"
 #include "noiseEsimator.hpp"
-#include "ImageAssessMetric.h"
+#include "ImageQualityEstimator.hpp"
 #include "profiler.hpp"
 #include "textWriter.hpp"
 #include "bgs.hpp"
@@ -41,6 +41,7 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
+bool doNoiseEstimation = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -60,7 +61,7 @@ sky360lib::utils::AutoExposureControl autoExposureControl;
 sky360lib::utils::NoiseEstimator noiseEstimator;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
-IMAGE_QUALITY_ESTIMATOR imageQuality;
+ImageQualityEstimator imageQuality;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -130,12 +131,13 @@ int main(int argc, const char **argv)
                 sky360lib::utils::Utils::equalizeImage(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
+            if (doNoiseEstimation)
+            {
+                cv::Mat subsampled_img = subsample(frame, 8);  // subsample with a factor of 2
 
-            cv::Mat subsampled_img = subsample(frame, 8);  // subsample with a factor of 2
-
-            noise_level = noiseEstimator.estimate_noise(subsampled_img);
-            image_quality = imageQuality.GetImgQualityValue(frame, 0.125, 0);
-
+                noise_level = noiseEstimator.estimate_noise(subsampled_img);
+                image_quality = imageQuality.GetImgQualityValue(frame, 0.125, 0);
+            }
             if (doAutoExposure)
             {
                 frame_counter++;
@@ -148,8 +150,7 @@ int main(int argc, const char **argv)
                     const double gain = (double)qhyCamera.get_camera_params().gain;
                     auto exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure_gain.exposure);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, exposure_gain.gain);
-                    
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, exposure_gain.gain);                    
                    
                     // Log exposure update
                     if (exposure_gain.exposure != exposure) 
@@ -212,9 +213,11 @@ int main(int argc, const char **argv)
             textWriter.writeText(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
             textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 5, true);
             textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
-            textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::formatDouble(noise_level), 8, true);
-            textWriter.writeText(displayFrame, "Image quality: " + sky360lib::utils::Utils::formatDouble(image_quality), 9, true);
-
+            if (doNoiseEstimation)
+            {
+                textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::formatDouble(noise_level), 8, true);
+                textWriter.writeText(displayFrame, "Image quality: " + sky360lib::utils::Utils::formatDouble(image_quality), 9, true);
+            }
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
             {
@@ -305,10 +308,11 @@ void createControlPanel()
     cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
     cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
 
-    cv::createButton("Square Res. on/off", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Image Equalization", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Video Recording", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Histogram on/off", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Image Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Noise Est.", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
 
@@ -426,6 +430,9 @@ void treatKeyboardpress(char key)
             double target_value = qhyCamera.get_camera_params().target_temp;
             qhyCamera.set_cool_temp(target_value, !is_cool_enabled);
         }
+        break;
+    case 'n':
+        doNoiseEstimation = !doNoiseEstimation;
         break;
     }
 

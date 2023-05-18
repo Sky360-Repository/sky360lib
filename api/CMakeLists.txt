@@ -45,9 +45,9 @@ target_sources(
 target_sources(
     sky360lib_api
         PRIVATE
-            "utils/ImageAssessMetric.cpp"
+            "utils/ImageQualityEstimator.cpp"
         PUBLIC
-            "utils/ImageAssessMetric.h"
+            "utils/ImageQualityEstimator.hpp"
 )
 
 target_link_libraries(sky360lib_api

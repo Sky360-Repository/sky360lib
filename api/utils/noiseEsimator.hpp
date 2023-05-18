@@ -8,9 +8,10 @@ namespace sky360lib::utils
 {
     class NoiseEstimator {
     public:
-        double estimate_noise(cv::Mat image) {
-
-            if (image.channels() == 3) {
+        double estimate_noise(cv::Mat image) 
+        {
+            if (image.channels() == 3) 
+            {
                 cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
             }
 
