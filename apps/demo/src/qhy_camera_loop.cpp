@@ -10,6 +10,7 @@
 #include "profiler.hpp"
 #include "textWriter.hpp"
 #include "bgs.hpp"
+#include "ringbuf.h"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -49,12 +50,15 @@ cv::Point2d circleEnd;
 cv::Point2d circleCenter;
 double circleRadius{0.0f};
 double cameraCircleMaxFov{0.0};
+baudvine::RingBuf<double, 200> noise_buffer;
+baudvine::RingBuf<double, 200> sharpness_buffer;
 
 cv::VideoWriter videoWriter;
 sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
+sky360lib::utils::TextWriter textWriterCrop(cv::Scalar{80, 140, 190, 0}, 24, 2.5);
 sky360lib::utils::AutoExposureControl autoExposureControl;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -124,21 +128,21 @@ int main(int argc, const char **argv)
             if (doEqualization)
             {
                 profiler.start("Equalization");
-                sky360lib::utils::Utils::equalizeImage(frameDebayered, frameDebayered, clipLimit);
+                sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
-            if (doImageMetrics)
-            {
-                int roiSize = std::min(frame.rows, frame.cols) * 0.35; // % of the image size
-                cv::Rect roi((frame.cols - roiSize) / 2, (frame.rows - roiSize) / 2, roiSize, roiSize); 
-                cv::Mat img_roi = frame(roi);
+            // if (doImageMetrics)
+            // {
+            //     int roiSize = std::min(frame.rows, frame.cols) * 0.35; // % of the image size
+            //     cv::Rect roi((frame.cols - roiSize) / 2, (frame.rows - roiSize) / 2, roiSize, roiSize); 
+            //     cv::Mat img_roi = frame(roi);
 
-                profiler.start("Metrics");
-                noise_level = sky360lib::utils::Utils::estimateNoise(img_roi);
-                entropy = sky360lib::utils::Utils::estimateEntropy(img_roi);
-                sharpness = sky360lib::utils::Utils::estimateSharpness(img_roi);
-                profiler.stop("Metrics");
-            }
+            //     profiler.start("Metrics");
+            //     noise_level = sky360lib::utils::Utils::estimate_noise(img_roi);
+            //     entropy = sky360lib::utils::Utils::estimate_entropy(img_roi);
+            //     sharpness = sky360lib::utils::Utils::estimate_sharpness(img_roi);
+            //     profiler.stop("Metrics");
+            // }
             if (doAutoExposure)
             {
                 frame_counter++;
@@ -171,14 +175,30 @@ int main(int argc, const char **argv)
                         log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, entropy, sharpness);
                     }
                     profiler.stop("AutoExposure");
-                    //aeFPS = profileData["AutoExposure"].fps();
                 }
-
             }        
 
             if (isBoxSelected)
             {
-                cv::Mat cropFrame = frameDebayered(fullFrameBox);
+                auto cropFrame = frameDebayered(fullFrameBox).clone();
+
+                profiler.start("Metrics");
+                noise_level = sky360lib::utils::Utils::estimate_noise(cropFrame);
+                entropy = sky360lib::utils::Utils::estimate_entropy(cropFrame);
+                sharpness = sky360lib::utils::Utils::estimate_sharpness(cropFrame);
+                noise_buffer.push_back(noise_level);
+                sharpness_buffer.push_back(sharpness);
+                profiler.stop("Metrics");
+
+                auto sharpness_graph = sky360lib::utils::Utils::draw_graph("Sharpness", sharpness_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 255.0, 255.0, 0.0), cv::Scalar(0.0, 25.0, 25.0, 0.0));
+                auto noise_graph = sky360lib::utils::Utils::draw_graph("Noise", noise_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 165.0, 255.0, 0.0), cv::Scalar(0.0, 5.0, 25.0, 0.0));
+                sky360lib::utils::Utils::overlay_mage(cropFrame, sharpness_graph, cv::Point(0, cropFrame.size().height - sharpness_graph.size().height), 0.8);
+                sky360lib::utils::Utils::overlay_mage(cropFrame, noise_graph, cv::Point(cropFrame.size().width - sharpness_graph.size().width, cropFrame.size().height - sharpness_graph.size().height), 0.8);
+
+                // textWriterCrop.writeText(cropFrame, "Noise: " + sky360lib::utils::Utils::format_double(noise_level), 1, true);
+                textWriterCrop.writeText(cropFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy), 1, true);
+                // textWriterCrop.writeText(cropFrame, "Sharpness: " + sky360lib::utils::Utils::format_double(sharpness), 3, true);
+
                 cv::imshow("Window Cut", cropFrame);
             }
             
@@ -202,28 +222,28 @@ int main(int argc, const char **argv)
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             const double exposure = (double)qhyCamera.get_camera_params().exposure; 
-            textWriter.writeText(displayFrame, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
+            textWriter.writeText(displayFrame, "Exposure: " + sky360lib::utils::Utils::format_double(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
             textWriter.writeText(displayFrame, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
             textWriter.writeText(displayFrame, "Video Recording: " + std::string(isVideoOpen ? "On" : "Off"), 3);
             textWriter.writeText(displayFrame, "Image Equalization: " + std::string(doEqualization ? "On" : "Off"), 4);
             textWriter.writeText(displayFrame, "BGS: " + getBGSName(bgsType), 5);
 
-            textWriter.writeText(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
-            textWriter.writeText(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
+            textWriter.writeText(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
+            textWriter.writeText(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
 
             textWriter.writeText(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
-            textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 5, true);
-            textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
-            if (doImageMetrics)
-            {
-                textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::formatDouble(noise_level), 8, true);
-                textWriter.writeText(displayFrame, "Entropy: " + sky360lib::utils::Utils::formatDouble(entropy), 9, true);
-                textWriter.writeText(displayFrame, "Sharpness: " + sky360lib::utils::Utils::formatDouble(sharpness), 10, true);
-            }
+            textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 5, true);
+            textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
+            // if (doImageMetrics)
+            // {
+            //     textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::format_double(noise_level), 8, true);
+            //     textWriter.writeText(displayFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy), 9, true);
+            //     textWriter.writeText(displayFrame, "Sharpness: " + sky360lib::utils::Utils::format_double(sharpness), 10, true);
+            // }
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
             {
-                cv::Mat hist = sky360lib::utils::Utils::createHistogram(frameDebayered);
+                cv::Mat hist = sky360lib::utils::Utils::create_histogram(frameDebayered);
                 cv::imshow("Histogram", hist);
             }
             if (isVideoOpen)
@@ -522,7 +542,7 @@ void drawOneFov(cv::Mat& frame, cv::Point2d center, double fov, double max_fov, 
         double radius = circleRadius * (fov / 220.0);
         cv::circle(frame, center, radius, color, 8);
 
-        std::string fov_text = sky360lib::utils::Utils::formatDouble(fov, 2);
+        std::string fov_text = sky360lib::utils::Utils::format_double(fov, 2);
         cv::Size text_size = cv::getTextSize(fov_text, font_face, font_scale, font_thickness, nullptr);
         double textX = std::max(center.x - radius + text_offset.x, 0.0);
         cv::Point2f text_position(textX, center.y + text_size.height / 2 + text_offset.y);
