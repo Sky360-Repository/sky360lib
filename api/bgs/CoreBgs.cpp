@@ -8,12 +8,12 @@
 using namespace sky360lib::bgs;
 
 CoreBgs::CoreBgs(size_t _numProcessesParallel)
-    : m_numProcessesParallel{_numProcessesParallel}
+    : m_num_processes_parallel{_numProcessesParallel}
     , m_initialized{false}
 {
     if (_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
     {
-        m_numProcessesParallel = calcAvailableThreads();;
+        m_num_processes_parallel = calc_available_threads();;
     }
 }
 
@@ -26,7 +26,7 @@ void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
 {
     if (!m_initialized)
     {
-        prepareParallel(_image);
+        prepare_parallel(_image);
         initialize(_image);
         m_initialized = true;
     }
@@ -35,7 +35,7 @@ void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
         _fgmask.create(_image.size(), CV_8UC1);
     }
 
-    if (m_numProcessesParallel == 1)
+    if (m_num_processes_parallel == 1)
     {
         //std::cout << "CoreBgs runing in the same thread" << std::endl;
         process(_image, _fgmask, 0);
@@ -43,31 +43,31 @@ void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
     else
     {
         //std::cout << "CoreBgs runing in " << m_numProcessesParallel << " threads" << std::endl;
-        applyParallel(_image, _fgmask);
+        apply_parallel(_image, _fgmask);
     }
 }
 
-cv::Mat CoreBgs::applyRet(const cv::Mat &_image)
+cv::Mat CoreBgs::apply_ret(const cv::Mat &_image)
 {
     cv::Mat imgMask;
     apply(_image, imgMask);
     return imgMask;
 }
 
-void CoreBgs::prepareParallel(const cv::Mat &_image)
+void CoreBgs::prepare_parallel(const cv::Mat &_image)
 {
-    m_imgSizesParallel.resize(m_numProcessesParallel);
-    m_processSeq.resize(m_numProcessesParallel);
+    m_img_sizes_parallel.resize(m_num_processes_parallel);
+    m_process_seq.resize(m_num_processes_parallel);
     size_t y{0};
-    size_t h{_image.size().height / m_numProcessesParallel};
-    for (size_t i{0}; i < m_numProcessesParallel; ++i)
+    size_t h{_image.size().height / m_num_processes_parallel};
+    for (size_t i{0}; i < m_num_processes_parallel; ++i)
     {
-        m_processSeq[i] = i;
-        if (i == (m_numProcessesParallel - 1))
+        m_process_seq[i] = i;
+        if (i == (m_num_processes_parallel - 1))
         {
             h = _image.size().height - y;
         }
-        m_imgSizesParallel[i] = ImgSize::create(_image.size().width, h,
+        m_img_sizes_parallel[i] = ImgSize::create(_image.size().width, h,
                                                 _image.channels(),
                                                 _image.elemSize1(),
                                                 y * _image.size().width);
@@ -75,18 +75,18 @@ void CoreBgs::prepareParallel(const cv::Mat &_image)
     }
 }
 
-void CoreBgs::applyParallel(const cv::Mat &_image, cv::Mat &_fgmask)
+void CoreBgs::apply_parallel(const cv::Mat &_image, cv::Mat &_fgmask)
 {
     std::for_each(
         std::execution::par,
-        m_processSeq.begin(),
-        m_processSeq.end(),
+        m_process_seq.begin(),
+        m_process_seq.end(),
         [&](int np)
         {
-            const cv::Mat imgSplit(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _image.type(),
-                                   _image.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numChannels * m_imgSizesParallel[np]->bytesPerPixel));
-            cv::Mat maskPartial(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, _fgmask.type(),
-                                _fgmask.data + m_imgSizesParallel[np]->originalPixelPos);
+            const cv::Mat imgSplit(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _image.type(),
+                                   _image.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_pixel));
+            cv::Mat maskPartial(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _fgmask.type(),
+                                _fgmask.data + m_img_sizes_parallel[np]->original_pixel_pos);
             process(imgSplit, maskPartial, np);
         });
 }

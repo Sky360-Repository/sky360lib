@@ -75,7 +75,7 @@ int main(int argc, const char **argv)
 {
     BGSType bgsType{WMV};
 
-    blobDetector.setMinDistance(40);
+    blobDetector.set_min_distance(40);
 
     if (!openQQYCamera())
     {

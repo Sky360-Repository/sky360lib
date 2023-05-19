@@ -8,12 +8,12 @@
 
 using namespace sky360lib::blobs;
 
-ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams &_params, size_t _numProcessesParallel)
-    : m_params{_params}, m_numProcessesParallel{_numProcessesParallel}, m_initialized{false}
+ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams &_params, size_t _num_processes_parallel)
+    : m_params{_params}, m_num_processes_parallel{_num_processes_parallel}, m_initialized{false}
 {
-    if (m_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
+    if (m_num_processes_parallel == DETECT_NUMBER_OF_THREADS)
     {
-        m_numProcessesParallel = calcAvailableThreads();
+        m_num_processes_parallel = calc_available_threads();
     }
 }
 
@@ -24,7 +24,7 @@ static inline cv::KeyPoint convertFromRect(const cv::Rect &rect)
     return cv::KeyPoint(rect.x + scale * size / 2.0f, rect.y + scale * size / 2.0f, size);
 }
 
-std::vector<cv::KeyPoint> ConnectedBlobDetection::detectKP(const cv::Mat &_image)
+std::vector<cv::KeyPoint> ConnectedBlobDetection::detect_kp(const cv::Mat &_image)
 {
     std::vector<cv::Rect> bboxes;
     detect(_image, bboxes);
@@ -37,7 +37,7 @@ std::vector<cv::KeyPoint> ConnectedBlobDetection::detectKP(const cv::Mat &_image
     return kps;
 }
 
-std::vector<cv::Rect> ConnectedBlobDetection::detectRet(const cv::Mat &_image)
+std::vector<cv::Rect> ConnectedBlobDetection::detect_ret(const cv::Mat &_image)
 {
     std::vector<cv::Rect> bboxes;
     detect(_image, bboxes);
@@ -55,7 +55,7 @@ static inline void joinBBoxes(std::vector<cv::Rect> &_bboxes, int minDistanceSqu
         {
             for (size_t j{i + 1}; j < _bboxes.size();)
             {
-                if (sky360lib::rectsDistanceSquared(_bboxes[i], _bboxes[j]) < minDistanceSquared)
+                if (sky360lib::rects_distance_squared(_bboxes[i], _bboxes[j]) < minDistanceSquared)
                 {
                     bboxOverlap = true;
                     const int xmax = std::max(_bboxes[i].x + _bboxes[i].width, _bboxes[j].x + _bboxes[j].width);
@@ -90,7 +90,7 @@ inline static void applySizeCut(std::vector<cv::Rect> &_bboxes, const int _sizeT
     }
 }
 
-inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bboxes)
+inline void ConnectedBlobDetection::pos_process_bboxes(std::vector<cv::Rect> &_bboxes)
 {
     const size_t numLabels = _bboxes.size();
 
@@ -102,10 +102,10 @@ inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bbo
     }
 
     // Joining all parallel bboxes into one label
-    for (size_t i{0}; i < m_numProcessesParallel; ++i)
+    for (size_t i{0}; i < m_num_processes_parallel; ++i)
     {
-        const int addedY = (int)(m_imgSizesParallel[i]->originalPixelPos / m_imgSizesParallel[i]->width);
-        const std::vector<cv::Rect> &bboxesParallel = m_bboxesParallel[i];
+        const int addedY = (int)(m_img_sizes_parallel[i]->original_pixel_pos / m_img_sizes_parallel[i]->width);
+        const std::vector<cv::Rect> &bboxesParallel = m_bboxes_parallel[i];
         for (size_t j{0}; j < numLabels; ++j)
         {
             // If the coordinates for the label were altered, process
@@ -120,10 +120,10 @@ inline void ConnectedBlobDetection::posProcessBboxes(std::vector<cv::Rect> &_bbo
     }
 
     // Joining bboxes that are overlaping each other
-    joinBBoxes(_bboxes, m_params.minDistanceSquared);
+    joinBBoxes(_bboxes, m_params.min_distance_squared);
 
     // Removing bboxes that are below threshold
-    applySizeCut(_bboxes, m_params.sizeThreshold, m_params.areaThreshold);
+    applySizeCut(_bboxes, m_params.size_threshold, m_params.area_threshold);
 }
 
 // Finds the connected components in the image and returns a list of bounding boxes
@@ -131,7 +131,7 @@ bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect>
 {
     if (!m_initialized)
     {
-        prepareParallel(_image);
+        prepare_parallel(_image);
         // Create a labels image to store the labels for each connected component
         m_initialized = true;
     }
@@ -147,24 +147,24 @@ bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect>
     {
         std::for_each(
             std::execution::par,
-            m_processSeq.begin(),
-            m_processSeq.end(),
+            m_process_seq.begin(),
+            m_process_seq.end(),
             [&](int np)
             {
                 // Reseting parallel bboxes to the MIN/MAX values
-                m_bboxesParallel[np].resize(numLabels);
+                m_bboxes_parallel[np].resize(numLabels);
                 for (int j{0}; j < numLabels; ++j)
                 {
-                    m_bboxesParallel[np][j].x = m_bboxesParallel[np][j].y = INT_MAX;
-                    m_bboxesParallel[np][j].width = m_bboxesParallel[np][j].height = INT_MIN;
+                    m_bboxes_parallel[np][j].x = m_bboxes_parallel[np][j].y = INT_MAX;
+                    m_bboxes_parallel[np][j].width = m_bboxes_parallel[np][j].height = INT_MIN;
                 }
                 // Spliting the image into chuncks and processing
-                const cv::Mat imgSplit(m_imgSizesParallel[np]->height, m_imgSizesParallel[np]->width, m_labels.type(),
-                                       m_labels.data + (m_imgSizesParallel[np]->originalPixelPos * m_imgSizesParallel[np]->numChannels));
-                applyDetectBBoxes(imgSplit, m_bboxesParallel[np]);
+                const cv::Mat imgSplit(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, m_labels.type(),
+                                       m_labels.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels));
+                apply_detect_bboxes(imgSplit, m_bboxes_parallel[np]);
             });
 
-        posProcessBboxes(_bboxes);
+        pos_process_bboxes(_bboxes);
 
         return true;
     }
@@ -172,7 +172,7 @@ bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect>
     return false;
 }
 
-void ConnectedBlobDetection::applyDetectBBoxes(const cv::Mat &_labels, std::vector<cv::Rect> &_bboxes)
+void ConnectedBlobDetection::apply_detect_bboxes(const cv::Mat &_labels, std::vector<cv::Rect> &_bboxes)
 {
     int *pLabel = (int *)_labels.data;
     for (int r = 0; r < _labels.rows; r++)
@@ -192,21 +192,21 @@ void ConnectedBlobDetection::applyDetectBBoxes(const cv::Mat &_labels, std::vect
     }
 }
 
-void ConnectedBlobDetection::prepareParallel(const cv::Mat &_image)
+void ConnectedBlobDetection::prepare_parallel(const cv::Mat &_image)
 {
-    m_imgSizesParallel.resize(m_numProcessesParallel);
-    m_processSeq.resize(m_numProcessesParallel);
-    m_bboxesParallel.resize(m_numProcessesParallel);
+    m_img_sizes_parallel.resize(m_num_processes_parallel);
+    m_process_seq.resize(m_num_processes_parallel);
+    m_bboxes_parallel.resize(m_num_processes_parallel);
     size_t y{0};
-    size_t h{_image.size().height / m_numProcessesParallel};
-    for (size_t i{0}; i < m_numProcessesParallel; ++i)
+    size_t h{_image.size().height / m_num_processes_parallel};
+    for (size_t i{0}; i < m_num_processes_parallel; ++i)
     {
-        m_processSeq[i] = i;
-        if (i == (m_numProcessesParallel - 1))
+        m_process_seq[i] = i;
+        if (i == (m_num_processes_parallel - 1))
         {
             h = _image.size().height - y;
         }
-        m_imgSizesParallel[i] = ImgSize::create(_image.size().width, h,
+        m_img_sizes_parallel[i] = ImgSize::create(_image.size().width, h,
                                                 4, 1,
                                                 y * _image.size().width);
         y += h;

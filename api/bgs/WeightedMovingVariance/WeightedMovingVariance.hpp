@@ -16,16 +16,16 @@ namespace sky360lib::bgs
     {
     public:
         WeightedMovingVariance(WMVParams _params = WMVParams(),
-                               size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
+                               size_t _num_processes_parallel = DETECT_NUMBER_OF_THREADS);
         ~WeightedMovingVariance();
 
-        virtual WMVParams &getParameters() { return m_params; }
+        virtual WMVParams &get_parameters() { return m_params; }
 
-        virtual void getBackgroundImage(cv::Mat &_bgImage);
+        virtual void get_background_image(cv::Mat &_bgImage);
 
     private:
         virtual void initialize(const cv::Mat &_image);
-        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, int _numProcess);
+        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, int _num_process);
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 
@@ -33,41 +33,41 @@ namespace sky360lib::bgs
 
         struct RollingImages
         {
-            size_t currentRollingIdx;
-            int firstPhase;
-            ImgSize* pImgSize;
-            uint8_t* pImgInput;
-            uint8_t* pImgInputPrev1;
-            uint8_t* pImgInputPrev2;
+            size_t current_rolling_idx;
+            int first_phase;
+            ImgSize* p_img_size;
+            uint8_t* p_img_input;
+            uint8_t* p_img_input_prev1;
+            uint8_t* p_img_input_prev2;
 
-            std::array<std::unique_ptr<uint8_t[]>, 3> pImgMem;
+            std::array<std::unique_ptr<uint8_t[]>, 3> p_img_mem;
         };
-        std::vector<RollingImages> imgInputPrev;
+        std::vector<RollingImages> m_img_input_prev;
 
-        static void rollImages(RollingImages& rollingImages);
-        static void process(const cv::Mat &_imgInput,
-                            cv::Mat &_imgOutput,
-                            RollingImages &_imgInputPrev,
+        static void roll_images(RollingImages& _rolling_images);
+        static void process(const cv::Mat &_img_input,
+                            cv::Mat &_img_output,
+                            RollingImages &_img_input_prev,
                             const WMVParams &_params);
         template<class T>
-        static void weightedVarianceMono(
-            const T *const img1,
-            const T *const img2,
-            const T *const img3,
-            uint8_t *const outImg,
-            const size_t totalPixels,
-            const float* weight, 
-            const bool enableThreshold,
-            const float thresholdSquared);
+        static void weighted_variance_mono(
+            const T *const _img1,
+            const T *const _img2,
+            const T *const _img3,
+            uint8_t *const _out_Img,
+            const size_t _total_pixels,
+            const float* _weight, 
+            const bool _enable_threshold,
+            const float _threshold_squared);
         template<class T>
-        static void weightedVarianceColor(
-            const T *const img1,
-            const T *const img2,
-            const T *const img3,
-            uint8_t *const outImg,
-            const size_t totalPixels,
-            const float* weight, 
-            const bool enableThreshold,
-            const float thresholdSquared);
+        static void weighted_variance_color(
+            const T *const _img1,
+            const T *const _img2,
+            const T *const _img3,
+            uint8_t *const _out_img,
+            const size_t _total_pixels,
+            const float* _weight, 
+            const bool _enable_threshold,
+            const float _threshold_squared);
     };
 }

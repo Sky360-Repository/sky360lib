@@ -162,17 +162,17 @@ int main(int argc, const char **argv)
         }
         else if (key == '+')
         {
-            auto params = (sky360lib::bgs::WMVParams&)(bgsPtr->getParameters());
-            float threshold = params.getThreshold();
+            auto params = (sky360lib::bgs::WMVParams&)(bgsPtr->get_parameters());
+            float threshold = params.get_threshold();
             std::cout << "Got threshold: " << threshold << std::endl;
-            params.setThreshold(threshold + 5);
+            params.set_threshold(threshold + 5);
         }
         else if (key == '-')
         {
-            auto params = (sky360lib::bgs::WMVParams&)(bgsPtr->getParameters());
-            float threshold = params.getThreshold();
+            auto params = (sky360lib::bgs::WMVParams&)(bgsPtr->get_parameters());
+            float threshold = params.get_threshold();
             std::cout << "Got threshold: " << threshold << std::endl;
-            params.setThreshold(threshold - 5);
+            params.set_threshold(threshold - 5);
         }
         auto endFrameTime = std::chrono::high_resolution_clock::now();
         totalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endFrameTime - startFrameTime).count() * 1e-9;

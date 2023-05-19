@@ -14,9 +14,9 @@ namespace sky360lib::bgs
         Vibe(VibeParams _params = VibeParams(),
              size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
-        virtual VibeParams &getParameters() { return m_params; }
+        virtual VibeParams &get_parameters() { return m_params; }
 
-        virtual void getBackgroundImage(cv::Mat &_bgImage);
+        virtual void get_background_image(cv::Mat &_bgImage);
 
     private:
         virtual void initialize(const cv::Mat &oInitImg);
@@ -24,15 +24,15 @@ namespace sky360lib::bgs
 
         VibeParams m_params;
 
-        std::unique_ptr<ImgSize> m_origImgSize;
-        std::vector<std::vector<std::unique_ptr<Img>>> m_bgImgSamples;
-        std::vector<Pcg32> m_randomGenerators;
+        std::unique_ptr<ImgSize> m_orig_img_size;
+        std::vector<std::vector<std::unique_ptr<Img>>> m_bg_img_samples;
+        std::vector<Pcg32> m_random_generators;
 
         template<class T>
-        void initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Pcg32 &_rndGen);
+        void initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Pcg32 &_rnd_gen);
         template<class T>
-        static void apply1(const Img &_image, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Img &_fgmask, const VibeParams &_params, Pcg32 &_rndGen);
+        static void apply1(const Img &_image, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Img &_fg_mask, const VibeParams &_params, Pcg32 &_rnd_gen);
         template<class T>
-        static void apply3(const Img &_image, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Img &_fgmask, const VibeParams &_params, Pcg32 &_rndGen);
+        static void apply3(const Img &_image, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Img &_fg_mask, const VibeParams &_params, Pcg32 &_rnd_gen);
     };
 }

@@ -15,25 +15,25 @@ namespace sky360lib::utils
     class Utils
     {
     public:
-        static void equalize_image(const cv::Mat &imageIn, cv::Mat &imageOut, double clipLimit)
+        static void equalize_image(const cv::Mat &image_in, cv::Mat &image_out, double clip_limit)
         {
-            cv::Mat labImage;
+            cv::Mat lab_image;
 
-            cv::cvtColor(imageIn, labImage, cv::COLOR_BGR2YCrCb);
+            cv::cvtColor(image_in, lab_image, cv::COLOR_BGR2YCrCb);
 
-            std::vector<cv::Mat> labChannels(3);
-            cv::split(labImage, labChannels);
+            std::vector<cv::Mat> lab_channels(3);
+            cv::split(lab_image, lab_channels);
 
             cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
-            clahe->setClipLimit(clipLimit);
+            clahe->setClipLimit(clip_limit);
             clahe->setTilesGridSize(cv::Size(6, 6));
-            cv::Mat equalizedL;
-            clahe->apply(labChannels[0], equalizedL);
+            cv::Mat equalized_l;
+            clahe->apply(lab_channels[0], equalized_l);
 
-            labChannels[0] = equalizedL;
-            cv::merge(labChannels, labImage);
+            lab_channels[0] = equalized_l;
+            cv::merge(lab_channels, lab_image);
 
-            cv::cvtColor(labImage, imageOut, cv::COLOR_YCrCb2BGR);
+            cv::cvtColor(lab_image, image_out, cv::COLOR_YCrCb2BGR);
         }
 
         // https://stackoverflow.com/questions/6123443/calculating-image-acutance/6129542#6129542
@@ -87,14 +87,14 @@ namespace sky360lib::utils
                 noise_img = img;
             }
 
-            const cv::Mat laplacianMask = (cv::Mat_<double>(3, 3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
+            const cv::Mat laplacian_mask = (cv::Mat_<double>(3, 3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
 
-            cv::Mat laplacianImage;
-            cv::filter2D(noise_img, laplacianImage, -1, laplacianMask, cv::Point(-1, -1), 0, cv::BORDER_DEFAULT);
+            cv::Mat laplacian_image;
+            cv::filter2D(noise_img, laplacian_image, -1, laplacian_mask, cv::Point(-1, -1), 0, cv::BORDER_DEFAULT);
 
             double noise_height = noise_img.rows - 2;
             double noise_width = noise_img.cols - 2;
-            double sigma = cv::sum(cv::abs(laplacianImage))[0] * std::sqrt(0.5 * M_PI) / (6.0 * noise_width * noise_height);
+            double sigma = cv::sum(cv::abs(laplacian_image))[0] * std::sqrt(0.5 * M_PI) / (6.0 * noise_width * noise_height);
 
             return sigma;
         }
@@ -121,21 +121,21 @@ namespace sky360lib::utils
             }
 
             cv::Mat hist;
-            const int histSize = 256;
+            const int hist_size = 256;
 
             // Compute the histograms:
-            const float range[] = {0, histSize};
-            const float *histRange = {range};
+            const float range[] = {0, hist_size};
+            const float *hist_range = {range};
 
             // images, number of images, channels, mask, hist, dim, histsize, ranges,uniform, accumulate
-            cv::calcHist(&entropy_img, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange, true, false);
+            cv::calcHist(&entropy_img, 1, 0, cv::Mat(), hist, 1, &hist_size, &hist_range, true, false);
 
             // compute entropy
             double entropy_value = 0;
             const double total_size = entropy_img.rows * entropy_img.cols; // total size of all symbols in an image
 
             float *sym_occur = hist.ptr<float>(0); // the number of times a sybmol has occured
-            for (int i = 0; i < histSize; ++i)
+            for (int i = 0; i < hist_size; ++i)
             {
                 if (sym_occur[i] > 0) // log of zero goes to infinity
                 {
@@ -152,9 +152,9 @@ namespace sky360lib::utils
 
         static cv::Mat create_histogram(const cv::Mat &img, int hist_w = 512, int hist_h = 400)
         {
-            const int histSize = 256;
+            const int hist_size = 256;
             const float range[] = {0, img.elemSize1() == 1 ? 255.0f : 65535.0f};
-            const float *histRange = {range};
+            const float *hist_range = {range};
             const bool uniform = true;
             const bool accumulate = false;
 
@@ -162,18 +162,18 @@ namespace sky360lib::utils
             cv::split(img, bgr_planes);
 
             cv::Mat b_hist, g_hist, r_hist;
-            cv::calcHist(&bgr_planes[0], 1, 0, cv::Mat(), b_hist, 1, &histSize, &histRange, uniform, accumulate);
-            cv::calcHist(&bgr_planes[1], 1, 0, cv::Mat(), g_hist, 1, &histSize, &histRange, uniform, accumulate);
-            cv::calcHist(&bgr_planes[2], 1, 0, cv::Mat(), r_hist, 1, &histSize, &histRange, uniform, accumulate);
+            cv::calcHist(&bgr_planes[0], 1, 0, cv::Mat(), b_hist, 1, &hist_size, &hist_range, uniform, accumulate);
+            cv::calcHist(&bgr_planes[1], 1, 0, cv::Mat(), g_hist, 1, &hist_size, &hist_range, uniform, accumulate);
+            cv::calcHist(&bgr_planes[2], 1, 0, cv::Mat(), r_hist, 1, &hist_size, &hist_range, uniform, accumulate);
 
-            int bin_w = cvRound(static_cast<double>(hist_w) / histSize);
+            int bin_w = cvRound(static_cast<double>(hist_w) / hist_size);
             cv::Mat hist_img(hist_h, hist_w, CV_8UC3, cv::Scalar(0, 0, 0));
 
             cv::normalize(b_hist, b_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
             cv::normalize(g_hist, g_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
             cv::normalize(r_hist, r_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
 
-            for (int i = 1; i < histSize; ++i)
+            for (int i = 1; i < hist_size; ++i)
             {
                 cv::line(hist_img,
                          cv::Point(bin_w * (i - 1), hist_h - cvRound(b_hist.at<float>(i - 1))),
@@ -212,8 +212,8 @@ namespace sky360lib::utils
 
             const double minVal = *std::min_element(data.begin(), data.end());
             const double maxVal = *std::max_element(data.begin(), data.end());
-            const double min_graph = minVal * 0.9;
-            const double max_graph = maxVal * 1.1;
+            const double min_graph = minVal * 0.85;
+            const double max_graph = maxVal * 1.15;
             const double normalization_mult = 1.0 / (max_graph - min_graph) * graphSize.height;
 
             for (size_t i = 1; i < data.size(); ++i)
@@ -223,15 +223,15 @@ namespace sky360lib::utils
                 cv::line(graph, cv::Point(i - 1, graphSize.height - val0), cv::Point(i, graphSize.height - val1), lineColor);
             }
 
-            text_writter_name.writeText(graph, name, 1, false);
-            text_writter.writeText(graph, format_double(maxVal, 3), 1, true);
-            text_writter.writeText(graph, format_double(minVal, 3), 8, true);
-            text_writter_name.writeText(graph, format_double(data.back(), 3), 6, false);
+            text_writter_name.write_text(graph, name, 1, false);
+            text_writter.write_text(graph, format_double(maxVal, 3), 1, true);
+            text_writter.write_text(graph, format_double(minVal, 3), 8, true);
+            text_writter_name.write_text(graph, format_double(data.back(), 3), 6, false);
 
             return graph;
         }
 
-        static void overlay_mage(cv::Mat &dst, const cv::Mat &src, cv::Point location, double alpha)
+        static void overlay_image(cv::Mat &dst, const cv::Mat &src, cv::Point location, double alpha)
         {
             cv::Mat overlay;
             dst.copyTo(overlay);
