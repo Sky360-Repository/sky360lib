@@ -7,8 +7,6 @@
 #include "qhy_camera.hpp"
 #include "utils.hpp"
 #include "autoExposureControl.hpp"
-#include "noiseEsimator.hpp"
-#include "ImageQualityEstimator.hpp"
 #include "profiler.hpp"
 #include "textWriter.hpp"
 #include "bgs.hpp"
@@ -35,13 +33,13 @@ cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = false;
+bool doImageMetrics = false;
 bool squareResolution = false;
 bool run = true;
 bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
-bool doImageMetrics = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -58,10 +56,8 @@ sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
 sky360lib::utils::AutoExposureControl autoExposureControl;
-sky360lib::utils::NoiseEstimator noiseEstimator;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
-ImageQualityEstimator imageQuality;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -76,7 +72,7 @@ void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
 void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level);
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 
@@ -108,7 +104,6 @@ int main(int argc, const char **argv)
 
     // double aeFPS = 0.0;
     double noise_level = 0.0;
-    double balance_gradient = 0.0;
     double entropy = 0.0;
     double sharpness = 0.0;
 
@@ -138,10 +133,11 @@ int main(int argc, const char **argv)
                 cv::Rect roi((frame.cols - roiSize) / 2, (frame.rows - roiSize) / 2, roiSize, roiSize); 
                 cv::Mat img_roi = frame(roi);
 
-                noise_level = noiseEstimator.estimate_noise(img_roi);
-                balance_gradient = imageQuality.CalBalanceGradient(img_roi, 1000, 0.06, 10);
-                entropy = imageQuality.CalImageEntropy(img_roi);
-                sharpness = imageQuality.CalSharpness(img_roi);
+                profiler.start("Metrics");
+                noise_level = sky360lib::utils::Utils::estimateNoise(img_roi);
+                entropy = sky360lib::utils::Utils::estimateEntropy(img_roi);
+                sharpness = sky360lib::utils::Utils::estimateSharpness(img_roi);
+                profiler.stop("Metrics");
             }
             if (doAutoExposure)
             {
@@ -162,7 +158,7 @@ int main(int argc, const char **argv)
                     {
                         std::string action = "Update Exposure";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, entropy, sharpness);
                     }
 
                     // Log gain update
@@ -172,7 +168,7 @@ int main(int argc, const char **argv)
 
                         std::string action = "Update Gain";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, entropy, sharpness);
                     }
                     profiler.stop("AutoExposure");
                     //aeFPS = profileData["AutoExposure"].fps();
@@ -221,9 +217,8 @@ int main(int argc, const char **argv)
             if (doImageMetrics)
             {
                 textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::formatDouble(noise_level), 8, true);
-                textWriter.writeText(displayFrame, "Balance gradient: " + sky360lib::utils::Utils::formatDouble(balance_gradient), 9, true);
-                textWriter.writeText(displayFrame, "Entropy: " + sky360lib::utils::Utils::formatDouble(entropy), 10, true);
-                textWriter.writeText(displayFrame, "Sharpness: " + sky360lib::utils::Utils::formatDouble(sharpness), 11, true);
+                textWriter.writeText(displayFrame, "Entropy: " + sky360lib::utils::Utils::formatDouble(entropy), 9, true);
+                textWriter.writeText(displayFrame, "Sharpness: " + sky360lib::utils::Utils::formatDouble(sharpness), 10, true);
             }
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
@@ -484,7 +479,7 @@ void exposureCallback(int, void*userData)
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
 }
 
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level)
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness)
 {
     auto now = std::chrono::system_clock::now();
     std::time_t time = std::chrono::system_clock::to_time_t(now);
@@ -496,7 +491,9 @@ void log_changes(const std::string& log_file_name, const std::string& action, do
              << "targetMSV: " << targetMSV << ", "
              << "exposure: " << exposure << ", "
              << "gain: " << gain << ", "
-             << "noise: " << noise_level << "\n";
+             << "noise: " << noise_level << ", "
+             << "entropy: " << entropy << ", "
+             << "sharpness: " << sharpness << "\n";
 
     log_file.close();
 }

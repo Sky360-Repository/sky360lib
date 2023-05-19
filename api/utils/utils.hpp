@@ -34,22 +34,17 @@ namespace sky360lib::utils
         }
 
         // https://stackoverflow.com/questions/6123443/calculating-image-acutance/6129542#6129542
-        static double calculateSharpness(cv::Mat& img)
+        static double estimateSharpness(const cv::Mat& img)
         {
-            cv::Mat img_gray;
             if (img.channels() == 3) 
             {
-                cv::cvtColor(img, img_gray, cv::COLOR_BGR2GRAY);
-            } 
-            else 
-            {
-                img_gray = img.clone();
+                cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
             }
 
             // Calculate gradients in x and y directions
             cv::Mat grad_x, grad_y;
-            cv::Sobel(img_gray, grad_x, CV_64F, 1, 0, 3);
-            cv::Sobel(img_gray, grad_y, CV_64F, 0, 1, 3);
+            cv::Sobel(img, grad_x, CV_64F, 1, 0, 3);
+            cv::Sobel(img, grad_y, CV_64F, 0, 1, 3);
 
             // Calculate gradient magnitude
             cv::Mat grad_mag;
@@ -59,6 +54,69 @@ namespace sky360lib::utils
             cv::Scalar mean = cv::mean(grad_mag);
 
             return mean[0];
+        }
+
+        // Based on: https://www.sciencedirect.com/science/article/abs/pii/S1077314296900600
+        static double estimateNoise(const cv::Mat img) 
+        {
+            if (img.channels() == 3) 
+            {
+                cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+            }
+
+            cv::Mat laplacianMask = (cv::Mat_<double>(3,3) << 1, -2, 1, -2, 4, -2, 1, -2, 1);
+
+            cv::Mat laplacianImage;
+            cv::filter2D(img, laplacianImage, -1, laplacianMask, cv::Point(-1, -1), 0, cv::BORDER_DEFAULT);
+
+            double sigma = cv::sum(cv::abs(laplacianImage))[0];
+
+            int H = img.rows - 2;
+            int W = img.cols - 2;
+            sigma = sigma * sqrt(0.5 * M_PI) / (6.0 * W * H);
+
+            return sigma;
+        }
+
+        // Based on "Noise Aware Image Assessment metric based Auto Exposure Control" by "Uk Cheol Shin, KAIST RCV LAB"
+        // Can be used to quantify the amount of information, or "texture", in an image.
+        // Normalised here so 1 represents maximum entropy (an image with a perfectly uniform histogram, meaning each gray level is equally probable)
+        // and 0 represents minimum entropy (an image where every pixel has the same color).
+        static float estimateEntropy(const cv::Mat img)
+        {
+            if (img.channels() == 3) 
+            {
+                cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+            }
+
+            cv::Mat hist;
+            const int histSize = 256;
+
+            // Compute the histograms:
+            float range[] = {0, histSize};
+            const float *histRange = {range};
+
+            // images, number of images, channels, mask, hist, dim, histsize, ranges,uniform, accumulate
+            cv::calcHist(&img, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange, true, false);
+
+            // compute entropy
+            float entropy_value = 0;
+            float total_size = img.rows * img.cols; // total size of all symbols in an image
+
+            float *sym_occur = hist.ptr<float>(0); // the number of times a sybmol has occured
+            for (int i = 0; i < histSize; i++)
+            {
+                if (sym_occur[i] > 0) // log of zero goes to infinity
+                {
+                    entropy_value += (sym_occur[i] / total_size) * (std::log2(total_size / sym_occur[i]));
+                }
+            }
+
+            entropy_value /= 8.0; // the max entropy for an 8-bit grayscale image is 8, so needs to be adjusted for 16
+
+            hist.release();
+
+            return entropy_value;
         }
         
         static cv::Mat createHistogram(const cv::Mat &img, int hist_w = 512, int hist_h = 400)
