@@ -7,6 +7,7 @@
 #include "qhy_camera.hpp"
 #include "utils.hpp"
 #include "autoExposureControl.hpp"
+#include "autoWhiteBalance.hpp"
 #include "profiler.hpp"
 #include "textWriter.hpp"
 #include "bgs.hpp"
@@ -35,6 +36,7 @@ double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = false;
 bool doImageMetrics = false;
+bool doAutoWhiteBalance = false;
 bool squareResolution = false;
 bool run = true;
 bool pauseCapture = false;
@@ -60,6 +62,7 @@ sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
 sky360lib::utils::TextWriter textWriterCrop(cv::Scalar{80, 140, 190, 0}, 24, 2.5);
 sky360lib::utils::AutoExposureControl autoExposureControl;
+sky360lib::utils::AutoWhiteBalance autoWhiteBalance;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 
@@ -106,10 +109,19 @@ int main(int argc, const char **argv)
 
     cv::Mat videoFrame{frame.size(), CV_8UC3};
 
+    sky360lib::utils::WhiteBalanceValues wbValues;
+    wbValues.blue = qhyCamera.get_camera_params().blue_white_balance;
+    wbValues.green = qhyCamera.get_camera_params().green_white_balance;
+    wbValues.red = qhyCamera.get_camera_params().red_white_balance;
+
+    std::cout << "RedWB: " << wbValues.red << ", GreenWB: " << wbValues.green << ", BlueWB: " << wbValues.blue << std::endl;
+
     // double aeFPS = 0.0;
     double noise_level = 0.0;
     double entropy = 0.0;
     double sharpness = 0.0;
+
+    double adjustmentFactor = 0.9;
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -143,6 +155,18 @@ int main(int argc, const char **argv)
             //     sharpness = sky360lib::utils::Utils::estimate_sharpness(img_roi);
             //     profiler.stop("Metrics");
             // }
+            if (doAutoWhiteBalance)
+            {
+                wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wbValues.red);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wbValues.green);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wbValues.blue);
+
+                cv::setTrackbarPos("Red WB:", "", (int)wbValues.red);
+                cv::setTrackbarPos("Green WB:", "", (int)wbValues.green);
+                cv::setTrackbarPos("Blue WB:", "", (int)wbValues.blue);
+            }
+
             if (doAutoExposure)
             {
                 frame_counter++;
@@ -231,9 +255,10 @@ int main(int argc, const char **argv)
             textWriter.write_text(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
 
-            textWriter.write_text(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
-            textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 5, true);
-            textWriter.write_text(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
+            textWriter.write_text(displayFrame, "Auto WB: " + std::string(doAutoWhiteBalance ? "On" : "Off"), 4, true);
+            textWriter.write_text(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 5, true);
+            textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
+            textWriter.write_text(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 8, true);
             // if (doImageMetrics)
             // {
             //     textWriter.write_text(displayFrame, "Noise: " + sky360lib::utils::Utils::format_double(noise_level), 8, true);
@@ -330,6 +355,7 @@ void createControlPanel()
     cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
     cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
 
+    cv::createButton("Auto WB on/off", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
@@ -456,8 +482,10 @@ void treatKeyboardpress(char key)
     case 'n':
         doImageMetrics = !doImageMetrics;
         break;
+    case 'w':
+        doAutoWhiteBalance = !doAutoWhiteBalance;
+        break;
     }
-
 }
 
 void changeTrackbars(int value, void *paramP)
