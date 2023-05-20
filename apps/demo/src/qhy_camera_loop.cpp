@@ -35,7 +35,6 @@ cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = false;
-bool doImageMetrics = false;
 bool doAutoWhiteBalance = false;
 bool squareResolution = false;
 bool run = true;
@@ -143,18 +142,6 @@ int main(int argc, const char **argv)
                 sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
-            // if (doImageMetrics)
-            // {
-            //     int roiSize = std::min(frame.rows, frame.cols) * 0.35; // % of the image size
-            //     cv::Rect roi((frame.cols - roiSize) / 2, (frame.rows - roiSize) / 2, roiSize, roiSize); 
-            //     cv::Mat img_roi = frame(roi);
-
-            //     profiler.start("Metrics");
-            //     noise_level = sky360lib::utils::Utils::estimate_noise(img_roi);
-            //     entropy = sky360lib::utils::Utils::estimate_entropy(img_roi);
-            //     sharpness = sky360lib::utils::Utils::estimate_sharpness(img_roi);
-            //     profiler.stop("Metrics");
-            // }
             if (doAutoWhiteBalance)
             {
                 wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
@@ -219,9 +206,7 @@ int main(int argc, const char **argv)
                 sky360lib::utils::Utils::overlay_image(cropFrame, sharpness_graph, cv::Point(0, cropFrame.size().height - sharpness_graph.size().height), 0.7);
                 sky360lib::utils::Utils::overlay_image(cropFrame, noise_graph, cv::Point(cropFrame.size().width - sharpness_graph.size().width, cropFrame.size().height - sharpness_graph.size().height), 0.7);
 
-                // textWriterCrop.write_text(cropFrame, "Noise: " + sky360lib::utils::Utils::format_double(noise_level), 1, true);
                 textWriterCrop.write_text(cropFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy), 1, true);
-                // textWriterCrop.write_text(cropFrame, "Sharpness: " + sky360lib::utils::Utils::format_double(sharpness), 3, true);
 
                 cv::imshow("Window Cut", cropFrame);
             }
@@ -259,12 +244,7 @@ int main(int argc, const char **argv)
             textWriter.write_text(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 5, true);
             textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
             textWriter.write_text(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 8, true);
-            // if (doImageMetrics)
-            // {
-            //     textWriter.write_text(displayFrame, "Noise: " + sky360lib::utils::Utils::format_double(noise_level), 8, true);
-            //     textWriter.write_text(displayFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy), 9, true);
-            //     textWriter.write_text(displayFrame, "Sharpness: " + sky360lib::utils::Utils::format_double(sharpness), 10, true);
-            // }
+
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
             {
@@ -296,8 +276,6 @@ int main(int argc, const char **argv)
     }
     std::cout << "Exit loop\n"
               << std::endl;
-
-    //cv::destroyAllWindows();
 
     qhyCamera.close();
 
@@ -355,11 +333,10 @@ void createControlPanel()
     cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
     cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
 
-    cv::createButton("Auto WB on/off", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Image met.", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
@@ -414,11 +391,9 @@ void treatKeyboardpress(char key)
         }
         break;
     case '1':
-        std::cout << "Setting bits to 8" << std::endl;
         qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 8);
         break;
     case '2':
-        std::cout << "Setting bits to 16" << std::endl;
         qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 16);
         break;
     case 'b':
@@ -478,9 +453,6 @@ void treatKeyboardpress(char key)
             double target_value = qhyCamera.get_camera_params().target_temp;
             qhyCamera.set_cool_temp(target_value, !is_cool_enabled);
         }
-        break;
-    case 'n':
-        doImageMetrics = !doImageMetrics;
         break;
     case 'w':
         doAutoWhiteBalance = !doAutoWhiteBalance;
