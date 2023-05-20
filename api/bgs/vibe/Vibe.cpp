@@ -5,145 +5,145 @@
 
 using namespace sky360lib::bgs;
 
-Vibe::Vibe(VibeParams _params, size_t _numProcessesParallel)
-    : CoreBgs(_numProcessesParallel)
+Vibe::Vibe(VibeParams _params, size_t _num_processes_parallel)
+    : CoreBgs(_num_processes_parallel)
     , m_params{_params}
 {
 }
 
-void Vibe::initialize(const cv::Mat &_initImg)
+void Vibe::initialize(const cv::Mat &_init_img)
 {
-    std::vector<std::unique_ptr<Img>> imgSplit(m_numProcessesParallel);
-    m_origImgSize = ImgSize::create(_initImg.size().width, _initImg.size().height, _initImg.channels(), _initImg.elemSize1(), 0);
-    Img frameImg(_initImg.data, *m_origImgSize);
-    splitImg(frameImg, imgSplit, m_numProcessesParallel);
+    std::vector<std::unique_ptr<Img>> img_split(m_num_processes_parallel);
+    m_orig_img_size = ImgSize::create(_init_img.size().width, _init_img.size().height, _init_img.channels(), _init_img.elemSize1(), 0);
+    Img frameImg(_init_img.data, *m_orig_img_size);
+    split_img(frameImg, img_split, m_num_processes_parallel);
 
-    m_randomGenerators.resize(m_numProcessesParallel);
-    m_bgImgSamples.resize(m_numProcessesParallel);
-    if (m_origImgSize->bytesPerPixel == 1)
+    m_random_generators.resize(m_num_processes_parallel);
+    m_bg_img_samples.resize(m_num_processes_parallel);
+    if (m_orig_img_size->bytes_per_pixel == 1)
     {
-        for (size_t i{0}; i < m_numProcessesParallel; ++i)
+        for (size_t i{0}; i < m_num_processes_parallel; ++i)
         {
-            initialize<uint8_t>(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
+            initialize<uint8_t>(*img_split[i], m_bg_img_samples[i], m_random_generators[i]);
         }
     }
     else
     {
-        for (size_t i{0}; i < m_numProcessesParallel; ++i)
+        for (size_t i{0}; i < m_num_processes_parallel; ++i)
         {
-            initialize<uint16_t>(*imgSplit[i], m_bgImgSamples[i], m_randomGenerators[i]);
+            initialize<uint16_t>(*img_split[i], m_bg_img_samples[i], m_random_generators[i]);
         }
     }
 }
 
 template<class T>
-void Vibe::initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bgImgSamples, Pcg32 &_rndGen)
+void Vibe::initialize(const Img &_init_img, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Pcg32 &_rnd_gen)
 {
-    int ySample, xSample;
-    _bgImgSamples.resize(m_params.bgSamples);
-    for (size_t s{0}; s < m_params.bgSamples; ++s)
+    int y_sample, x_sample;
+    _bg_img_samples.resize(m_params.bg_samples);
+    for (size_t s{0}; s < m_params.bg_samples; ++s)
     {
-        _bgImgSamples[s] = Img::create(_initImg.size, false);
-        for (int yOrig{0}; yOrig < _initImg.size.height; yOrig++)
+        _bg_img_samples[s] = Img::create(_init_img.size, false);
+        for (int y_orig{0}; y_orig < _init_img.size.height; y_orig++)
         {
-            for (int xOrig{0}; xOrig < _initImg.size.width; xOrig++)
+            for (int x_orig{0}; x_orig < _init_img.size.width; x_orig++)
             {
-                getSamplePosition_7x7_std2(_rndGen.fast(), xSample, ySample, xOrig, yOrig, _initImg.size);
-                const size_t pixelPos = (yOrig * _initImg.size.width + xOrig) * _initImg.size.numChannels;
-                const size_t samplePos = (ySample * _initImg.size.width + xSample) * _initImg.size.numChannels;
-                _bgImgSamples[s]->ptr<T>()[pixelPos] = _initImg.ptr<T>()[samplePos];
-                if (_initImg.size.numChannels > 1)
+                get_sample_position_7x7_std2(_rnd_gen.fast(), x_sample, y_sample, x_orig, y_orig, _init_img.size);
+                const size_t pixel_pos = (y_orig * _init_img.size.width + x_orig) * _init_img.size.num_channels;
+                const size_t sample_pos = (y_sample * _init_img.size.width + x_sample) * _init_img.size.num_channels;
+                _bg_img_samples[s]->ptr<T>()[pixel_pos] = _init_img.ptr<T>()[sample_pos];
+                if (_init_img.size.num_channels > 1)
                 {
-                    _bgImgSamples[s]->ptr<T>()[pixelPos + 1] = _initImg.ptr<T>()[samplePos + 1];
-                    _bgImgSamples[s]->ptr<T>()[pixelPos + 2] = _initImg.ptr<T>()[samplePos + 2];
+                    _bg_img_samples[s]->ptr<T>()[pixel_pos + 1] = _init_img.ptr<T>()[sample_pos + 1];
+                    _bg_img_samples[s]->ptr<T>()[pixel_pos + 2] = _init_img.ptr<T>()[sample_pos + 2];
                 }
             }
         }
     }
 }
 
-void Vibe::process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess)
+void Vibe::process(const cv::Mat &_image, cv::Mat &_fg_mask, int _num_process)
 {
-    Img imgSplit(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0));
-    Img maskPartial(_fgmask.data, ImgSize(_image.size().width, _image.size().height, _fgmask.channels(), _fgmask.elemSize1(), 0));
-    if (imgSplit.size.numChannels > 1)
+    Img img_split(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0));
+    Img mask_partial(_fg_mask.data, ImgSize(_image.size().width, _image.size().height, _fg_mask.channels(), _fg_mask.elemSize1(), 0));
+    if (img_split.size.num_channels > 1)
     {
-        if (imgSplit.size.bytesPerPixel == 1)
+        if (img_split.size.bytes_per_pixel == 1)
         {
-            apply3<uint8_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+            apply3<uint8_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
         }
         else
         {
-            apply3<uint16_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+            apply3<uint16_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
         }
     }
     else
     {
-        if (imgSplit.size.bytesPerPixel == 1)
+        if (img_split.size.bytes_per_pixel == 1)
         {
-            apply1<uint8_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+            apply1<uint8_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
         }
         else
         {
-            apply1<uint16_t>(imgSplit, m_bgImgSamples[_numProcess], maskPartial, m_params, m_randomGenerators[_numProcess]);
+            apply1<uint16_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
         }
     }
 }
 
 template<class T>
 void Vibe::apply3(const Img &_image,
-                  std::vector<std::unique_ptr<Img>> &_bgImg,
-                  Img &_fgmask,
+                  std::vector<std::unique_ptr<Img>> &_bg_img,
+                  Img &_fg_mask,
                   const VibeParams &_params,
-                  Pcg32 &_rndGen)
+                  Pcg32 &_rnd_gen)
 {
-    _fgmask.clear();
+    _fg_mask.clear();
 
-    const int32_t nColorDistThreshold = sizeof(T) == 1 ? _params.thresholdColorSquared : _params.thresholdColor16Squared;
+    const int32_t n_color_dist_threshold = sizeof(T) == 1 ? _params.threshold_color_squared : _params.threshold_color16_squared;
 
-    size_t pixOffset{0}, colorPixOffset{0};
+    size_t pix_offset{0}, color_pix_offset{0};
     for (int y{0}; y < _image.size.height; ++y)
     {
-        for (int x{0}; x < _image.size.width; ++x, ++pixOffset, colorPixOffset += _image.size.numChannels)
+        for (int x{0}; x < _image.size.width; ++x, ++pix_offset, color_pix_offset += _image.size.num_channels)
         {
-            size_t nGoodSamplesCount{0},
-                nSampleIdx{0};
+            size_t n_good_samples_count{0},
+                n_sample_idx{0};
 
-            const T *const pixData{&_image.ptr<T>()[colorPixOffset]};
+            const T *const pix_data{&_image.ptr<T>()[color_pix_offset]};
 
-            while (nSampleIdx < _params.bgSamples)
+            while (n_sample_idx < _params.bg_samples)
             {
-                const T *const bg{&_bgImg[nSampleIdx]->ptr<T>()[colorPixOffset]};
-                if (L2dist3Squared(pixData, bg) < nColorDistThreshold)
+                const T *const bg{&_bg_img[n_sample_idx]->ptr<T>()[color_pix_offset]};
+                if (l2_dist3_squared(pix_data, bg) < n_color_dist_threshold)
                 {
-                    ++nGoodSamplesCount;
-                    if (nGoodSamplesCount >= _params.requiredBGSamples)
+                    ++n_good_samples_count;
+                    if (n_good_samples_count >= _params.required_bg_samples)
                     {
                         break;
                     }
                 }
-                ++nSampleIdx;
+                ++n_sample_idx;
             }
-            if (nGoodSamplesCount < _params.requiredBGSamples)
+            if (n_good_samples_count < _params.required_bg_samples)
             {
-                _fgmask.data[pixOffset] = UCHAR_MAX;
+                _fg_mask.data[pix_offset] = UCHAR_MAX;
             }
             else
             {
-                if ((_rndGen.fast() & _params.andLearningRate) == 0)
+                if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
                 {
-                    T *const bgImgPixData{&_bgImg[_rndGen.fast() & _params.andLearningRate]->ptr<T>()[colorPixOffset]};
-                    bgImgPixData[0] = pixData[0];
-                    bgImgPixData[1] = pixData[1];
-                    bgImgPixData[2] = pixData[2];
+                    T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[color_pix_offset]};
+                    bg_img_pix_data[0] = pix_data[0];
+                    bg_img_pix_data[1] = pix_data[1];
+                    bg_img_pix_data[2] = pix_data[2];
                 }
-                if ((_rndGen.fast() & _params.andLearningRate) == 0)
+                if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
                 {
-                    const int neighData{getNeighborPosition_3x3(x, y, _image.size, _rndGen.fast()) * 3};
-                    T *const xyRandData{&_bgImg[_rndGen.fast() & _params.andLearningRate]->ptr<T>()[neighData]};
-                    xyRandData[0] = pixData[0];
-                    xyRandData[1] = pixData[1];
-                    xyRandData[2] = pixData[2];
+                    const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast()) * 3};
+                    T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[neigh_data]};
+                    xy_rand_data[0] = pix_data[0];
+                    xy_rand_data[1] = pix_data[1];
+                    xy_rand_data[2] = pix_data[2];
                 }
             }
         }
@@ -152,81 +152,81 @@ void Vibe::apply3(const Img &_image,
 
 template<class T>
 void Vibe::apply1(const Img &_image,
-                  std::vector<std::unique_ptr<Img>> &_bgImg,
-                  Img &_fgmask,
+                  std::vector<std::unique_ptr<Img>> &_bg_img,
+                  Img &_fg_mask,
                   const VibeParams &_params,
-                  Pcg32 &_rndGen)
+                  Pcg32 &_rnd_gen)
 {
-    _fgmask.clear();
+    _fg_mask.clear();
 
-    const int32_t nColorDistThreshold = sizeof(T) == 1 ? _params.thresholdMono : _params.thresholdMono16;
+    const int32_t n_color_dist_threshold = sizeof(T) == 1 ? _params.threshold_mono : _params.threshold_mono16;
 
-    size_t pixOffset{0};
+    size_t pix_offset{0};
     for (int y{0}; y < _image.size.height; ++y)
     {
-        for (int x{0}; x < _image.size.width; ++x, ++pixOffset)
+        for (int x{0}; x < _image.size.width; ++x, ++pix_offset)
         {
-            uint32_t nGoodSamplesCount{0},
-                nSampleIdx{0};
+            uint32_t n_good_samples_count{0},
+                n_sample_idx{0};
 
-            const T pixData{_image.ptr<T>()[pixOffset]};
+            const T pix_data{_image.ptr<T>()[pix_offset]};
 
-            while (nSampleIdx < _params.bgSamples)
+            while (n_sample_idx < _params.bg_samples)
             {
-                if (std::abs((int32_t)_bgImg[nSampleIdx]->ptr<T>()[pixOffset] - (int32_t)pixData) < nColorDistThreshold)
+                if (std::abs((int32_t)_bg_img[n_sample_idx]->ptr<T>()[pix_offset] - (int32_t)pix_data) < n_color_dist_threshold)
                 {
-                    ++nGoodSamplesCount;
-                    if (nGoodSamplesCount >= _params.requiredBGSamples)
+                    ++n_good_samples_count;
+                    if (n_good_samples_count >= _params.required_bg_samples)
                     {
                         break;
                     }
                 }
-                ++nSampleIdx;
+                ++n_sample_idx;
             }
-            if (nGoodSamplesCount < _params.requiredBGSamples)
+            if (n_good_samples_count < _params.required_bg_samples)
             {
-                _fgmask.data[pixOffset] = UCHAR_MAX;
+                _fg_mask.data[pix_offset] = UCHAR_MAX;
             }
             else
             {
-                if ((_rndGen.fast() & _params.andLearningRate) == 0)
+                if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
                 {
-                    _bgImg[_rndGen.fast() & _params.andLearningRate]->ptr<T>()[pixOffset] = pixData;
+                    _bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[pix_offset] = pix_data;
                 }
-                if ((_rndGen.fast() & _params.andLearningRate) == 0)
+                if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
                 {
-                    const int neighData{getNeighborPosition_3x3(x, y, _image.size, _rndGen.fast())};
-                    _bgImg[_rndGen.fast() & _params.andLearningRate]->ptr<T>()[neighData] = pixData;
+                    const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast())};
+                    _bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[neigh_data] = pix_data;
                 }
             }
         }
     }
 }
 
-void Vibe::getBackgroundImage(cv::Mat &backgroundImage)
+void Vibe::get_background_image(cv::Mat &_bg_image)
 {
-    cv::Mat oAvgBGImg(m_origImgSize->height, m_origImgSize->width, CV_32FC(m_origImgSize->numChannels));
+    cv::Mat avg_bg_img(m_orig_img_size->height, m_orig_img_size->width, CV_32FC(m_orig_img_size->num_channels));
 
-    for (size_t t{0}; t < m_numProcessesParallel; ++t)
+    for (size_t t{0}; t < m_num_processes_parallel; ++t)
     {
-        const std::vector<std::unique_ptr<Img>> &bgSamples = m_bgImgSamples[t];
-        for (size_t n{0}; n < m_params.bgSamples; ++n)
+        const std::vector<std::unique_ptr<Img>> &bg_samples = m_bg_img_samples[t];
+        for (size_t n{0}; n < m_params.bg_samples; ++n)
         {
-            size_t inPixOffset{0};
-            size_t outPixOffset{bgSamples[0]->size.originalPixelPos * sizeof(float) * bgSamples[0]->size.numChannels};
-            for (; inPixOffset < bgSamples[n]->size.sizeInBytes;
-                 inPixOffset += m_origImgSize->numChannels,
-                 outPixOffset += sizeof(float) * bgSamples[0]->size.numChannels)
+            size_t in_pix_offset{0};
+            size_t out_pix_offset{bg_samples[0]->size.original_pixel_pos * sizeof(float) * bg_samples[0]->size.num_channels};
+            for (; in_pix_offset < bg_samples[n]->size.size_in_bytes;
+                 in_pix_offset += m_orig_img_size->num_channels,
+                 out_pix_offset += sizeof(float) * bg_samples[0]->size.num_channels)
             {
-                const uint8_t *const pixData{&bgSamples[n]->data[inPixOffset]};
-                float *const outData{(float *)(oAvgBGImg.data + outPixOffset)};
-                for (int c{0}; c < m_origImgSize->numChannels; ++c)
+                const uint8_t *const pix_data{&bg_samples[n]->data[in_pix_offset]};
+                float *const out_data{(float *)(avg_bg_img.data + out_pix_offset)};
+                for (int c{0}; c < m_orig_img_size->num_channels; ++c)
                 {
-                    outData[c] += (float)pixData[c] / (float)m_params.bgSamples;
+                    out_data[c] += (float)pix_data[c] / (float)m_params.bg_samples;
                 }
             }
         }
     }
 
-    oAvgBGImg.convertTo(backgroundImage, CV_8U);
+    avg_bg_img.convertTo(_bg_image, CV_8U);
 }

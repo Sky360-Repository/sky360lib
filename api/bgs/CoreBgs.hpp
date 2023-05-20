@@ -21,24 +21,24 @@ namespace sky360lib::bgs
         virtual ~CoreBgs() {}
 
         void apply(const cv::Mat &_image, cv::Mat &_fgmask);
-        cv::Mat applyRet(const cv::Mat &_image);
+        cv::Mat apply_ret(const cv::Mat &_image);
 
         void restart();
 
-        virtual CoreParameters &getParameters() = 0;
+        virtual CoreParameters &get_parameters() = 0;
 
-        virtual void getBackgroundImage(cv::Mat &_bgImage) = 0;
+        virtual void get_background_image(cv::Mat &_bgImage) = 0;
 
     protected:
         virtual void initialize(const cv::Mat &_image) = 0;
         virtual void process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess) = 0;
 
-        void prepareParallel(const cv::Mat &_image);
-        void applyParallel(const cv::Mat &_image, cv::Mat &_fgmask);
+        void prepare_parallel(const cv::Mat &_image);
+        void apply_parallel(const cv::Mat &_image, cv::Mat &_fgmask);
 
-        size_t m_numProcessesParallel;
+        size_t m_num_processes_parallel;
         bool m_initialized;
-        std::vector<size_t> m_processSeq;
-        std::vector<std::unique_ptr<ImgSize>> m_imgSizesParallel;
+        std::vector<size_t> m_process_seq;
+        std::vector<std::unique_ptr<ImgSize>> m_img_sizes_parallel;
     };
 }

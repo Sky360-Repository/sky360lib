@@ -11,15 +11,15 @@ namespace sky360lib::bgs
     class CoreParameters
     {
     public:
-        void setBgs(CoreBgs* _bgs)
+        void set_bgs(CoreBgs* _bgs)
         {
-            m_coreBgs = _bgs;
+            m_core_bgs = _bgs;
         }
 
         friend class CoreBgs;
 
     protected:
 
-        CoreBgs* m_coreBgs;
+        CoreBgs* m_core_bgs;
     };
 }

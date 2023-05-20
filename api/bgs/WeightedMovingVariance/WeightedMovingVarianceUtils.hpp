@@ -4,7 +4,8 @@
 
 namespace sky360lib::bgs
 {
-    class WMVParams : public CoreParameters
+    class WMVParams 
+        : public CoreParameters
     {
     public:
         static inline const bool DEFAULT_ENABLE_WEIGHT{true};
@@ -34,18 +35,18 @@ namespace sky360lib::bgs
                 _enableWeight ? _weight2 : ONE_THIRD, 
                 _enableWeight ? _weight3 : ONE_THIRD}
         {
-            setEnableThreshold(_enableThreshold);
-            setEnableWeight(_enableWeight);
-            setThreshold(_threshold);
+            set_enable_threshold(_enableThreshold);
+            set_enable_weight(_enableWeight);
+            set_threshold(_threshold);
         }
 
         WMVParams(const WMVParams& _params)
             : CoreParameters()
             , weight{_params.weight[0], _params.weight[1], _params.weight[2]}
         {
-            setEnableThreshold(_params.enableThreshold);
-            setEnableWeight(_params.enableWeight);
-            setThreshold(_params.threshold);
+            set_enable_threshold(_params.enable_threshold);
+            set_enable_weight(_params.enable_weight);
+            set_threshold(_params.threshold);
         }
 
         // WMVParams& operator=(const WMVParams& _params)
@@ -63,44 +64,44 @@ namespace sky360lib::bgs
         //     return *this;
         // }
 
-        float getThreshold() { return threshold; }
-        float* getWeights() { return weight; }
-        bool getEnableWeight() { return enableWeight; }
-        bool getEnableThreshold() { return enableThreshold; }
+        float get_threshold() { return threshold; }
+        float* get_weights() { return weight; }
+        bool get_enable_weight() { return enable_weight; }
+        bool get_enable_threshold() { return enable_threshold; }
 
-        void setEnableWeight(bool value)
+        void set_enable_weight(bool value)
         { 
-            enableWeight = value; 
+            enable_weight = value; 
         }
-        void setEnableThreshold(bool value)
+        void set_enable_threshold(bool value)
         { 
-            enableThreshold = value; 
+            enable_threshold = value; 
         }
-        void setWeights(int _weight, float _value)
+        void set_weights(int _weight, float _value)
         {
             if (_weight >= 0 && _weight <= 3)
             {
                 weight[_weight] = _value; 
             }
         }
-        void setThreshold(float _value) 
+        void set_threshold(float _value) 
         { 
             threshold = _value;
             threshold16 = threshold * 256.0f;
-            thresholdSquared = threshold * threshold;
-            thresholdSquared16 = threshold16 * threshold16;
+            threshold_squared = threshold * threshold;
+            threshold_squared16 = threshold16 * threshold16;
         }
 
         friend class WeightedMovingVariance;
         friend class WeightedMovingVarianceCL;        
 
     protected:
-        bool enableWeight;
-        bool enableThreshold;
+        bool enable_weight;
+        bool enable_threshold;
         float threshold;
         float threshold16;
         float weight[3];
-        float thresholdSquared;
-        float thresholdSquared16;
+        float threshold_squared;
+        float threshold_squared16;
     };
 }

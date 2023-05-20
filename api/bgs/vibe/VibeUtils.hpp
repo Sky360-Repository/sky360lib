@@ -8,7 +8,7 @@
 namespace sky360lib::bgs
 {
     template<class T>
-    static inline int64_t L2dist3Squared(const T *const a, const T *const b)
+    static inline int64_t l2_dist3_squared(const T *const a, const T *const b)
     {
         const int64_t r0{(int64_t)a[0] - (int64_t)b[0]};
         const int64_t r1{(int64_t)a[1] - (int64_t)b[1]};
@@ -17,7 +17,7 @@ namespace sky360lib::bgs
     }
 
     /// returns the neighbor location for the specified random index & original pixel location; also guards against out-of-bounds values via image/border size check
-    static inline int getNeighborPosition_3x3_pos(const int pix, const ImgSize &oImageSize, const uint32_t nRandIdx)
+    static inline int get_neighbor_position_3x3_pos(const int pix, const ImgSize &oImageSize, const uint32_t nRandIdx)
     {
         typedef std::array<int, 2> Nb;
         static const std::array<Nb, 8> s_anNeighborPattern = {
@@ -36,7 +36,7 @@ namespace sky360lib::bgs
         return (nNeighborCoord_Y * oImageSize.width + nNeighborCoord_X);
     }
 
-    static inline int getNeighborPosition_3x3(const int x, const int y, const ImgSize &oImageSize, const uint32_t nRandIdx)
+    static inline int get_neighbor_position_3x3(const int x, const int y, const ImgSize &oImageSize, const uint32_t nRandIdx)
     {
         typedef std::array<int, 2> Nb;
         static const std::array<Nb, 8> s_anNeighborPattern = {
@@ -56,7 +56,7 @@ namespace sky360lib::bgs
     }
 
     /// returns pixel coordinates clamped to the given image & border size
-    inline void clampImageCoords(int &nSampleCoord_X, int &nSampleCoord_Y, const ImgSize &oImageSize)
+    inline void clamp_image_coords(int &nSampleCoord_X, int &nSampleCoord_Y, const ImgSize &oImageSize)
     {
         if (nSampleCoord_X < 0)
             nSampleCoord_X = 0;
@@ -70,7 +70,7 @@ namespace sky360lib::bgs
 
     /// returns the sampling location for the specified random index & original pixel location, given a predefined kernel; also guards against out-of-bounds values via image/border size check
     template <int nKernelHeight, int nKernelWidth>
-    inline void getSamplePosition(const std::array<std::array<int, nKernelWidth>, nKernelHeight> &anSamplesInitPattern,
+    inline void get_sample_position(const std::array<std::array<int, nKernelWidth>, nKernelHeight> &anSamplesInitPattern,
                                   const int nSamplesInitPatternTot, const int nRandIdx, int &nSampleCoord_X, int &nSampleCoord_Y,
                                   const int nOrigCoord_X, const int nOrigCoord_Y, const ImgSize &oImageSize)
     {
@@ -87,11 +87,11 @@ namespace sky360lib::bgs
     stop:
         nSampleCoord_X += nOrigCoord_X - nKernelWidth / 2;
         nSampleCoord_Y += nOrigCoord_Y - nKernelHeight / 2;
-        clampImageCoords(nSampleCoord_X, nSampleCoord_Y, oImageSize);
+        clamp_image_coords(nSampleCoord_X, nSampleCoord_Y, oImageSize);
     }
 
     /// returns the sampling location for the specified random index & original pixel location; also guards against out-of-bounds values via image/border size check
-    inline void getSamplePosition_7x7_std2(const int nRandIdx,
+    inline void get_sample_position_7x7_std2(const int nRandIdx,
                                            int &nSampleCoord_X, int &nSampleCoord_Y,
                                            const int nOrigCoord_X, const int nOrigCoord_Y,
                                            const ImgSize &oImageSize)
@@ -107,10 +107,10 @@ namespace sky360lib::bgs
             std::array<int, 7>{ 4,  8, 12, 14, 12,  8,  4 },
             std::array<int, 7>{ 2,  4,  6,  7,  6,  4,  2 },
         };
-        getSamplePosition<7, 7>(s_anSamplesInitPattern, s_nSamplesInitPatternTot, nRandIdx, nSampleCoord_X, nSampleCoord_Y, nOrigCoord_X, nOrigCoord_Y, oImageSize);
+        get_sample_position<7, 7>(s_anSamplesInitPattern, s_nSamplesInitPatternTot, nRandIdx, nSampleCoord_X, nSampleCoord_Y, nOrigCoord_X, nOrigCoord_Y, oImageSize);
     }
 
-    static inline void splitImg(const Img &_inputImg, std::vector<std::unique_ptr<Img>> &_outputImages, int _numSplits)
+    static inline void split_img(const Img &_inputImg, std::vector<std::unique_ptr<Img>> &_outputImages, int _numSplits)
     {
         _outputImages.resize(_numSplits);
         int y = 0;
@@ -121,11 +121,11 @@ namespace sky360lib::bgs
             {
                 h = _inputImg.size.height - y;
             }
-            _outputImages[i] = Img::create(ImgSize(_inputImg.size.width, h, _inputImg.size.numChannels, _inputImg.size.bytesPerPixel, y * _inputImg.size.width), false);
+            _outputImages[i] = Img::create(ImgSize(_inputImg.size.width, h, _inputImg.size.num_channels, _inputImg.size.bytes_per_pixel, y * _inputImg.size.width), false);
 
             memcpy(_outputImages[i]->data,
-                   _inputImg.data + (_outputImages[i]->size.originalPixelPos * _inputImg.size.numChannels * _inputImg.size.bytesPerPixel),
-                   _outputImages[i]->size.sizeInBytes);
+                   _inputImg.data + (_outputImages[i]->size.original_pixel_pos * _inputImg.size.num_channels * _inputImg.size.bytes_per_pixel),
+                   _outputImages[i]->size.size_in_bytes);
             y += h;
         }
     }
@@ -158,56 +158,56 @@ namespace sky360lib::bgs
                    uint32_t _learningRate)
             : CoreParameters()
         {
-            setThreshold(_threshold);
-            setLearningRate(_learningRate);
-            setBGSamples(_bgSamples);
-            setRequiredBGSamples(_requiredBGSamples);
+            set_threshold(_threshold);
+            set_learning_rate(_learningRate);
+            set_bg_samples(_bgSamples);
+            set_required_bg_samples(_requiredBGSamples);
         }
 
         VibeParams(const VibeParams& _params)
             : CoreParameters()
         {
-            setThreshold(_params.thresholdMono);
-            setLearningRate(_params.learningRate);
-            setBGSamples(_params.bgSamples);
-            setRequiredBGSamples(_params.requiredBGSamples);
+            set_threshold(_params.threshold_mono);
+            set_learning_rate(_params.learning_rate);
+            set_bg_samples(_params.bg_samples);
+            set_required_bg_samples(_params.required_bg_samples);
         }
 
-        uint32_t getThreshold() { return thresholdMono; }
-        uint32_t getBGSamples() { return bgSamples; }
-        uint32_t getRequiredBGSamples() { return requiredBGSamples; }
-        uint32_t getLearningRate() { return learningRate; }
+        uint32_t get_threshold() { return threshold_mono; }
+        uint32_t get_bg_samples() { return bg_samples; }
+        uint32_t get_required_bg_samples() { return required_bg_samples; }
+        uint32_t get_learning_rate() { return learning_rate; }
 
-        void setThreshold(uint32_t value) 
+        void set_threshold(uint32_t value) 
         { 
-            thresholdMono = value; 
-            thresholdColorSquared = (thresholdMono * 3) * (thresholdMono * 3);
-            thresholdMono16 = thresholdMono * 256;
-            thresholdColor16Squared = (thresholdMono16 * 3) * (thresholdMono16 * 3);
+            threshold_mono = value; 
+            threshold_color_squared = (threshold_mono * 3) * (threshold_mono * 3);
+            threshold_mono16 = threshold_mono * 256;
+            threshold_color16_squared = (threshold_mono16 * 3) * (threshold_mono16 * 3);
         }
-        void setBGSamples(uint32_t value)
+        void set_bg_samples(uint32_t value)
         { 
-            bgSamples = value;
-            if (m_coreBgs != nullptr)
+            bg_samples = value;
+            if (m_core_bgs != nullptr)
             {
-                m_coreBgs->restart();
+                m_core_bgs->restart();
             }
         }
-        void setRequiredBGSamples(uint32_t value) 
+        void set_required_bg_samples(uint32_t value) 
         { 
-            requiredBGSamples = value; 
+            required_bg_samples = value; 
         }
-        void setLearningRate(uint32_t value) 
+        void set_learning_rate(uint32_t value) 
         { 
             if (value > 1) 
             {
-                learningRate = getHigherValueBit(value);
-                andLearningRate = learningRate - 1;
+                learning_rate = get_higher_value_bit(value);
+                and_learning_rate = learning_rate - 1;
             }
             else
             {
-                learningRate = 1;
-                andLearningRate = 1;
+                learning_rate = 1;
+                and_learning_rate = 1;
             }
         }
 
@@ -215,19 +215,19 @@ namespace sky360lib::bgs
 
     protected:
         /// number of different samples per pixel/block to be taken from input frames to build the background model ('N' in the original ViBe paper)
-        uint32_t bgSamples;
+        uint32_t bg_samples;
         /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
-        uint32_t requiredBGSamples;
+        uint32_t required_bg_samples;
         /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)
-        uint32_t thresholdMono;
-        uint64_t thresholdColorSquared;
-        uint32_t thresholdMono16;
-        uint64_t thresholdColor16Squared;
+        uint32_t threshold_mono;
+        uint64_t threshold_color_squared;
+        uint32_t threshold_mono16;
+        uint64_t threshold_color16_squared;
         /// should be > 1 and factor of 2 (smaller values == faster adaptation)
-        uint32_t learningRate;
-        uint32_t andLearningRate;
+        uint32_t learning_rate;
+        uint32_t and_learning_rate;
 
-        static uint32_t getHigherValueBit(uint32_t value)
+        static uint32_t get_higher_value_bit(uint32_t value)
         {
             uint32_t r = 1;
 

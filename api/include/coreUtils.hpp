@@ -12,60 +12,60 @@ namespace sky360lib
 {
     struct ImgSize
     {
-        ImgSize(const ImgSize& _imgSize)
-            : ImgSize(_imgSize.width, _imgSize.height, _imgSize.numChannels, _imgSize.bytesPerPixel, _imgSize.originalPixelPos)
+        ImgSize(const ImgSize& _img_size)
+            : ImgSize(_img_size.width, _img_size.height, _img_size.num_channels, _img_size.bytes_per_pixel, _img_size.original_pixel_pos)
         {
         }
 
-        ImgSize(int _width, int _height, int _numChannels, int _bytesPerPixel, size_t _originalPixelPos)
+        ImgSize(int _width, int _height, int _num_channels, int _bytes_per_pixel, size_t _original_pixel_pos)
             : width(_width)
             , height(_height)
-            , numChannels(_numChannels)
-            , bytesPerPixel(_bytesPerPixel)
-            , numPixels(_width * _height)
-            , sizeInBytes(_width * _height * _numChannels * _bytesPerPixel)
-            , originalPixelPos{_originalPixelPos}
+            , num_channels(_num_channels)
+            , bytes_per_pixel(_bytes_per_pixel)
+            , num_pixels(_width * _height)
+            , size_in_bytes(_width * _height * _num_channels * _bytes_per_pixel)
+            , original_pixel_pos{_original_pixel_pos}
         {
         }
 
-        static std::unique_ptr<ImgSize> create(int _width, int _height, int _numChannels, int _bytesPerPixel, size_t _originalPixelPos)
+        static std::unique_ptr<ImgSize> create(int _width, int _height, int _num_channels, int _bytes_per_pixel, size_t _original_pixel_pos)
         {
-            return std::make_unique<ImgSize>(_width, _height, _numChannels, _bytesPerPixel, _originalPixelPos);
+            return std::make_unique<ImgSize>(_width, _height, _num_channels, _bytes_per_pixel, _original_pixel_pos);
         }
 
         const int width;
         const int height;
-        const int numChannels;
-        const int bytesPerPixel;
-        const size_t numPixels;
-        const size_t sizeInBytes;
+        const int num_channels;
+        const int bytes_per_pixel;
+        const size_t num_pixels;
+        const size_t size_in_bytes;
 
-        const size_t originalPixelPos;
+        const size_t original_pixel_pos;
     };
 
     struct Img
     {
-        Img(uint8_t* _data, const ImgSize& _imgSize, std::unique_ptr<uint8_t[]> _dataPtr = nullptr)
+        Img(uint8_t* _data, const ImgSize& _img_size, std::unique_ptr<uint8_t[]> _data_ptr = nullptr)
             : data{_data}
-            , size{_imgSize}
-            , dataPtr{std::move(_dataPtr)}
+            , size{_img_size}
+            , data_ptr{std::move(_data_ptr)}
         {
         }
 
-        static std::unique_ptr<Img> create(const ImgSize& _imgSize, bool _clear = false)
+        static std::unique_ptr<Img> create(const ImgSize& _img_size, bool _clear = false)
         {
-            auto data = std::make_unique_for_overwrite<uint8_t[]>(_imgSize.sizeInBytes);
+            auto data = std::make_unique_for_overwrite<uint8_t[]>(_img_size.size_in_bytes);
             if (_clear)
             {
-                memset(data.get(), 0, _imgSize.sizeInBytes);
+                memset(data.get(), 0, _img_size.size_in_bytes);
             }
 
-            return std::make_unique<Img>(data.get(), _imgSize, std::move(data));
+            return std::make_unique<Img>(data.get(), _img_size, std::move(data));
         }
 
         inline void clear()
         {
-            memset(data, 0, size.sizeInBytes);
+            memset(data, 0, size.size_in_bytes);
         }
 
         uint8_t* const data;
@@ -76,16 +76,16 @@ namespace sky360lib
         template<class T>
         inline const T* ptr() const { return (T*)data; }
 
-        std::unique_ptr<uint8_t[]> dataPtr;
+        std::unique_ptr<uint8_t[]> data_ptr;
     };
 
     // Returning the number of available threads for the CPU
-    inline size_t calcAvailableThreads()
+    inline size_t calc_available_threads()
     {
         return (size_t)std::max(1U, std::thread::hardware_concurrency());
     }
 
-    inline bool rectsOverlap(const cv::Rect& r1, const cv::Rect& r2)
+    inline bool rects_overlap(const cv::Rect& r1, const cv::Rect& r2)
     {
         // checking if they don't everlap
         if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
@@ -96,16 +96,16 @@ namespace sky360lib
         return true;
     }
 
-    inline float rectsDistanceSquared(const cv::Rect& r1, const cv::Rect& r2)
+    inline float rects_distance_squared(const cv::Rect& r1, const cv::Rect& r2)
     {
-        if (rectsOverlap(r1, r2))
+        if (rects_overlap(r1, r2))
             return 0;
 
         // compute distance on x axis
-        const int xDistance = std::max(0, std::max(r1.x, r2.x) - std::min(r1.x + r1.width, r2.x + r2.width));
+        const int x_distance = std::max(0, std::max(r1.x, r2.x) - std::min(r1.x + r1.width, r2.x + r2.width));
         // compute distance on y axis
-        const int yDistance = std::max(0, std::max(r1.y, r2.y) - std::min(r1.y + r1.height, r2.y + r2.height));
+        const int y_distance = std::max(0, std::max(r1.y, r2.y) - std::min(r1.y + r1.height, r2.y + r2.height));
 
-        return (xDistance * xDistance) + (yDistance * yDistance);
+        return (x_distance * x_distance) + (y_distance * y_distance);
     }
 }

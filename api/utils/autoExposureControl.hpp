@@ -81,6 +81,15 @@ namespace sky360lib::utils
 
             cv::Scalar mean_intensity = cv::mean(brightness_image);
             current_msv_ = mean_intensity[0] * (cv_image.elemSize1() == 1 ? MULT_8_BITS : MULT_16_BITS);
+
+            if(current_exposure < 1500)
+            {
+                max_exposure_step_ = 10;
+            }
+            else
+            {
+                max_exposure_step_ = 4000;
+            }
             
             // when switching from day to night
             if (current_exposure >= max_exposure_ && current_gain >= max_gain_)
@@ -89,7 +98,7 @@ namespace sky360lib::utils
                     is_night_ = true;
                     start_target_msv_ = target_msv_;
                     transition_frame_ = 0;
-                    min_exposure_ = 4000;
+                    min_exposure_ = 4000;    
                 }
             }
 

@@ -20,20 +20,20 @@ namespace sky360lib::utils
 
         double fps() const
         {
-            return duration.count() > 0 ? (double)count / durationInSeconds() : 0.0;
+            return duration.count() > 0 ? (double)count / duration_in_seconds() : 0.0;
         }
 
-        double avgTimeInNs() const
+        double avg_time_in_ns() const
         {
             return count > 0 ? duration.count() / count : 0.0;
         }
 
-        double avgTimeInS() const
+        double avg_time_in_s() const
         {
             return count > 0 ? (duration.count() * 1e-9) / count : 0.0;
         }
 
-        double durationInSeconds() const
+        double duration_in_seconds() const
         {
             return duration.count() * 1e-9;
         }
@@ -47,10 +47,10 @@ namespace sky360lib::utils
         inline void start(const std::string &region)
         {
             auto time = Clock::now();
-            if (m_profilerData.empty())
+            if (m_profiler_data.empty())
                 start_time = time;
 
-            auto& data = m_profilerData[region];
+            auto& data = m_profiler_data[region];
             if (data.name.empty())
                 data.name = region;
             data.start_time = time;
@@ -58,7 +58,7 @@ namespace sky360lib::utils
 
         inline void stop(const std::string &region)
         {
-            auto& data = m_profilerData[region];
+            auto& data = m_profiler_data[region];
             Duration elapsed_time = Clock::now() - data.start_time;
             data.duration += elapsed_time;
             data.count++;
@@ -66,34 +66,34 @@ namespace sky360lib::utils
 
         inline void reset()
         {
-            m_profilerData.clear();
+            m_profiler_data.clear();
         }
 
-        inline ProfilerData const& getData(const std::string &region) const
+        inline ProfilerData const& get_data(const std::string &region) const
         {
-            return m_profilerData.at(region);
+            return m_profiler_data.at(region);
         }
 
-        inline DataMap const & getData() const
+        inline DataMap const & get_data() const
         {
-            return m_profilerData;
+            return m_profiler_data;
         }
 
         void report() const
         {
             auto stop_time = Clock::now();
-            for (const auto &entry : m_profilerData)
+            for (const auto &entry : m_profiler_data)
             {
-                reportIndividual(entry.second, stop_time);
+                report_individual(entry.second, stop_time);
             }
         }
 
-        void reportIndividual(const ProfilerData& data, TimePoint stop_time = Clock::now()) const
+        void report_individual(const ProfilerData& data, TimePoint stop_time = Clock::now()) const
         {
             auto totalDuration = stop_time - start_time;
             std::cout << "Region: " << data.name
-                        << ", Average Time (ns): " << data.avgTimeInNs()
-                        << ", Average Time (s): " << data.avgTimeInS()
+                        << ", Average Time (ns): " << data.avg_time_in_ns()
+                        << ", Average Time (s): " << data.avg_time_in_s()
                         << ", Count: " << data.count
                         << ", FPS: " << data.fps()
                         << ", %: " << (data.duration / totalDuration)
@@ -101,7 +101,7 @@ namespace sky360lib::utils
         }
 
     private:
-        DataMap m_profilerData;
+        DataMap m_profiler_data;
         TimePoint start_time;
     };
 }

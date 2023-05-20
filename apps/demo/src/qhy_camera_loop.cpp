@@ -7,11 +7,11 @@
 #include "qhy_camera.hpp"
 #include "utils.hpp"
 #include "autoExposureControl.hpp"
-#include "noiseEsimator.hpp"
-#include "ImageQualityEstimator.hpp"
+#include "autoWhiteBalance.hpp"
 #include "profiler.hpp"
 #include "textWriter.hpp"
 #include "bgs.hpp"
+#include "ringbuf.h"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -35,13 +35,13 @@ cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = false;
+bool doAutoWhiteBalance = false;
 bool squareResolution = false;
 bool run = true;
 bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
-bool doNoiseEstimation = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -51,17 +51,19 @@ cv::Point2d circleEnd;
 cv::Point2d circleCenter;
 double circleRadius{0.0f};
 double cameraCircleMaxFov{0.0};
+baudvine::RingBuf<double, 200> noise_buffer;
+baudvine::RingBuf<double, 200> sharpness_buffer;
 
 cv::VideoWriter videoWriter;
 sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
+sky360lib::utils::TextWriter textWriterCrop(cv::Scalar{80, 140, 190, 0}, 24, 2.5);
 sky360lib::utils::AutoExposureControl autoExposureControl;
-sky360lib::utils::NoiseEstimator noiseEstimator;
+sky360lib::utils::AutoWhiteBalance autoWhiteBalance;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
-ImageQualityEstimator imageQuality;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -76,8 +78,7 @@ void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
 void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double image_quality);
-cv::Mat subsample(const cv::Mat& input, int factor);
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 
@@ -107,9 +108,19 @@ int main(int argc, const char **argv)
 
     cv::Mat videoFrame{frame.size(), CV_8UC3};
 
+    sky360lib::utils::WhiteBalanceValues wbValues;
+    wbValues.blue = qhyCamera.get_camera_params().blue_white_balance;
+    wbValues.green = qhyCamera.get_camera_params().green_white_balance;
+    wbValues.red = qhyCamera.get_camera_params().red_white_balance;
+
+    std::cout << "RedWB: " << wbValues.red << ", GreenWB: " << wbValues.green << ", BlueWB: " << wbValues.blue << std::endl;
+
     // double aeFPS = 0.0;
     double noise_level = 0.0;
-    double image_quality = 0.0;
+    double entropy = 0.0;
+    double sharpness = 0.0;
+
+    double adjustmentFactor = 0.9;
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -128,16 +139,21 @@ int main(int argc, const char **argv)
             if (doEqualization)
             {
                 profiler.start("Equalization");
-                sky360lib::utils::Utils::equalizeImage(frameDebayered, frameDebayered, clipLimit);
+                sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
-            if (doNoiseEstimation)
+            if (doAutoWhiteBalance)
             {
-                cv::Mat subsampled_img = subsample(frame, 8);  // subsample with a factor of 2
+                wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wbValues.red);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wbValues.green);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wbValues.blue);
 
-                noise_level = noiseEstimator.estimate_noise(subsampled_img);
-                image_quality = imageQuality.GetImgQualityValue(frame, 0.125, 0);
+                cv::setTrackbarPos("Red WB:", "", (int)wbValues.red);
+                cv::setTrackbarPos("Green WB:", "", (int)wbValues.green);
+                cv::setTrackbarPos("Blue WB:", "", (int)wbValues.blue);
             }
+
             if (doAutoExposure)
             {
                 frame_counter++;
@@ -157,7 +173,7 @@ int main(int argc, const char **argv)
                     {
                         std::string action = "Update Exposure";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, image_quality);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, entropy, sharpness);
                     }
 
                     // Log gain update
@@ -167,17 +183,31 @@ int main(int argc, const char **argv)
 
                         std::string action = "Update Gain";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, image_quality);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, entropy, sharpness);
                     }
                     profiler.stop("AutoExposure");
-                    //aeFPS = profileData["AutoExposure"].fps();
                 }
-
             }        
 
             if (isBoxSelected)
             {
-                cv::Mat cropFrame = frameDebayered(fullFrameBox);
+                auto cropFrame = frameDebayered(fullFrameBox).clone();
+
+                profiler.start("Metrics");
+                noise_level = sky360lib::utils::Utils::estimate_noise(cropFrame);
+                entropy = sky360lib::utils::Utils::estimate_entropy(cropFrame);
+                sharpness = sky360lib::utils::Utils::estimate_sharpness(cropFrame);
+                noise_buffer.push_back(noise_level);
+                sharpness_buffer.push_back(sharpness);
+                profiler.stop("Metrics");
+
+                auto sharpness_graph = sky360lib::utils::Utils::draw_graph("Sharpness", sharpness_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 255.0, 255.0, 0.0), cv::Scalar(0.0, 25.0, 25.0, 0.0));
+                auto noise_graph = sky360lib::utils::Utils::draw_graph("Noise", noise_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 165.0, 255.0, 0.0), cv::Scalar(0.0, 5.0, 25.0, 0.0));
+                sky360lib::utils::Utils::overlay_image(cropFrame, sharpness_graph, cv::Point(0, cropFrame.size().height - sharpness_graph.size().height), 0.7);
+                sky360lib::utils::Utils::overlay_image(cropFrame, noise_graph, cv::Point(cropFrame.size().width - sharpness_graph.size().width, cropFrame.size().height - sharpness_graph.size().height), 0.7);
+
+                textWriterCrop.write_text(cropFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy), 1, true);
+
                 cv::imshow("Window Cut", cropFrame);
             }
             
@@ -201,27 +231,24 @@ int main(int argc, const char **argv)
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             const double exposure = (double)qhyCamera.get_camera_params().exposure; 
-            textWriter.writeText(displayFrame, "Exposure: " + sky360lib::utils::Utils::formatDouble(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
-            textWriter.writeText(displayFrame, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
-            textWriter.writeText(displayFrame, "Video Recording: " + std::string(isVideoOpen ? "On" : "Off"), 3);
-            textWriter.writeText(displayFrame, "Image Equalization: " + std::string(doEqualization ? "On" : "Off"), 4);
-            textWriter.writeText(displayFrame, "BGS: " + getBGSName(bgsType), 5);
+            textWriter.write_text(displayFrame, "Exposure: " + sky360lib::utils::Utils::format_double(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
+            textWriter.write_text(displayFrame, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
+            textWriter.write_text(displayFrame, "Video Recording: " + std::string(isVideoOpen ? "On" : "Off"), 3);
+            textWriter.write_text(displayFrame, "Image Equalization: " + std::string(doEqualization ? "On" : "Off"), 4);
+            textWriter.write_text(displayFrame, "BGS: " + getBGSName(bgsType), 5);
 
-            textWriter.writeText(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::formatDouble(profileData["GetImage"].fps(), 2), 1, true);
-            textWriter.writeText(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::formatDouble(profileData["Frame"].fps(), 2), 2, true);
+            textWriter.write_text(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
+            textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
 
-            textWriter.writeText(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 4, true);
-            textWriter.writeText(displayFrame, "MSV: Target " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::formatDouble(autoExposureControl.get_current_msv()), 5, true);
-            textWriter.writeText(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::formatDouble(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 7, true);
-            if (doNoiseEstimation)
-            {
-                textWriter.writeText(displayFrame, "Noise: " + sky360lib::utils::Utils::formatDouble(noise_level), 8, true);
-                textWriter.writeText(displayFrame, "Image quality: " + sky360lib::utils::Utils::formatDouble(image_quality), 9, true);
-            }
+            textWriter.write_text(displayFrame, "Auto WB: " + std::string(doAutoWhiteBalance ? "On" : "Off"), 4, true);
+            textWriter.write_text(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 5, true);
+            textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
+            textWriter.write_text(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 8, true);
+
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
             {
-                cv::Mat hist = sky360lib::utils::Utils::createHistogram(frameDebayered);
+                cv::Mat hist = sky360lib::utils::Utils::create_histogram(frameDebayered);
                 cv::imshow("Histogram", hist);
             }
             if (isVideoOpen)
@@ -241,16 +268,14 @@ int main(int argc, const char **argv)
         treatKeyboardpress((char)cv::waitKey(1)); 
 
         profiler.stop("Frame");
-        if (profiler.getData("Frame").durationInSeconds() > 1.0)
+        if (profiler.get_data("Frame").duration_in_seconds() > 1.0)
         {
-            profileData = profiler.getData();
+            profileData = profiler.get_data();
             profiler.reset();
         }
     }
     std::cout << "Exit loop\n"
               << std::endl;
-
-    //cv::destroyAllWindows();
 
     qhyCamera.close();
 
@@ -308,10 +333,10 @@ void createControlPanel()
     cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
     cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
 
+    cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Image Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Noise Est.", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
@@ -366,11 +391,9 @@ void treatKeyboardpress(char key)
         }
         break;
     case '1':
-        std::cout << "Setting bits to 8" << std::endl;
         qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 8);
         break;
     case '2':
-        std::cout << "Setting bits to 16" << std::endl;
         qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 16);
         break;
     case 'b':
@@ -431,11 +454,10 @@ void treatKeyboardpress(char key)
             qhyCamera.set_cool_temp(target_value, !is_cool_enabled);
         }
         break;
-    case 'n':
-        doNoiseEstimation = !doNoiseEstimation;
+    case 'w':
+        doAutoWhiteBalance = !doAutoWhiteBalance;
         break;
     }
-
 }
 
 void changeTrackbars(int value, void *paramP)
@@ -477,7 +499,7 @@ void exposureCallback(int, void*userData)
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
 }
 
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double image_quality)
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness)
 {
     auto now = std::chrono::system_clock::now();
     std::time_t time = std::chrono::system_clock::to_time_t(now);
@@ -490,30 +512,10 @@ void log_changes(const std::string& log_file_name, const std::string& action, do
              << "exposure: " << exposure << ", "
              << "gain: " << gain << ", "
              << "noise: " << noise_level << ", "
-             << "quality: " << image_quality << "\n";
+             << "entropy: " << entropy << ", "
+             << "sharpness: " << sharpness << "\n";
 
     log_file.close();
-}
-
-
-#include <opencv2/opencv.hpp>
-
-cv::Mat subsample(const cv::Mat& input, int factor)
-{
-    cv::Mat output(input.rows / factor, input.cols / factor, input.type());
-
-    for (int y = 0; y < output.rows; ++y)
-    {
-        for (int x = 0; x < output.cols; ++x)
-        {
-            int y_in = std::min(y * factor, input.rows - 1);
-            int x_in = std::min(x * factor, input.cols - 1);
-
-            output.at<uchar>(y, x) = input.at<uchar>(y_in, x_in);
-        }
-    }
-
-    return output;
 }
 
 void TransferbitsCallback(int, void*userData)
@@ -540,7 +542,7 @@ void drawOneFov(cv::Mat& frame, cv::Point2d center, double fov, double max_fov, 
         double radius = circleRadius * (fov / 220.0);
         cv::circle(frame, center, radius, color, 8);
 
-        std::string fov_text = sky360lib::utils::Utils::formatDouble(fov, 2);
+        std::string fov_text = sky360lib::utils::Utils::format_double(fov, 2);
         cv::Size text_size = cv::getTextSize(fov_text, font_face, font_scale, font_thickness, nullptr);
         double textX = std::max(center.x - radius + text_offset.x, 0.0);
         cv::Point2f text_position(textX, center.y + text_size.height / 2 + text_offset.y);
