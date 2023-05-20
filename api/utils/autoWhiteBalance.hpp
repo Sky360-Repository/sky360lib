@@ -37,7 +37,6 @@ namespace utils {
                 if (abs(wbValues.red - currentWB.red) > threshold ||
                     abs(wbValues.green - currentWB.green) > threshold ||
                     abs(wbValues.blue - currentWB.blue) > threshold) {
-                        std::cout << "RedWB: " << wbValues.red << ", GreenWB: " << wbValues.green << ", BlueWB: " << wbValues.blue << std::endl;
                     return wbValues;
                 } else {
                     return currentWB;
