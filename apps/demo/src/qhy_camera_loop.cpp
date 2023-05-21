@@ -78,7 +78,7 @@ void exposureCallback(int, void*userData);
 void TransferbitsCallback(int, void*userData);
 void generalCallback(int, void*userData);
 void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness);
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness, double redWB, double blueWB, double greenWB);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 
@@ -113,6 +113,8 @@ int main(int argc, const char **argv)
     wbValues.green = qhyCamera.get_camera_params().green_white_balance;
     wbValues.red = qhyCamera.get_camera_params().red_white_balance;
 
+    sky360lib::utils::WhiteBalanceValues defaultWbValues = wbValues;
+
     std::cout << "RedWB: " << wbValues.red << ", GreenWB: " << wbValues.green << ", BlueWB: " << wbValues.blue << std::endl;
 
     // double aeFPS = 0.0;
@@ -121,6 +123,8 @@ int main(int argc, const char **argv)
     double sharpness = 0.0;
 
     double adjustmentFactor = 0.9;
+    double previousExposure = qhyCamera.get_camera_params().exposure;
+    const double exposureChangeThreshold = 0.15;
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -144,14 +148,36 @@ int main(int argc, const char **argv)
             }
             if (doAutoWhiteBalance)
             {
-                wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wbValues.red);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wbValues.green);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wbValues.blue);
+                double currentExposure = qhyCamera.get_camera_params().exposure;
+                double exposureChange = std::abs(currentExposure - previousExposure) / previousExposure;
 
-                cv::setTrackbarPos("Red WB:", "", (int)wbValues.red);
-                cv::setTrackbarPos("Green WB:", "", (int)wbValues.green);
-                cv::setTrackbarPos("Blue WB:", "", (int)wbValues.blue);
+                if (exposureChange >= exposureChangeThreshold && currentExposure < autoExposureControl.get_max_exposure())
+                {
+                    wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wbValues.red);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wbValues.green);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wbValues.blue);
+
+                    cv::setTrackbarPos("Red WB:", "", (int)wbValues.red);
+                    cv::setTrackbarPos("Green WB:", "", (int)wbValues.green);
+                    cv::setTrackbarPos("Blue WB:", "", (int)wbValues.blue);
+
+                    previousExposure = currentExposure;
+                    log_changes("auto_exposure_log.txt", "Update WB", autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), currentExposure, qhyCamera.get_camera_params().gain, noise_level, entropy, sharpness, wbValues.red, wbValues.blue, wbValues.green);
+                }
+                
+                if (currentExposure >= autoExposureControl.get_max_exposure())
+                {
+                    std::cout << "Switch to the generic white balance values" << std::endl;
+
+                    // Switch to the generic white balance values
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, defaultWbValues.red);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, defaultWbValues.green);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, defaultWbValues.blue);
+        
+                    // Log the switch to generic white balance
+                    log_changes("auto_exposure_log.txt", "Switch to Generic WB", autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), currentExposure, qhyCamera.get_camera_params().gain, noise_level, entropy, sharpness, defaultWbValues.red, defaultWbValues.green, defaultWbValues.blue);
+                }
             }
 
             if (doAutoExposure)
@@ -173,7 +199,7 @@ int main(int argc, const char **argv)
                     {
                         std::string action = "Update Exposure";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, entropy, sharpness);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, entropy, sharpness, wbValues.red, wbValues.green, wbValues.blue);
                     }
 
                     // Log gain update
@@ -183,7 +209,7 @@ int main(int argc, const char **argv)
 
                         std::string action = "Update Gain";
                         std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, entropy, sharpness);
+                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, entropy, sharpness, wbValues.red, wbValues.green, wbValues.blue);
                     }
                     profiler.stop("AutoExposure");
                 }
@@ -499,7 +525,7 @@ void exposureCallback(int, void*userData)
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
 }
 
-void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness)
+void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness, double redWB, double blueWB, double greenWB)
 {
     auto now = std::chrono::system_clock::now();
     std::time_t time = std::chrono::system_clock::to_time_t(now);
@@ -513,7 +539,10 @@ void log_changes(const std::string& log_file_name, const std::string& action, do
              << "gain: " << gain << ", "
              << "noise: " << noise_level << ", "
              << "entropy: " << entropy << ", "
-             << "sharpness: " << sharpness << "\n";
+             << "sharpness: " << sharpness << ", "
+             << "redWB: " << redWB << ", "
+             << "blueWB: " << blueWB << ", "
+             << "greenWB: " << greenWB << "\n";
 
     log_file.close();
 }
