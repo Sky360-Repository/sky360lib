@@ -37,6 +37,7 @@ bool doEqualization = false;
 bool doAutoExposure = false;
 bool doAutoWhiteBalance = false;
 bool squareResolution = false;
+bool useGenericwhiteBalance = true;
 bool run = true;
 bool pauseCapture = false;
 bool showHistogram = false;
@@ -151,6 +152,7 @@ int main(int argc, const char **argv)
                 double currentExposure = qhyCamera.get_camera_params().exposure;
                 double exposureChange = std::abs(currentExposure - previousExposure) / previousExposure;
 
+                // Apply gray world algorithm
                 if (exposureChange >= exposureChangeThreshold && currentExposure < autoExposureControl.get_max_exposure())
                 {
                     wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
@@ -163,19 +165,25 @@ int main(int argc, const char **argv)
                     cv::setTrackbarPos("Blue WB:", "", (int)wbValues.blue);
 
                     previousExposure = currentExposure;
+                    useGenericwhiteBalance = true;
                     log_changes("auto_exposure_log.txt", "Update WB", autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), currentExposure, qhyCamera.get_camera_params().gain, noise_level, entropy, sharpness, wbValues.red, wbValues.blue, wbValues.green);
+                    
                 }
                 
-                if (currentExposure >= autoExposureControl.get_max_exposure())
+                // Switch to the generic white balance values
+                if (currentExposure >= autoExposureControl.get_max_exposure() && useGenericwhiteBalance)
                 {
                     std::cout << "Switch to the generic white balance values" << std::endl;
 
-                    // Switch to the generic white balance values
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, defaultWbValues.red);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, defaultWbValues.green);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, defaultWbValues.blue);
+
+                    cv::setTrackbarPos("Red WB:", "", (int)defaultWbValues.red);
+                    cv::setTrackbarPos("Green WB:", "", (int)defaultWbValues.green);
+                    cv::setTrackbarPos("Blue WB:", "", (int)defaultWbValues.blue);
         
-                    // Log the switch to generic white balance
+                    useGenericwhiteBalance = false;
                     log_changes("auto_exposure_log.txt", "Switch to Generic WB", autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), currentExposure, qhyCamera.get_camera_params().gain, noise_level, entropy, sharpness, defaultWbValues.red, defaultWbValues.green, defaultWbValues.blue);
                 }
             }
@@ -184,8 +192,7 @@ int main(int argc, const char **argv)
             {
                 frame_counter++;
 
-                // to improve fps
-                if (frame_counter % auto_exposure_frame_interval == 0) 
+                if (frame_counter % auto_exposure_frame_interval == 0) // to improve fps
                 { 
                     profiler.start("AutoExposure");
                     const double exposure = (double)qhyCamera.get_camera_params().exposure;
@@ -197,19 +204,14 @@ int main(int argc, const char **argv)
                     // Log exposure update
                     if (exposure_gain.exposure != exposure) 
                     {
-                        std::string action = "Update Exposure";
-                        std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, entropy, sharpness, wbValues.red, wbValues.green, wbValues.blue);
+                        log_changes("auto_exposure_log.txt", "Update Exposure", autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure_gain.exposure, gain, noise_level, entropy, sharpness, wbValues.red, wbValues.green, wbValues.blue);
                     }
 
                     // Log gain update
                     if (exposure_gain.gain != gain) 
                     {
                         cv::setTrackbarPos("Gain:", "", (int)exposure_gain.gain);
-
-                        std::string action = "Update Gain";
-                        std::string log_file_name = "auto_exposure_log.txt"; // Replace with the desired log file name
-                        log_changes(log_file_name, action, autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, entropy, sharpness, wbValues.red, wbValues.green, wbValues.blue);
+                        log_changes("auto_exposure_log.txt", "Update Gain", autoExposureControl.get_current_msv(), autoExposureControl.get_target_msv(), exposure, exposure_gain.gain, noise_level, entropy, sharpness, wbValues.red, wbValues.green, wbValues.blue);
                     }
                     profiler.stop("AutoExposure");
                 }
