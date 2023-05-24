@@ -68,3 +68,6 @@ If so you have to rerun cmake from OpenCV build directory.
 cmake ..
 cmake --build .
 sudo cmake --install .
+
+# Testing visualization of codebase
+![Visualization of the codebase](./diagram.svg)
