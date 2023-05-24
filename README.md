@@ -70,4 +70,4 @@ cmake --build .
 sudo cmake --install .
 
 # Testing visualization of codebase (Richard)
-![Visualization of the codebase](./diagram.svg)
+![Visualization of the codebase](.github/workflows/diagram.svg)
