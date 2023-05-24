@@ -69,5 +69,5 @@ cmake ..
 cmake --build .
 sudo cmake --install .
 
-# Testing visualization of codebase
+# Testing visualization of codebase (Richard)
 ![Visualization of the codebase](./diagram.svg)
