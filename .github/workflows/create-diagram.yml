@@ -15,7 +15,12 @@ jobs:
       
     - name: Visualize Repository
       uses: githubocto/repo-visualizer
+      
+    - name: Save Visualization
+      uses: actions/github-script@v4
       with:
-        # Specify the output format (e.g., svg, png, dot)
-        format: svg
-        output: ./diagram.svg
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          const svgContent = process.env.REPO_VISUALIZER_OUTPUT;
+          fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'diagram.svg'), svgContent);
