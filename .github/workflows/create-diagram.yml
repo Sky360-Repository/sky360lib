@@ -11,10 +11,11 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout
+      uses: actions/checkout@v2
       
     - name: Visualize Repository
       uses: githubocto/repo-visualizer
       with:
         # Specify the output format (e.g., svg, png, dot)
         format: svg
+        output: ./diagram.svg
