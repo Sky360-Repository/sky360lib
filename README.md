@@ -71,4 +71,4 @@ sudo cmake --install .
 
 # Testing visualization of codebase (Richard)
 # ![Visualization of the codebase](.github/workflows/diagram.svg)
-[Link to visualization](https://mango-dune-07a8b7110.1.azurestaticapps.net/?repo=Sky360-Repository%2Fsky360lib)
+![Link to visualization](https://mango-dune-07a8b7110.1.azurestaticapps.net/?repo=Sky360-Repository%2Fsky360lib)
