@@ -14,7 +14,7 @@ jobs:
       uses: actions/checkout@v2
       
     - name: Visualize Repository
-      uses: githubocto/repo-visualizer@v1
+      uses: githubocto/repo-visualizer
       with:
         # Specify the output format (e.g., svg, png, dot)
         format: svg
