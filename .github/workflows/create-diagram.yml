@@ -14,7 +14,7 @@ jobs:
       uses: actions/checkout@v2
       
     - name: Visualize Repository
-      uses: githubocto/repo-visualizer@v1
+      uses: githubocto/repo-visualizer@0.7.1
       
     - name: Save Visualization
       uses: actions/github-script@v4
