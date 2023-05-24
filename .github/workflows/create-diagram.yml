@@ -23,9 +23,5 @@ jobs:
 
     - name: Visualize Repository
       uses: githubocto/repo-visualizer@0.9.1
-      
-    - name: Save Visualization
-      if: github.event_name != 'workflow_dispatch'
-      run: |
-        mkdir -p ${{ github.workspace }}/.github/workflows
-        echo "${{ env.REPO_VISUALIZER_OUTPUT }}" > ${{ github.workspace }}/.github/workflows/diagram.svg
+      with:
+        output_file: ".github/workflows/diagram.svg"
