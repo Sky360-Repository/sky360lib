@@ -1,2 +1,3 @@
-actions/checkout
-githubocto/repo-visualizer
+steps:
+  - uses: actions/checkout
+  - uses: githubocto/repo-visualizer
