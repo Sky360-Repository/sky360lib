@@ -96,7 +96,7 @@ namespace sky360lib::utils
                         << ", Average Time (s): " << data.avg_time_in_s()
                         << ", Count: " << data.count
                         << ", FPS: " << data.fps()
-                        << ", %: " << (data.duration / totalDuration)
+                        << ", %: " << (data.duration / totalDuration) * 100.0
                         << std::endl;
         }
 

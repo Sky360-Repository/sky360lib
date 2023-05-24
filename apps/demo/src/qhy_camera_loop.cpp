@@ -110,8 +110,6 @@ int main(int argc, const char **argv)
     qhyCamera.get_frame(frame, false);
     frameSize = frame.size();
 
-    cv::Mat videoFrame{frame.size(), CV_8UC3};
-
     sky360lib::utils::WhiteBalanceValues wbValues = 
     {
         qhyCamera.get_camera_params().blue_white_balance,
@@ -244,6 +242,7 @@ int main(int argc, const char **argv)
                 cv::imshow("Window Cut", cropFrame);
             }
             
+            profiler.start("Display Frame");
             cv::Mat displayFrame;
             if (bgsType != NoBGS)
             {
@@ -264,24 +263,33 @@ int main(int argc, const char **argv)
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             const double exposure = (double)qhyCamera.get_camera_params().exposure; 
-            textWriter.write_text(displayFrame, "Exposure: " + sky360lib::utils::Utils::format_double(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
-            textWriter.write_text(displayFrame, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
-            textWriter.write_text(displayFrame, "Video Recording: " + std::string(isVideoOpen ? "On" : "Off"), 3);
-            textWriter.write_text(displayFrame, "Image Equalization: " + std::string(doEqualization ? "On" : "Off"), 4);
-            textWriter.write_text(displayFrame, "BGS: " + getBGSName(bgsType), 5);
+            const std::string image_params = "Exp: " + sky360lib::utils::Utils::format_double(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain) + ", " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)";
+            std::string features_enabled;
+            features_enabled += doAutoWhiteBalance ? "(Auto WB) " : "";
+            features_enabled += isVideoOpen ? "(Video Rec.) " : "";
+            features_enabled += doEqualization ? "(Hist. Equal.) " : "";
+            features_enabled += qhyCamera.get_camera_params().cool_enabled ? "(Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C) " : "";
+            features_enabled += doAutoExposure ? std::string("(Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + ") " : "";
+            textWriter.write_text(displayFrame, image_params, 1);
+            if (!features_enabled.empty())
+            {
+                textWriter.write_text(displayFrame, features_enabled, 2);
+            }
+            if (qhyCamera.get_camera_info()->is_cool)
+            {
+                textWriter.write_text(displayFrame, "Temp.: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()), 31);
+            }
+            // textWriter.write_text(displayFrame, "BGS: " + getBGSName(bgsType), 5);
+            // textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
 
-            textWriter.write_text(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
+            textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
-
-            textWriter.write_text(displayFrame, "Auto WB: " + std::string(doAutoWhiteBalance ? "On" : "Off"), 4, true);
-            textWriter.write_text(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 5, true);
-            textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
-            textWriter.write_text(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 8, true);
 
             auto time_str = get_running_time(starting_time);
             textWriter.write_text(displayFrame, "Running time: " + time_str, 31, true);
 
             cv::imshow("Live Video", displayFrame);
+            profiler.stop("Display Frame");
             if (showHistogram)
             {
                 cv::Mat hist = sky360lib::utils::Utils::create_histogram(frameDebayered);
@@ -289,15 +297,7 @@ int main(int argc, const char **argv)
             }
             if (isVideoOpen)
             {
-                if (frameDebayered.elemSize1() > 1)
-                {
-                    frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
-                }
-                else
-                {
-                    videoFrame = frameDebayered;
-                }
-                videoWriter.write(videoFrame);
+                videoWriter.write(frameDebayered);
             }
         }
 
@@ -314,6 +314,7 @@ int main(int argc, const char **argv)
               << std::endl;
 
     qhyCamera.close();
+    //profiler.report();
 
     return 0;
 }
@@ -371,7 +372,7 @@ void createControlPanel()
 
     cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Image Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);

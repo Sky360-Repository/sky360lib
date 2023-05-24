@@ -9,7 +9,7 @@ namespace sky360lib::utils
     {
     public:
         TextWriter(cv::Scalar _color = cv::Scalar{80, 140, 190, 0}, int _num_max_lines = 32, double _thickness_scale = 3.5)
-        : m_font_face{cv::FONT_HERSHEY_COMPLEX}
+        : m_font_face{cv::FONT_HERSHEY_SIMPLEX}
         , m_num_lines{_num_max_lines}
         , m_color{_color}
         , m_color16{_color[0] * 255, _color[1] * 255, _color[2] * 255, _color[3] * 255}
