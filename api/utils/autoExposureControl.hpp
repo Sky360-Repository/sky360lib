@@ -15,7 +15,7 @@ namespace sky360lib::utils
 
         AutoExposureControl(double day_target_msv = 0.24, 
                             double night_target_msv = 0.05,
-                            double min_exposure = 100, // Should be lower for outdoors
+                            double min_exposure = 100, 
                             double max_exposure = 50000, 
                             double min_gain = 0.0, 
                             double max_gain = 30.0, 
@@ -82,14 +82,13 @@ namespace sky360lib::utils
             cv::Scalar mean_intensity = cv::mean(brightness_image);
             current_msv_ = mean_intensity[0] * (cv_image.elemSize1() == 1 ? MULT_8_BITS : MULT_16_BITS);
 
-            if(current_exposure < 1500)
-            {
-                max_exposure_step_ = 10;
-            }
-            else
-            {
-                max_exposure_step_ = 4000;
-            }
+            const double maxStepA = 5;
+            const double maxStepB = 4000;
+            const double exposureA = 100;
+            const double exposureB = 50000;
+
+            double normalizedExposure = (current_exposure - exposureB) / (exposureA - exposureB);
+            double max_exposure_step_ = maxStepA + (maxStepB - maxStepA) * (1 - pow(normalizedExposure, 0.1));
             
             // when switching from day to night
             if (current_exposure >= max_exposure_ && current_gain >= max_gain_)
