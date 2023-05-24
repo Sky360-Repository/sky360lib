@@ -1,5 +1,20 @@
-runs:
-  using: "composite"
-  steps:
-    - uses: actions/checkout
-    - uses: githubocto/repo-visualizer
+name: Visualize Repository
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  visualize:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Visualize Repository
+      uses: githubocto/repo-visualizer@v1
+      with:
+        # Specify the output format (e.g., svg, png, dot)
+        format: svg
