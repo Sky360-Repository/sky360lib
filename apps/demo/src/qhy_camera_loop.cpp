@@ -62,7 +62,6 @@ sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
 sky360lib::utils::TextWriter textWriterCrop(cv::Scalar{80, 140, 190, 0}, 24, 2.5);
 sky360lib::utils::AutoExposureControl autoExposureControl;
-sky360lib::utils::AutoWhiteBalance autoWhiteBalance;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 
@@ -82,11 +81,15 @@ void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius);
 void log_changes(const std::string& log_file_name, const std::string& action, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness, double redWB, double blueWB, double greenWB);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
+std::string get_running_time(std::chrono::system_clock::time_point input_time);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
+    // Get the current time
+    auto starting_time = std::chrono::system_clock::now();
+
     if (!openQQYCamera())
     {
         return -1;
@@ -109,10 +112,12 @@ int main(int argc, const char **argv)
 
     cv::Mat videoFrame{frame.size(), CV_8UC3};
 
-    sky360lib::utils::WhiteBalanceValues wbValues;
-    wbValues.blue = qhyCamera.get_camera_params().blue_white_balance;
-    wbValues.green = qhyCamera.get_camera_params().green_white_balance;
-    wbValues.red = qhyCamera.get_camera_params().red_white_balance;
+    sky360lib::utils::WhiteBalanceValues wbValues = 
+    {
+        qhyCamera.get_camera_params().blue_white_balance,
+        qhyCamera.get_camera_params().green_white_balance,
+        qhyCamera.get_camera_params().red_white_balance
+    };
 
     sky360lib::utils::WhiteBalanceValues defaultWbValues = wbValues;
 
@@ -155,7 +160,7 @@ int main(int argc, const char **argv)
                 // Apply gray world algorithm
                 if (exposureChange >= exposureChangeThreshold && currentExposure < autoExposureControl.get_max_exposure())
                 {
-                    wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
+                    wbValues = sky360lib::utils::AutoWhiteBalance::grayWorld(frameDebayered, wbValues, adjustmentFactor, 3.0);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wbValues.red);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wbValues.green);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wbValues.blue);
@@ -272,6 +277,9 @@ int main(int argc, const char **argv)
             textWriter.write_text(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 5, true);
             textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
             textWriter.write_text(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 8, true);
+
+            auto time_str = get_running_time(starting_time);
+            textWriter.write_text(displayFrame, "Running time: " + time_str, 31, true);
 
             cv::imshow("Live Video", displayFrame);
             if (showHistogram)
@@ -743,4 +751,27 @@ std::string getBGSName(BGSType _type)
         case WMV: return "Weighted Moving Variance";
     }
     return "ERROR!";
+}
+
+std::string get_running_time(std::chrono::system_clock::time_point input_time) 
+{
+    // Get the current time
+    auto current_time = std::chrono::system_clock::now();
+
+    // Calculate the time difference
+    std::chrono::duration<double> diff = current_time - input_time;
+
+    auto h = std::chrono::duration_cast<std::chrono::hours>(diff);
+    diff -= h;
+    auto m = std::chrono::duration_cast<std::chrono::minutes>(diff);
+    diff -= m;
+    auto s = std::chrono::duration_cast<std::chrono::seconds>(diff);
+
+    // Convert the time difference into a string in the format HH:MM:SS
+    std::stringstream ss;
+    ss << std::setw(2) << std::setfill('0') << h.count() << ":"
+       << std::setw(2) << std::setfill('0') << m.count() << ":"
+       << std::setw(2) << std::setfill('0') << s.count();
+
+    return ss.str();
 }
