@@ -63,7 +63,6 @@ sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter;
 sky360lib::utils::TextWriter textWriterCrop(cv::Scalar{80, 140, 190, 0}, 24, 2.5);
 sky360lib::utils::AutoExposureControl autoExposureControl;
-sky360lib::utils::AutoWhiteBalance autoWhiteBalance;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 
@@ -84,11 +83,15 @@ std::streampos get_file_size(const std::string& file_name);
 void log_changes(const std::string& log_file_name, double msv, double targetMSV, double exposure, double gain, double noise_level, double entropy, double sharpness, double redWB, double blueWB, double greenWB, std::streampos max_file_size);
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
+std::string get_running_time(std::chrono::system_clock::time_point input_time);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
+    // Get the current time
+    auto starting_time = std::chrono::system_clock::now();
+
     if (!openQQYCamera())
     {
         return -1;
@@ -110,12 +113,12 @@ int main(int argc, const char **argv)
     qhyCamera.get_frame(frame, false);
     frameSize = frame.size();
 
-    cv::Mat videoFrame{frame.size(), CV_8UC3};
-
-    sky360lib::utils::WhiteBalanceValues wbValues;
-    wbValues.blue = qhyCamera.get_camera_params().blue_white_balance;
-    wbValues.green = qhyCamera.get_camera_params().green_white_balance;
-    wbValues.red = qhyCamera.get_camera_params().red_white_balance;
+    sky360lib::utils::WhiteBalanceValues wbValues = 
+    {
+        qhyCamera.get_camera_params().blue_white_balance,
+        qhyCamera.get_camera_params().green_white_balance,
+        qhyCamera.get_camera_params().red_white_balance
+    };
 
     sky360lib::utils::WhiteBalanceValues defaultWbValues = wbValues;
     std::cout << "RedWB: " << wbValues.red << ", GreenWB: " << wbValues.green << ", BlueWB: " << wbValues.blue << std::endl;
@@ -156,7 +159,7 @@ int main(int argc, const char **argv)
                 // Apply gray world algorithm
                 if (exposureChange >= exposureChangeThreshold && currentExposure < autoExposureControl.get_max_exposure())
                 {
-                    wbValues = autoWhiteBalance.grayWorld(frameDebayered, wbValues, adjustmentFactor, 3);
+                    wbValues = sky360lib::utils::AutoWhiteBalance::grayWorld(frameDebayered, wbValues, adjustmentFactor, 3.0);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wbValues.red);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wbValues.green);
                     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wbValues.blue);
@@ -224,7 +227,7 @@ int main(int argc, const char **argv)
 
                 cv::imshow("Window Cut", cropFrame);
             }
-
+            
             if (logData)
             {
                 if (frame_counter % log_interval == 0)
@@ -243,7 +246,8 @@ int main(int argc, const char **argv)
                     33554432);
                 }
             }
-            
+
+            profiler.start("Display Frame");
             cv::Mat displayFrame;
             if (bgsType != NoBGS)
             {
@@ -264,22 +268,34 @@ int main(int argc, const char **argv)
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             const double exposure = (double)qhyCamera.get_camera_params().exposure; 
-            textWriter.write_text(displayFrame, "Exposure: " + sky360lib::utils::Utils::format_double(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
-            textWriter.write_text(displayFrame, "Resolution: " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
-            textWriter.write_text(displayFrame, "Video Recording: " + std::string(isVideoOpen ? "On" : "Off"), 3);
-            textWriter.write_text(displayFrame, "Image Equalization: " + std::string(doEqualization ? "On" : "Off"), 4);
-            textWriter.write_text(displayFrame, "BGS: " + getBGSName(bgsType), 5);
-            textWriter.write_text(displayFrame, "Logging: " + std::string(logData ? "On" : "Off"), 6);
+            const std::string image_params = "Exp: " + sky360lib::utils::Utils::format_double(exposure / 1000.0, 2) + " ms, Gain: " + std::to_string(qhyCamera.get_camera_params().gain) + ", " + std::to_string(qhyCamera.get_camera_params().roi.width) + " x " + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)";
+            std::string features_enabled;
+            features_enabled += doAutoWhiteBalance ? "(Auto WB) " : "";
+            features_enabled += isVideoOpen ? "(Video Rec.) " : "";
+            features_enabled += doEqualization ? "(Hist. Equal.) " : "";
+            features_enabled += logData ? "(Logging) " : "";
+            features_enabled += qhyCamera.get_camera_params().cool_enabled ? "(Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C) " : "";
+            features_enabled += doAutoExposure ? std::string("(Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + ") " : "";
+            textWriter.write_text(displayFrame, image_params, 1);
+            if (!features_enabled.empty())
+            {
+                textWriter.write_text(displayFrame, features_enabled, 2);
+            }
+            if (qhyCamera.get_camera_info()->is_cool)
+            {
+                textWriter.write_text(displayFrame, "Temp.: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()), 31);
+            }
+            // textWriter.write_text(displayFrame, "BGS: " + getBGSName(bgsType), 5);
+            // textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
 
-            textWriter.write_text(displayFrame, "Max Capture FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
+            textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
 
-            textWriter.write_text(displayFrame, "Auto WB: " + std::string(doAutoWhiteBalance ? "On" : "Off"), 4, true);
-            textWriter.write_text(displayFrame, "Auto Exposure: " + std::string(doAutoExposure ? "On" : "Off") + ", Mode: " + (autoExposureControl.is_day() ? "Day" : "Night"), 5, true);
-            textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
-            textWriter.write_text(displayFrame, "Temp.: Cur: " + sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c, Targ: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) + "c (" + std::string(qhyCamera.get_camera_params().cool_enabled ? "On" : "Off") + ")", 8, true);
+            auto time_str = get_running_time(starting_time);
+            textWriter.write_text(displayFrame, "Running time: " + time_str, 31, true);
 
             cv::imshow("Live Video", displayFrame);
+            profiler.stop("Display Frame");
             if (showHistogram)
             {
                 cv::Mat hist = sky360lib::utils::Utils::create_histogram(frameDebayered);
@@ -287,15 +303,7 @@ int main(int argc, const char **argv)
             }
             if (isVideoOpen)
             {
-                if (frameDebayered.elemSize1() > 1)
-                {
-                    frameDebayered.convertTo(videoFrame, CV_8U, 1 / 256.0f);
-                }
-                else
-                {
-                    videoFrame = frameDebayered;
-                }
-                videoWriter.write(videoFrame);
+                videoWriter.write(frameDebayered);
             }
         }
 
@@ -312,6 +320,7 @@ int main(int argc, const char **argv)
               << std::endl;
 
     qhyCamera.close();
+    //profiler.report();
 
     return 0;
 }
@@ -369,7 +378,7 @@ void createControlPanel()
 
     cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Image Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Log data", generalCallback, (void *)(long)'l', cv::QT_PUSH_BUTTON, 1);
@@ -767,4 +776,27 @@ std::string getBGSName(BGSType _type)
         case WMV: return "Weighted Moving Variance";
     }
     return "ERROR!";
+}
+
+std::string get_running_time(std::chrono::system_clock::time_point input_time) 
+{
+    // Get the current time
+    auto current_time = std::chrono::system_clock::now();
+
+    // Calculate the time difference
+    std::chrono::duration<double> diff = current_time - input_time;
+
+    auto h = std::chrono::duration_cast<std::chrono::hours>(diff);
+    diff -= h;
+    auto m = std::chrono::duration_cast<std::chrono::minutes>(diff);
+    diff -= m;
+    auto s = std::chrono::duration_cast<std::chrono::seconds>(diff);
+
+    // Convert the time difference into a string in the format HH:MM:SS
+    std::stringstream ss;
+    ss << std::setw(2) << std::setfill('0') << h.count() << ":"
+       << std::setw(2) << std::setfill('0') << m.count() << ":"
+       << std::setw(2) << std::setfill('0') << s.count();
+
+    return ss.str();
 }

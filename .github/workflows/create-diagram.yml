@@ -1,0 +1,27 @@
+name: Visualize Repository
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  visualize:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # Add this line to fetch the complete history
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16
+
+    - name: Visualize Repository
+      uses: githubocto/repo-visualizer@0.9.1
+      with:
+        output_file: ".github/workflows/diagram.svg"
