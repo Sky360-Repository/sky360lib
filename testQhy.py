@@ -4,6 +4,7 @@ import pysky360
 camera = pysky360.QHYCamera()
 #algorithm = pysky360.WeightedMovingVariance()
 algorithm = pysky360.Vibe()
+autoExposureControl = pysky360.AutoExposureControl()
 
 parameters = algorithm.getParameters()
 threshold = parameters.getThreshold()
@@ -22,6 +23,12 @@ while True:
     # greyFrame = camera.getFrame(False)
     # frame = camera.debayerImage(greyFrame)
     frame = camera.getFrame(True)
+
+    exposure = camera.getCameraParams().exposure
+    gain = camera.getCameraParams().gain
+    exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain)
+    camera.setControl(pysky360.ControlParam.Exposure, exposure_gain.exposure, False)
+    camera.setControl(pysky360.ControlParam.Gain, exposure_gain.gain, False)
 
     cv2.imshow('Live Video', frame)
     greyFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY);
