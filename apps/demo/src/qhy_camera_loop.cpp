@@ -61,8 +61,7 @@ cv::VideoWriter videoWriter;
 sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
-sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 1.7);
-sky360lib::utils::TextWriter textWriterCrop(cv::Scalar{80, 140, 190, 0}, 24, 2.5);
+sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
 sky360lib::utils::AutoExposureControl autoExposureControl;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -238,15 +237,15 @@ int main(int argc, const char **argv)
                     entropy = sky360lib::utils::Utils::estimate_entropy(frame);
 
                     log_changes("log_camera_params.txt", 
-                    autoExposureControl.get_current_msv(), 
-                    autoExposureControl.get_target_msv(), 
-                    qhyCamera.get_camera_params().exposure,
-                    qhyCamera.get_camera_params().gain, 
-                    noise_level, entropy, sharpness, 
-                    qhyCamera.get_camera_params().red_white_balance, 
-                    qhyCamera.get_camera_params().blue_white_balance, 
-                    qhyCamera.get_camera_params().green_white_balance, 
-                    67108864);
+                        autoExposureControl.get_current_msv(), 
+                        autoExposureControl.get_target_msv(), 
+                        qhyCamera.get_camera_params().exposure,
+                        qhyCamera.get_camera_params().gain, 
+                        noise_level, entropy, sharpness, 
+                        qhyCamera.get_camera_params().red_white_balance, 
+                        qhyCamera.get_camera_params().blue_white_balance, 
+                        qhyCamera.get_camera_params().green_white_balance, 
+                        67108864);
                 }
             }
 
@@ -270,31 +269,11 @@ int main(int argc, const char **argv)
             {
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
-            const double exposure = (double)qhyCamera.get_camera_params().exposure; 
-            textWriter.write_text(displayFrame, "Exp: " + sky360lib::utils::Utils::format_double(exposure / 1000.0, 2) + " ms Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
+            textWriter.write_text(displayFrame, "Exp: " + sky360lib::utils::Utils::format_double((double)qhyCamera.get_camera_params().exposure / 1000.0, 2) + " ms Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
             textWriter.write_text(displayFrame, std::to_string(qhyCamera.get_camera_params().roi.width) + "x" + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
-            std::string features_enabled;
-            features_enabled += doAutoWhiteBalance ? "Auto WB: On | " : "";
-            features_enabled += isVideoOpen ? "Video Rec. | " : "";
-            features_enabled += doEqualization ? "Equalization: On | " : "";
-            features_enabled += logData ? "Logging: On | " : "";
-            features_enabled += qhyCamera.get_camera_params().cool_enabled ? "Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C " : "";
-            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " |" : "";
-            
-            if ((!features_enabled.empty()) && updateDisplayOverlay)
-            {
-                cv::displayOverlay("Live Video", features_enabled, 1500) ;
-                cv::displayStatusBar("Live Video", features_enabled, 0 ) ;
-                updateDisplayOverlay = false;
-                
-            }
-            if ((features_enabled.empty()) && updateDisplayOverlay)
-            {
-                cv::displayOverlay("Live Video", "No features activated", 1500);
-                cv::displayStatusBar("Live Video", features_enabled, 0 );
-                updateDisplayOverlay = false;
-                
-            }
+            textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
+            textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
+            textWriter.write_text(displayFrame, get_running_time(starting_time), 36, true);
             if (qhyCamera.get_camera_info()->is_cool)
             {
                 textWriter.write_text(displayFrame, sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c", 36);
@@ -302,11 +281,20 @@ int main(int argc, const char **argv)
             // textWriter.write_text(displayFrame, "BGS: " + getBGSName(bgsType), 5);
             // textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
 
-            textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
-            textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
-
-            auto time_str = get_running_time(starting_time);
-            textWriter.write_text(displayFrame, time_str, 36, true);
+            std::string features_enabled;
+            features_enabled += doAutoWhiteBalance ? "Auto WB: On | " : "";
+            features_enabled += isVideoOpen ? "Video Rec. | " : "";
+            features_enabled += doEqualization ? "Equalization: On | " : "";
+            features_enabled += logData ? "Logging: On | " : "";
+            features_enabled += qhyCamera.get_camera_params().cool_enabled ? "Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C " : "";
+            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " |" : "";
+            features_enabled = !features_enabled.empty() ? features_enabled : "No features activated";
+            if (updateDisplayOverlay)
+            {
+                cv::displayOverlay("Live Video", features_enabled, 1500);
+                updateDisplayOverlay = false;
+            }
+            cv::displayStatusBar("Live Video", features_enabled, 0);
 
             cv::imshow("Live Video", displayFrame);
             profiler.stop("Display Frame");
@@ -322,8 +310,6 @@ int main(int argc, const char **argv)
         }
 
         treatKeyboardpress((char)cv::waitKey(1)); 
-
-
 
         profiler.stop("Frame");
         if (profiler.get_data("Frame").duration_in_seconds() > 1.0)
@@ -613,8 +599,6 @@ void generalCallback(int, void*userData)
 {
     long param = (long)userData;
     treatKeyboardpress((char)param);
-
-    // updateDisplayOverlay = !updateDisplayOverlay;
 }
 
 void drawOneFov(cv::Mat& frame, cv::Point2d center, double fov, double max_fov, const cv::Scalar& color)
@@ -662,7 +646,6 @@ void drawFOV(cv::Mat& frame, double max_fov, cv::Point2d center, double radius)
         double max_radius = std::min(std::min(center.y, frame.size().height - center.y), radius);
         double circleMaxFov = (max_radius / radius) * max_fov;
         drawOneFov(frame, center, circleMaxFov, max_fov, color);
-        //std::cout << "max_radius: " << max_radius << ", radius: " << radius << ", circleMaxFov: " << circleMaxFov << ", max_fov: " << max_fov << std::endl;
     }
 }
 
@@ -670,6 +653,16 @@ void mouseCallBackFunc(int event, int x, int y, int flags, void *)
 {
     switch (event)
     {
+        case cv::EVENT_MBUTTONUP:
+            settingCircle = false;
+            circleSet = false;
+            fullFrameBox = tempFrameBox;
+            if (isBoxSelected)
+            {
+                cv::destroyWindow("Window Cut");
+            }
+            isBoxSelected = false;
+            break;
         case cv::EVENT_LBUTTONDOWN:
             if (flags & cv::EVENT_FLAG_SHIFTKEY)
             {
@@ -688,6 +681,8 @@ void mouseCallBackFunc(int event, int x, int y, int flags, void *)
             {
                 fullFrameBox = tempFrameBox;
                 isBoxSelected = true;
+                noise_buffer.clear();
+                sharpness_buffer.clear();
             }
             break;
         case cv::EVENT_MOUSEMOVE:
