@@ -202,7 +202,7 @@ namespace sky360lib::utils
         }
 
         template<typename Container>
-        static cv::Mat draw_graph(const std::string& name, const Container &data, const cv::Size &graphSize, int type, cv::Scalar lineColor, cv::Scalar rectColor)
+        static cv::Mat draw_graph(const std::string& name, const Container &data, const cv::Size &graphSize, int type, cv::Scalar lineColor, cv::Scalar rectColor, int thickness = 1)
         {
             const TextWriter text_writter(cv::Scalar{255, 255, 255, 0}, 9, 2.5); 
             const TextWriter text_writter_name(lineColor, 6, 3.5); 
@@ -215,12 +215,15 @@ namespace sky360lib::utils
             const double min_graph = minVal * 0.85;
             const double max_graph = maxVal * 1.15;
             const double normalization_mult = 1.0 / (max_graph - min_graph) * graphSize.height;
+            const double scalingFactor = static_cast<double>(graphSize.width) / static_cast<double>(data.size());
 
             for (size_t i = 1; i < data.size(); ++i)
             {
-                const double val0 = (data[i - 1] - min_graph) * normalization_mult;
-                const double val1 = (data[i] - min_graph) * normalization_mult;
-                cv::line(graph, cv::Point(i - 1, graphSize.height - val0), cv::Point(i, graphSize.height - val1), lineColor);
+                const double val0{(data[i - 1] - min_graph) * normalization_mult};
+                const double val1{(data[i] - min_graph) * normalization_mult};
+                const cv::Point point0((i - 1) * scalingFactor, graphSize.height - val0);
+                const cv::Point point1(i * scalingFactor, graphSize.height - val1);
+                cv::line(graph, point0, point1, lineColor, thickness);
             }
 
             text_writter_name.write_text(graph, name, 1, false);
