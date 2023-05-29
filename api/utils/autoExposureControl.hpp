@@ -15,12 +15,12 @@ namespace sky360lib::utils
 
         AutoExposureControl(double day_target_msv = 0.24, 
                             double night_target_msv = 0.05,
-                            double min_exposure = 100, 
-                            double max_exposure = 50000, 
+                            double min_exposure = 100.0, 
+                            double max_exposure = 50000.0, 
                             double min_gain = 0.0, 
                             double max_gain = 30.0, 
                             double step_gain = 1.0,
-                            double max_exposure_step = 4000)
+                            double max_exposure_step = 4000.0)
         : target_msv_(day_target_msv)
         , day_target_msv_(day_target_msv)
         , night_target_msv_(night_target_msv)

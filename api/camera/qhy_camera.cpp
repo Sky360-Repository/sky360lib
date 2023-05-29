@@ -303,9 +303,9 @@ namespace sky360lib::camera
                 std::cout << "set_default_params: Set default params." << std::endl;
             }
             set_debayer(false);
-            set_control(RedWB, 180.0, true);
+            set_control(RedWB, 165.0, true);
             set_control(GreenWB, 128.0, true);
-            set_control(BlueWB, 190.0, true);
+            set_control(BlueWB, 240.0, true);
             set_control(Exposure, 2000, true);
             set_stream_mode(LiveFrame);
             set_control(UsbTraffic, 5, true);

@@ -63,6 +63,7 @@ sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
 sky360lib::utils::AutoExposureControl autoExposureControl;
+sky360lib::utils::AutoWhiteBalance auto_white_balance(50000.0);
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 
@@ -113,23 +114,9 @@ int main(int argc, const char **argv)
     qhyCamera.get_frame(frame, false);
     frameSize = frame.size();
 
-    sky360lib::utils::WhiteBalanceValues wbValues = 
-    {
-        qhyCamera.get_camera_params().blue_white_balance,
-        qhyCamera.get_camera_params().green_white_balance,
-        qhyCamera.get_camera_params().red_white_balance
-    };
-
-    sky360lib::utils::WhiteBalanceValues defaultWbValues = wbValues;
-    std::cout << "RedWB: " << wbValues.red << ", GreenWB: " << wbValues.green << ", BlueWB: " << wbValues.blue << std::endl;
-
     double noise_level = 0.0;
     double entropy = 0.0;
     double sharpness = 0.0;
-
-    double adjustmentFactor = 0.9;
-    double previousExposure = qhyCamera.get_camera_params().exposure;
-    const double exposureChangeThreshold = 0.15;
 
     cv::displayStatusBar("Live Video", "", 0 );
 
@@ -155,38 +142,18 @@ int main(int argc, const char **argv)
             }
             if (doAutoWhiteBalance)
             {
-                double currentExposure = qhyCamera.get_camera_params().exposure;
-                double exposureChange = std::abs(currentExposure - previousExposure) / previousExposure;
-
-                // Apply gray world algorithm
-                if (exposureChange >= exposureChangeThreshold && currentExposure < autoExposureControl.get_max_exposure())
+                const double current_exposure = qhyCamera.get_camera_params().exposure;
+                auto wb_values = auto_white_balance.gray_world(frameDebayered, current_exposure);
+                if (wb_values.apply)
                 {
-                    wbValues = sky360lib::utils::AutoWhiteBalance::grayWorld(frameDebayered, wbValues, adjustmentFactor, 3.0);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wbValues.red);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wbValues.green);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wbValues.blue);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wb_values.red);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wb_values.green);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wb_values.blue);
 
-                    cv::setTrackbarPos("Red WB:", "", (int)wbValues.red);
-                    cv::setTrackbarPos("Green WB:", "", (int)wbValues.green);
-                    cv::setTrackbarPos("Blue WB:", "", (int)wbValues.blue);
-
-                    previousExposure = currentExposure;
-                    useGenericwhiteBalance = true;                          
+                    cv::setTrackbarPos("Red WB:", "", (int)wb_values.red);
+                    cv::setTrackbarPos("Green WB:", "", (int)wb_values.green);
+                    cv::setTrackbarPos("Blue WB:", "", (int)wb_values.blue);
                 }
-                
-                // Switch to the generic white balance values
-                if (currentExposure >= autoExposureControl.get_max_exposure() && useGenericwhiteBalance)
-                {
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, defaultWbValues.red);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, defaultWbValues.green);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, defaultWbValues.blue);
-
-                    cv::setTrackbarPos("Red WB:", "", (int)defaultWbValues.red);
-                    cv::setTrackbarPos("Green WB:", "", (int)defaultWbValues.green);
-                    cv::setTrackbarPos("Blue WB:", "", (int)defaultWbValues.blue);
-        
-                    useGenericwhiteBalance = false;
-                }   
             }
 
             if (doAutoExposure)
