@@ -37,7 +37,6 @@ bool doEqualization = false;
 bool doAutoExposure = false;
 bool doAutoWhiteBalance = false;
 bool squareResolution = false;
-bool useGenericwhiteBalance = true;
 bool updateDisplayOverlay = false;
 bool logData = false;
 bool run = true;
