@@ -12,11 +12,15 @@
 #include "bgs.hpp"
 #include "connectedBlobDetection.hpp"
 #include "qhy_camera.hpp"
+#include "autoExposureControl.hpp"
+#include "autoWhiteBalance.hpp"
+
 
 namespace py = pybind11;
 using namespace sky360lib::bgs;
 using namespace sky360lib::blobs;
 using namespace sky360lib::camera;
+using namespace sky360lib::utils;
 
 PYBIND11_MODULE(pysky360, m)
 {
@@ -89,6 +93,49 @@ PYBIND11_MODULE(pysky360, m)
         .def("bayerFormatToString", &QhyCamera::CameraInfo::bayer_format_to_string)
         .def("toString", &QhyCamera::CameraInfo::to_string);
 
+    py::class_<QhyCamera::AreaLimits>(m, "QHYCamera.AreaLimits")
+        .def(py::init<>())
+        .def_readonly("start_x", &QhyCamera::AreaLimits::start_x)
+        .def_readonly("start_y", &QhyCamera::AreaLimits::start_y)
+        .def_readonly("width", &QhyCamera::AreaLimits::width)
+        .def_readonly("height", &QhyCamera::AreaLimits::height)
+        ;
+
+    py::class_<QhyCamera::CameraParams>(m, "QHYCamera.CameraParams")
+        .def(py::init<>())
+        .def_readonly("roi", &QhyCamera::CameraParams::roi)
+        .def_readonly("apply_debayer", &QhyCamera::CameraParams::apply_debayer)
+        .def_readonly("red_white_balance", &QhyCamera::CameraParams::red_white_balance)
+        .def_readonly("green_white_balance", &QhyCamera::CameraParams::green_white_balance)
+        .def_readonly("blue_white_balance", &QhyCamera::CameraParams::blue_white_balance)
+        .def_readonly("exposure", &QhyCamera::CameraParams::exposure)
+        .def_readonly("contrast", &QhyCamera::CameraParams::contrast)
+        .def_readonly("brightness", &QhyCamera::CameraParams::brightness)
+        .def_readonly("gamma", &QhyCamera::CameraParams::gamma)
+        .def_readonly("stream_mode", &QhyCamera::CameraParams::stream_mode)
+        .def_readonly("channels", &QhyCamera::CameraParams::channels)
+        .def_readonly("usb_traffic", &QhyCamera::CameraParams::usb_traffic)
+        .def_readonly("usb_speed", &QhyCamera::CameraParams::usb_speed)
+        .def_readonly("gain", &QhyCamera::CameraParams::gain)
+        .def_readonly("offset", &QhyCamera::CameraParams::offset)
+        .def_readonly("bin_mode", &QhyCamera::CameraParams::bin_mode)
+        .def_readonly("target_temp", &QhyCamera::CameraParams::target_temp)
+        .def_readonly("cool_enabled", &QhyCamera::CameraParams::cool_enabled)
+        .def_readonly("bpp", &QhyCamera::CameraParams::bpp)
+        ;
+
+    py::enum_<QhyCamera::BinMode>(m, "BinMode")
+        .value("Bin1x1", QhyCamera::BinMode::Bin1x1)
+        .value("Bin2x2", QhyCamera::BinMode::Bin2x2)
+        .value("Bin3x3", QhyCamera::BinMode::Bin3x3)
+        .value("Bin4x4", QhyCamera::BinMode::Bin4x4)
+        ;
+
+    py::enum_<QhyCamera::StreamMode>(m, "StreamMode")
+        .value("SingleFrame", QhyCamera::StreamMode::SingleFrame)
+        .value("LiveFrame", QhyCamera::StreamMode::LiveFrame)
+        ;
+
     py::enum_<QhyCamera::ControlParam>(m, "ControlParam")
         .value("Brightness", QhyCamera::ControlParam::Brightness)
         .value("Exposure", QhyCamera::ControlParam::Exposure)
@@ -104,4 +151,43 @@ PYBIND11_MODULE(pysky360, m)
         .value("Gamma", QhyCamera::ControlParam::Gamma)
         .value("Channels", QhyCamera::ControlParam::Channels)
         .export_values();
+
+    py::class_<AutoExposureControl>(m, "AutoExposureControl")
+        .def(py::init<>())
+        .def("get_target_msv", &AutoExposureControl::get_target_msv)
+        .def("set_target_msv", &AutoExposureControl::set_target_msv)
+        .def("get_min_exposure", &AutoExposureControl::get_min_exposure)
+        .def("set_min_exposure", &AutoExposureControl::set_min_exposure)
+        .def("get_max_exposure", &AutoExposureControl::get_max_exposure)
+        .def("set_max_exposure", &AutoExposureControl::set_max_exposure)
+        .def("get_min_gain", &AutoExposureControl::get_min_gain)
+        .def("set_min_gain", &AutoExposureControl::set_min_gain)
+        .def("get_max_gain", &AutoExposureControl::get_max_gain)
+        .def("set_max_gain", &AutoExposureControl::set_max_gain)
+        .def("get_max_exposure_step", &AutoExposureControl::get_max_exposure_step)
+        .def("set_max_exposure_step", &AutoExposureControl::set_max_exposure_step)
+        .def("is_day", &AutoExposureControl::is_day)
+        .def("get_current_msv", &AutoExposureControl::get_current_msv)
+        .def("calculate_exposure_gain", &AutoExposureControl::calculate_exposure_gain)
+        ;
+
+    py::class_<AutoExposureControl::ExposureAdjustment>(m, "AutoExposureControl.ExposureAdjustment")
+        .def(py::init<>())
+        .def_readonly("exposure", &AutoExposureControl::ExposureAdjustment::exposure)
+        .def_readonly("gain", &AutoExposureControl::ExposureAdjustment::gain)
+        ;
+
+    py::class_<AutoWhiteBalance>(m, "AutoWhiteBalance")
+        .def(py::init<double>())
+        .def("grayWorld", &AutoWhiteBalance::gray_world)
+        ;
+
+    py::class_<AutoWhiteBalance::WhiteBalanceValues>(m, "AutoWhiteBalance.WhiteBalanceValues")
+        .def(py::init<>())
+        .def_readonly("red", &AutoWhiteBalance::WhiteBalanceValues::red)
+        .def_readonly("green", &AutoWhiteBalance::WhiteBalanceValues::green)
+        .def_readonly("blue", &AutoWhiteBalance::WhiteBalanceValues::blue)
+        .def_readonly("apply", &AutoWhiteBalance::WhiteBalanceValues::apply)
+        ;
+
 }
