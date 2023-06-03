@@ -48,6 +48,7 @@ namespace sky360lib::camera
     }
 
     QhyCamera::QhyCamera()
+        : exitFlag(false), frame_counter(0), current_counter(0)
     {
         EnableQHYCCDMessage(false);
         EnableQHYCCDLogFile(false);
@@ -56,6 +57,73 @@ namespace sky360lib::camera
     QhyCamera::~QhyCamera()
     {
         release();
+
+        waitThread();
+    }
+
+    void QhyCamera::start() 
+    {
+        exitFlag.store(false, std::memory_order_relaxed);
+        workerThread = std::thread(&QhyCamera::threadFunction, this);
+    }
+
+    void QhyCamera::stop() 
+    {
+        exitFlag.store(true, std::memory_order_relaxed);
+    }
+
+    int QhyCamera::getFrameCounter() const 
+    {
+        return frame_counter.load(std::memory_order_relaxed);
+    }
+
+    bool QhyCamera::copyImageData(cv::Mat& _frame, bool _debayer) 
+    {
+        while (current_counter == frame_counter)
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+
+        {
+            // std::lock_guard<std::mutex> lock(m_img_data_mutex);
+            // std::cout << "frame_counter: " << frame_counter.load() << ", current_counter: " << current_counter.load() << std::endl;
+            // std::memcpy(m_img_data2.get(), m_img_data.get(), data_size);
+            current_counter = frame_counter.load();
+        }
+    
+        int channels = m_current_info->is_color && m_params.apply_debayer ? 3 : 1;
+        int type = m_params.bpp == 16 ? CV_MAKETYPE(CV_16U, channels) : CV_MAKETYPE(CV_8U, channels);
+
+        const cv::Mat imgQHY(m_params.roi.height, m_params.roi.width, type, (int8_t *)m_img_data_old);
+
+        if (m_current_info->is_color && !m_params.apply_debayer && _debayer)
+        {
+            debayer_image(imgQHY, _frame);
+        }
+        else
+        {
+            imgQHY.copyTo(_frame);
+        }
+
+        return true;
+
+    }
+
+    void QhyCamera::threadFunction() 
+    {
+        while (!exitFlag.load(std::memory_order_relaxed)) 
+        {
+            // Fill m_img_data with 1s
+            {
+                std::lock_guard<std::mutex> lock(m_img_data_mutex);
+                if (!get_frame())
+                {
+                    std::cerr << "Error acquiring frame in thread" << std::endl;
+                    break;
+                }
+                frame_counter.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
     }
 
     bool QhyCamera::init()
@@ -106,6 +174,8 @@ namespace sky360lib::camera
 
             m_old_cam_id = m_cam_id;
             m_img_data = nullptr;
+            m_img_data1 = nullptr;
+            m_img_data2 = nullptr;
             m_cam_handle = nullptr;
             m_cam_id = "";
             m_is_cam_open = false;
@@ -395,9 +465,11 @@ namespace sky360lib::camera
 
         if (m_is_cam_open)
         {
+            // waitThread();
             alloc_buffer_memory();
             close();
             open(m_old_cam_id);
+            // start();
         }
 
         return true;
@@ -431,7 +503,10 @@ namespace sky360lib::camera
             std::cerr << "Cannot get memory for frame." << std::endl;
             return false;
         }
-        m_img_data = std::make_unique_for_overwrite<uint8_t[]>(size);
+        data_size = size;
+        m_img_data1 = std::make_unique_for_overwrite<uint8_t[]>(data_size);
+        m_img_data2 = std::make_unique_for_overwrite<uint8_t[]>(data_size);
+        m_img_data = m_img_data1.get();
 
         return true;
     }
@@ -575,7 +650,7 @@ namespace sky360lib::camera
         int channels = m_current_info->is_color && m_params.apply_debayer ? 3 : 1;
         int type = m_params.bpp == 16 ? CV_MAKETYPE(CV_16U, channels) : CV_MAKETYPE(CV_8U, channels);
 
-        const cv::Mat imgQHY(m_params.roi.height, m_params.roi.width, type, (int8_t *)m_img_data.get());
+        const cv::Mat imgQHY(m_params.roi.height, m_params.roi.width, type, (int8_t *)m_img_data_old);
 
         if (m_current_info->is_color && !m_params.apply_debayer && _debayer)
         {
@@ -657,6 +732,7 @@ namespace sky360lib::camera
                 return false;
             }
         }
+        swap();
 
         auto stop = std::chrono::high_resolution_clock::now();
         fsec duration = (stop - start);
@@ -674,7 +750,7 @@ namespace sky360lib::camera
     {
         *tries = 0;
         ExpQHYCCDSingleFrame(m_cam_handle);
-        while (GetQHYCCDSingleFrame(m_cam_handle, w, h, bpp, channels, m_img_data.get()) != QHYCCD_SUCCESS)
+        while (GetQHYCCDSingleFrame(m_cam_handle, w, h, bpp, channels, m_img_data) != QHYCCD_SUCCESS)
         {
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
             if (++*tries > DEFAULT_CAPTURE_RETRIES)
@@ -690,7 +766,7 @@ namespace sky360lib::camera
     inline bool QhyCamera::get_live(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint32_t *tries)
     {
         *tries = 0;
-        while (GetQHYCCDLiveFrame(m_cam_handle, w, h, bpp, channels, m_img_data.get()) != QHYCCD_SUCCESS)
+        while (GetQHYCCDLiveFrame(m_cam_handle, w, h, bpp, channels, m_img_data) != QHYCCD_SUCCESS)
         {
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
             if (++*tries > DEFAULT_CAPTURE_RETRIES)

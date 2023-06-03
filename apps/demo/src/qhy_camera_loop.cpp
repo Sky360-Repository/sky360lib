@@ -118,6 +118,8 @@ int main(int argc, const char **argv)
     double entropy = 0.0;
     double sharpness = 0.0;
 
+    //qhyCamera.start();
+
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
     while (run)
@@ -127,6 +129,7 @@ int main(int argc, const char **argv)
         {
             profiler.start("GetImage");
             qhyCamera.get_frame(frame, false);
+            //qhyCamera.copyImageData(frame, false);
             profiler.stop("GetImage");
             frameSize = frame.size();
             profiler.start("Debayer");
@@ -303,6 +306,7 @@ int main(int argc, const char **argv)
     std::cout << "Exit loop\n"
               << std::endl;
 
+    //qhyCamera.stop();
     qhyCamera.close();
     profiler.report();
 

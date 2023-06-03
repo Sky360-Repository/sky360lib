@@ -3,6 +3,9 @@
 #include <string>
 #include <stdint.h>
 
+#include <atomic>
+#include <thread>
+
 #include "qhyccd_wrap.h"
 #include <opencv2/opencv.hpp>
 
@@ -164,17 +167,41 @@ namespace sky360lib::camera
         bool set_resolution(uint32_t _startX, uint32_t _startY, uint32_t _width, uint32_t _height);
         bool set_stream_mode(StreamMode _mode);
 
+        bool copyImageData(cv::Mat& image, bool debayer);
+        void start();
+        void stop();
+
     private:
         static const int DEFAULT_CAPTURE_RETRIES = 1000;
 
         std::string m_cam_id;
         std::string m_old_cam_id;
         qhyccd_handle *m_cam_handle{nullptr};
-        std::unique_ptr<uint8_t[]> m_img_data{nullptr};
+        uint8_t* m_img_data{nullptr};
+        uint8_t* m_img_data_old{nullptr};
+        bool is_buffer_1{true};
+        std::unique_ptr<uint8_t[]> m_img_data1{nullptr};
+        std::unique_ptr<uint8_t[]> m_img_data2{nullptr};
         std::map<std::string, CameraInfo> m_cameras;
         CameraParams m_params;
         CameraInfo* m_current_info;
         double m_last_frame_capture_time;
+
+        inline void swap() 
+        {
+            m_img_data = is_buffer_1 ? m_img_data2.get() : m_img_data1.get();
+            m_img_data_old = is_buffer_1 ? m_img_data1.get() : m_img_data2.get();
+            is_buffer_1 = !is_buffer_1;
+        }
+
+        inline void waitThread()
+        {
+            if (workerThread.joinable()) 
+            {
+                stop();
+                workerThread.join();
+            }
+        }
 
         bool m_is_debug_info{false};
         bool m_is_cam_init{false};
@@ -198,5 +225,15 @@ namespace sky360lib::camera
         void set_default_params();
         inline bool get_single(uint32_t *_w, uint32_t *_h, uint32_t *_bpp, uint32_t *_channels, uint32_t *tries);
         inline bool get_live(uint32_t *_w, uint32_t *_h, uint32_t *_bpp, uint32_t *_channels, uint32_t *tries);
+
+        std::atomic<bool> exitFlag;
+        std::atomic<int> frame_counter;
+        std::atomic<int> current_counter;
+        std::thread workerThread;
+        std::mutex m_img_data_mutex;
+        std::size_t data_size;
+
+        int getFrameCounter() const;
+        void threadFunction();
     };
 }
