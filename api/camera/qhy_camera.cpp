@@ -308,12 +308,14 @@ namespace sky360lib::camera
             set_control(BlueWB, 240.0, true);
             set_control(Exposure, 2000, true);
             set_stream_mode(LiveFrame);
-            set_control(UsbTraffic, 5, true);
+            //set_stream_mode(SingleFrame);
+            set_control(UsbTraffic, 3, true);
             set_control(UsbSpeed, 0, true);
             set_control(Gain, 30, true);
             set_control(Offset, 0, true);
             set_resolution(0, 0, m_current_info->chip.max_image_width, m_current_info->chip.max_image_height);
             set_control(TransferBits, 8, true);
+            //set_control(TransferBits, 16, true);
             set_control(Channels, 1, true);
             set_bin_mode(Bin1x1);
             set_control(Contrast, 0.0, true);
@@ -395,7 +397,7 @@ namespace sky360lib::camera
         {
             alloc_buffer_memory();
             close();
-            open(m_cam_id);
+            open(m_old_cam_id);
         }
 
         return true;
@@ -632,7 +634,7 @@ namespace sky360lib::camera
     bool QhyCamera::get_frame()
     {
         using fsec = std::chrono::duration<double>;
-        uint32_t w, h, bpp, channels;
+        uint32_t w, h, bpp, channels, tries;
 
         if (!m_is_exposing)
         {
@@ -643,14 +645,14 @@ namespace sky360lib::camera
 
         if (m_params.stream_mode == SingleFrame)
         {
-            if (!get_single(&w, &h, &bpp, &channels))
+            if (!get_single(&w, &h, &bpp, &channels, &tries))
             {
                 return false;
             }
         }
         else
         {
-            if (!get_live(&w, &h, &bpp, &channels))
+            if (!get_live(&w, &h, &bpp, &channels, &tries))
             {
                 return false;
             }
@@ -660,45 +662,42 @@ namespace sky360lib::camera
         fsec duration = (stop - start);
         m_last_frame_capture_time = duration.count();
 
+        if (m_is_debug_info)
+        {
+            std::cout << "Gotframe: " << w << "x" << h << " pixels, " << bpp << "bpp, " << channels << " channels, tries: " << tries << std::endl;
+        }
+
         return true;
     }
 
-    bool QhyCamera::get_single(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels)
+    inline bool QhyCamera::get_single(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint32_t *tries)
     {
-        int tries = 0;
+        *tries = 0;
         ExpQHYCCDSingleFrame(m_cam_handle);
         while (GetQHYCCDSingleFrame(m_cam_handle, w, h, bpp, channels, m_img_data.get()) != QHYCCD_SUCCESS)
         {
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            if (++tries > DEFAULT_CAPTURE_RETRIES)
+            if (++*tries > DEFAULT_CAPTURE_RETRIES)
             {
                 std::cout << "retries: " << tries << ", aborting." << std::endl;
                 return false;
             }
-        }
-        if (m_is_debug_info)
-        {
-            std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
         }
 
         return true;
     }
 
-    bool QhyCamera::get_live(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels)
+    inline bool QhyCamera::get_live(uint32_t *w, uint32_t *h, uint32_t *bpp, uint32_t *channels, uint32_t *tries)
     {
-        int tries = 0;
+        *tries = 0;
         while (GetQHYCCDLiveFrame(m_cam_handle, w, h, bpp, channels, m_img_data.get()) != QHYCCD_SUCCESS)
         {
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            if (++tries > DEFAULT_CAPTURE_RETRIES)
+            if (++*tries > DEFAULT_CAPTURE_RETRIES)
             {
                 std::cout << "retries: " << tries << ", aborting." << std::endl;
                 return false;
             }
-        }
-        if (m_is_debug_info)
-        {
-            std::cout << "Gotframe: " << *w << "x" << *h << " pixels, " << *bpp << "bpp, " << *channels << " channels, tries: " << tries << std::endl;
         }
         return true;
     }

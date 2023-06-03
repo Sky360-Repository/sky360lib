@@ -60,7 +60,7 @@ namespace sky360lib::utils
 
         double get_current_msv() const { return current_msv_; }
 
-        ExposureAdjustment calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain)
+        ExposureAdjustment calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain, const cv::InputArray & mask = cv::noArray())
         {
             const static double MULT_8_BITS = 1.0 / 255.0;
             const static double MULT_16_BITS = 1.0 / 65535.0;
@@ -79,7 +79,7 @@ namespace sky360lib::utils
                 brightness_image = cv_image;
             }
 
-            cv::Scalar mean_intensity = cv::mean(brightness_image);
+            cv::Scalar mean_intensity = cv::mean(brightness_image, mask);
             current_msv_ = mean_intensity[0] * (cv_image.elemSize1() == 1 ? MULT_8_BITS : MULT_16_BITS);
 
             const double maxStepA = 5;

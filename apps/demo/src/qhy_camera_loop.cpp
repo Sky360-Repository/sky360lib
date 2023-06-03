@@ -12,6 +12,7 @@
 #include "textWriter.hpp"
 #include "bgs.hpp"
 #include "ringbuf.h"
+#include "roi_mask_calculator.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -72,7 +73,7 @@ inline void drawBoxes(const cv::Mat &frame);
 bool openQQYCamera();
 bool openVideo(const cv::Size &size, double meanFps);
 void createControlPanel();
-void treatKeyboardpress(char key);
+void treatKeyboardpress(int key);
 void changeTrackbars(int value, void *paramP);
 void mouseCallBackFunc(int event, int x, int y, int, void *);
 void exposureCallback(int, void*userData);
@@ -116,8 +117,6 @@ int main(int argc, const char **argv)
     double noise_level = 0.0;
     double entropy = 0.0;
     double sharpness = 0.0;
-
-    cv::displayStatusBar("Live Video", "", 0 );
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -198,6 +197,7 @@ int main(int argc, const char **argv)
             
             if (logData)
             {
+                profiler.start("Log Data");
                 if (frame_counter % log_interval == 0)
                 {
                     entropy = sky360lib::utils::Utils::estimate_entropy(frame);
@@ -213,6 +213,7 @@ int main(int argc, const char **argv)
                         qhyCamera.get_camera_params().green_white_balance, 
                         67108864);
                 }
+                profiler.stop("Log Data");
             }
 
             profiler.start("Display Frame");
@@ -262,20 +263,35 @@ int main(int argc, const char **argv)
             }
             cv::displayStatusBar("Live Video", features_enabled, 0);
 
-            cv::imshow("Live Video", displayFrame);
+            // if (circleSet)
+            // {
+            //     auto roi_mask = sky360lib::utils::RoiMaskCalculator::calc_roi_mask(displayFrame, circleInit, circleEnd, 180.0, 220.0);
+            //     cv::rectangle(displayFrame, cv::Rect(roi_mask.x, roi_mask.y, roi_mask.width, roi_mask.height), cv::Scalar(255, 255, 255), 5);
+            //     cv::Mat result;
+            //     cv::bitwise_and(displayFrame, displayFrame, result, roi_mask.mask);
+            //     cv::imshow("Live Video", result);
+            // }
+            // else
+                cv::imshow("Live Video", displayFrame);
             profiler.stop("Display Frame");
             if (showHistogram)
             {
+                profiler.start("Display Histogram");
                 cv::Mat hist = sky360lib::utils::Utils::create_histogram(frameDebayered);
                 cv::imshow("Histogram", hist);
+                profiler.stop("Display Histogram");
             }
             if (isVideoOpen)
             {
+                profiler.start("Save Video");
                 videoWriter.write(frameDebayered);
+                profiler.stop("Save Video");
             }
         }
 
-        treatKeyboardpress((char)cv::waitKey(1)); 
+        profiler.start("Key Handle");
+        treatKeyboardpress(cv::pollKey()); 
+        profiler.stop("Key Handle");
 
         profiler.stop("Frame");
         if (profiler.get_data("Frame").duration_in_seconds() > 1.0)
@@ -288,7 +304,7 @@ int main(int argc, const char **argv)
               << std::endl;
 
     qhyCamera.close();
-    //profiler.report();
+    profiler.report();
 
     return 0;
 }
@@ -353,9 +369,18 @@ void createControlPanel()
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
 
-void treatKeyboardpress(char key)
+void treatKeyboardpress(int key)
 {
-    switch (key)
+    if (!cv::getWindowProperty("Live Video", cv::WND_PROP_VISIBLE))
+    {
+        run = false;
+        return;
+    }
+
+    if (key < 0)
+        return;
+
+    switch ((char)key)
     {
     case 27:
         run = false;
@@ -564,7 +589,7 @@ void TransferbitsCallback(int, void*userData)
 void generalCallback(int, void*userData)
 {
     long param = (long)userData;
-    treatKeyboardpress((char)param);
+    treatKeyboardpress((int)param);
 }
 
 void drawOneFov(cv::Mat& frame, cv::Point2d center, double fov, double max_fov, const cv::Scalar& color)

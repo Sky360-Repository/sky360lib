@@ -196,7 +196,7 @@ namespace sky360lib::camera
         bool scan_cameras();
         bool alloc_buffer_memory();
         void set_default_params();
-        bool get_single(uint32_t *_w, uint32_t *_h, uint32_t *_bpp, uint32_t *_channels);
-        bool get_live(uint32_t *_w, uint32_t *_h, uint32_t *_bpp, uint32_t *_channels);
+        inline bool get_single(uint32_t *_w, uint32_t *_h, uint32_t *_bpp, uint32_t *_channels, uint32_t *tries);
+        inline bool get_live(uint32_t *_w, uint32_t *_h, uint32_t *_bpp, uint32_t *_channels, uint32_t *tries);
     };
 }
