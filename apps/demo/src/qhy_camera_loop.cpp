@@ -1,12 +1,13 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <ctime>
 #include <fstream>
 #include <iomanip>
 
 #include "qhy_camera.hpp"
 #include "utils.hpp"
-#include "autoExposureControl.hpp"
+#include "autoExposure.hpp"
 #include "autoWhiteBalance.hpp"
 #include "profiler.hpp"
 #include "textWriter.hpp"
@@ -45,6 +46,9 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
+bool testWhiteBalance = false;
+bool saveImage = false;
+bool saveNextFrame = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -62,8 +66,8 @@ sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
-sky360lib::utils::AutoExposureControl autoExposureControl;
-sky360lib::utils::AutoWhiteBalance auto_white_balance(50000.0);
+sky360lib::utils::AutoExposure autoExposureControl;
+sky360lib::utils::AutoWhiteBalance autoWhiteBalanceControl;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 
@@ -104,7 +108,6 @@ int main(int argc, const char **argv)
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 5.0);
 
     int frame_counter = 0;
-    const int auto_exposure_frame_interval = 3; 
     const int log_interval = 10;
 
     createControlPanel();
@@ -117,6 +120,8 @@ int main(int argc, const char **argv)
     double noise_level = 0.0;
     double entropy = 0.0;
     double sharpness = 0.0;
+
+    sky360lib::utils::WhiteBalanceValues previousGains;
 
     std::vector<cv::Rect> bboxes;
     std::cout << "Enter loop" << std::endl;
@@ -138,42 +143,105 @@ int main(int argc, const char **argv)
                 sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
+            if(saveImage)
+            {
+                if (saveNextFrame) {
+                    saveNextFrame = false;
+                }
+                else{
+                
+                    // Get the current date and time
+                    std::time_t currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                    std::tm* localTime = std::localtime(&currentTime);
+                    
+                    // Create the filename using the date and time
+                    std::stringstream filenameStream;
+                    filenameStream << "images/frame_" << std::put_time(localTime, "%Y%m%d_%H%M%S") << ".png";
+                    std::string filename = filenameStream.str();
+
+                    cv::Size newSize(frameDebayered.cols / 4, frameDebayered.rows / 4);
+                    cv::Mat resizedImage;
+                    cv::resize(frameDebayered, resizedImage, newSize);
+                    cv::imwrite(filename, resizedImage);
+                    saveImage = false;
+                }
+            }
+            if(testWhiteBalance)
+            {
+
+                auto newGains = autoWhiteBalanceControl.illumination_estimation(frameDebayered, 1, 50);
+                // Set the white balance for each color channel in the camera
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, newGains.red);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, newGains.green);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, newGains.blue);
+
+                // Set the position of trackbars corresponding to each color channel's white balance
+                cv::setTrackbarPos("Red WB:", "", (int)newGains.red);
+                cv::setTrackbarPos("Green WB:", "", (int)newGains.green);
+                cv::setTrackbarPos("Blue WB:", "", (int)newGains.blue);
+                testWhiteBalance = false;
+            }
             if (doAutoWhiteBalance)
             {
-                const double current_exposure = qhyCamera.get_camera_params().exposure;
-                auto wb_values = auto_white_balance.gray_world(frameDebayered, current_exposure);
-                if (wb_values.apply)
+                if(autoExposureControl.is_day())
                 {
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, wb_values.red);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, wb_values.green);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, wb_values.blue);
+                    auto newGains = autoWhiteBalanceControl.illumination_estimation(frameDebayered, 1, 50);
+                    // Compare new gains with previous gains
+                    if (newGains.red != previousGains.red ||
+                        newGains.green != previousGains.green ||
+                        newGains.blue != previousGains.blue)
+                    {
+                        // Set the white balance for each color channel in the camera
+                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, newGains.red);
+                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, newGains.green);
+                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, newGains.blue);
 
-                    cv::setTrackbarPos("Red WB:", "", (int)wb_values.red);
-                    cv::setTrackbarPos("Green WB:", "", (int)wb_values.green);
-                    cv::setTrackbarPos("Blue WB:", "", (int)wb_values.blue);
+                        // Set the position of trackbars corresponding to each color channel's white balance
+                        cv::setTrackbarPos("Red WB:", "", (int)newGains.red);
+                        cv::setTrackbarPos("Green WB:", "", (int)newGains.green);
+                        cv::setTrackbarPos("Blue WB:", "", (int)newGains.blue);
+
+                        // Update the previous gains with the new gains
+                        previousGains = newGains;
+
+                        saveImage = true;
+                        saveNextFrame = true;
+                    }
+                }
+                else
+                {
+                    auto defaultSet = autoWhiteBalanceControl.getDefaultWhiteBalance();
+
+                    // Set the white balance for each color channel in the camera
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, defaultSet.red);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, defaultSet.green);
+                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, defaultSet.blue);
+
+                    // Set the position of trackbars corresponding to each color channel's white balance
+                    cv::setTrackbarPos("Red WB:", "", (int)defaultSet.red);
+                    cv::setTrackbarPos("Green WB:", "", (int)defaultSet.green);
+                    cv::setTrackbarPos("Blue WB:", "", (int)defaultSet.blue);
+
+                    previousGains = defaultSet;
                 }
             }
 
             if (doAutoExposure)
             {
-                frame_counter++;
+                profiler.start("AutoExposure");
+                const double gain = (double)qhyCamera.get_camera_params().gain;
+                
+                autoExposureControl.process(frame);
+                auto ae_params = autoExposureControl.getParams();
+                
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, ae_params.exposure);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, ae_params.gain);                    
 
-                if (frame_counter % auto_exposure_frame_interval == 0) // to improve fps
-                { 
-                    profiler.start("AutoExposure");
-                    const double exposure = (double)qhyCamera.get_camera_params().exposure;
-                    const double gain = (double)qhyCamera.get_camera_params().gain;
-                    auto exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure_gain.exposure);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, exposure_gain.gain);                    
-
-                    // Log gain update
-                    if (exposure_gain.gain != gain) 
-                    {
-                        cv::setTrackbarPos("Gain:", "", (int)exposure_gain.gain);
-                    }
-                    profiler.stop("AutoExposure");
+                if (ae_params.gain != gain) 
+                {
+                    cv::setTrackbarPos("Gain:", "", (int)ae_params.gain);
                 }
+                profiler.stop("AutoExposure");
             }        
 
             if (isBoxSelected)
@@ -194,7 +262,7 @@ int main(int argc, const char **argv)
 
                 cv::imshow("Window Cut", cropFrame);
             }
-            
+            frame_counter++;
             if (logData)
             {
                 profiler.start("Log Data");
@@ -309,6 +377,7 @@ int main(int argc, const char **argv)
     return 0;
 }
 
+
 void createControlPanel()
 {
     double aspectRatio = (double)qhyCamera.get_camera_info()->chip.max_image_width / (double)qhyCamera.get_camera_info()->chip.max_image_height;
@@ -366,6 +435,7 @@ void createControlPanel()
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Log data", generalCallback, (void *)(long)'l', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Test WB", generalCallback, (void *)(long)'t', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
 
@@ -501,6 +571,9 @@ void treatKeyboardpress(int key)
     case 'w':
         doAutoWhiteBalance = !doAutoWhiteBalance;
         updateDisplayOverlay = true;
+        break;
+    case 't':
+        testWhiteBalance = true;
         break;
     }
 }
