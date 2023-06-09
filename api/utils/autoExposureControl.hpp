@@ -60,7 +60,12 @@ namespace sky360lib::utils
 
         double get_current_msv() const { return current_msv_; }
 
-        ExposureAdjustment calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain, const cv::InputArray & mask = cv::noArray())
+        ExposureAdjustment calculate_exposure_gain(const cv::Mat &cv_image, double current_exposure, double current_gain)
+        {
+            return calculate_exposure_gain_mask(cv_image, current_exposure, current_gain, cv::noArray());
+        }
+
+        ExposureAdjustment calculate_exposure_gain_mask(const cv::Mat &cv_image, double current_exposure, double current_gain, const cv::InputArray & mask = cv::noArray())
         {
             const static double MULT_8_BITS = 1.0 / 255.0;
             const static double MULT_16_BITS = 1.0 / 65535.0;

@@ -1,5 +1,6 @@
 import cv2
 import pysky360
+import numpy as np
 
 camera = pysky360.QHYCamera()
 #algorithm = pysky360.WeightedMovingVariance()
@@ -24,8 +25,8 @@ while True:
     # frame = camera.debayerImage(greyFrame)
     frame = camera.getFrame(True)
 
-    exposure = camera.getCameraParams().exposure
-    gain = camera.getCameraParams().gain
+    exposure = float(camera.getCameraParams().exposure)
+    gain = float(camera.getCameraParams().gain)
     exposure_gain = autoExposureControl.calculate_exposure_gain(frame, exposure, gain)
     camera.setControl(pysky360.ControlParam.Exposure, exposure_gain.exposure, False)
     camera.setControl(pysky360.ControlParam.Gain, exposure_gain.gain, False)

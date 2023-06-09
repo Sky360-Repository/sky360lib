@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core.hpp"
-
 namespace sky360lib
 {
 	class Pcg32 final

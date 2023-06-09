@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core.hpp"
-
 #include <opencv2/core.hpp>
 
+#include <cstddef>
+#include <stdint.h>
 #include <memory>
 #include <cstring>
 #include <thread>
@@ -79,33 +79,8 @@ namespace sky360lib
         std::unique_ptr<uint8_t[]> data_ptr;
     };
 
-    // Returning the number of available threads for the CPU
     inline size_t calc_available_threads()
     {
         return (size_t)std::max(1U, std::thread::hardware_concurrency());
-    }
-
-    inline bool rects_overlap(const cv::Rect& r1, const cv::Rect& r2)
-    {
-        // checking if they don't everlap
-        if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
-            (r1.x > (r2.x + r2.width) || r2.x > (r1.x + r1.width)) ||
-            (r1.y > (r2.y + r2.height) || r2.y > (r1.y + r1.height)))
-            return false;
-
-        return true;
-    }
-
-    inline float rects_distance_squared(const cv::Rect& r1, const cv::Rect& r2)
-    {
-        if (rects_overlap(r1, r2))
-            return 0;
-
-        // compute distance on x axis
-        const int x_distance = std::max(0, std::max(r1.x, r2.x) - std::min(r1.x + r1.width, r2.x + r2.width));
-        // compute distance on y axis
-        const int y_distance = std::max(0, std::max(r1.y, r2.y) - std::min(r1.y + r1.height, r2.y + r2.height));
-
-        return (x_distance * x_distance) + (y_distance * y_distance);
     }
 }
