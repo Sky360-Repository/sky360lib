@@ -4,15 +4,15 @@
 #include <fstream>
 #include <iomanip>
 
-#include "qhy_camera.hpp"
-#include "utils.hpp"
-#include "autoExposureControl.hpp"
-#include "autoWhiteBalance.hpp"
-#include "profiler.hpp"
-#include "textWriter.hpp"
-#include "bgs.hpp"
-#include "ringbuf.h"
-#include "roi_mask_calculator.hpp"
+#include "../../../api/camera/qhy_camera.hpp"
+#include "../../../api/utils/utils.hpp"
+#include "../../../api/utils/autoExposureControl.hpp"
+#include "../../../api/utils/autoWhiteBalance.hpp"
+#include "../../../api/utils/profiler.hpp"
+#include "../../../api/utils/textWriter.hpp"
+#include "../../../api/bgs/bgs.hpp"
+#include "../../../api/utils/ringbuf.h"
+#include "../../../api/utils/roi_mask_calculator.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>

@@ -8,8 +8,8 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
-#include "bgs.hpp"
-#include "connectedBlobDetection.hpp"
+#include "./../../api/bgs/bgs.hpp"
+#include "./../../api/blobs/connectedBlobDetection.hpp"
 
 #include "demoUtils.hpp"
 #include "demoVideoTracker.hpp"

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "CoreBgs.hpp"
-#include "CoreParameters.hpp"
+#include "../CoreBgs.hpp"
+#include "../CoreParameters.hpp"
 #include "WeightedMovingVarianceUtils.hpp"
 
 #include <opencv2/opencv.hpp>

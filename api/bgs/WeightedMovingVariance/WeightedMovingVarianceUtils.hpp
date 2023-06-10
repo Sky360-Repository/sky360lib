@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CoreParameters.hpp"
+#include "../CoreParameters.hpp"
 
 namespace sky360lib::bgs
 {

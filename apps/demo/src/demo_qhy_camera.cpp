@@ -3,16 +3,15 @@
 #include <algorithm>
 #include <thread>
 
-#include "qhy_camera.hpp"
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
-#include "profiler.hpp"
-#include "bgs.hpp"
-#include "connectedBlobDetection.hpp"
+#include "../../../api/camera/qhy_camera.hpp"
+#include "../../../api/utils/profiler.hpp"
+#include "../../../api/bgs/bgs.hpp"
+#include "../../../api/blobs/connectedBlobDetection.hpp"
 
 /////////////////////////////////////////////////////////////
 // Default parameters

@@ -17,7 +17,7 @@ target_link_libraries(
     sky360lib_demo
         PUBLIC
             "${OpenCV_LIBS}"
-            sky360lib_api
+            sky360lib
 )
 
 set_target_properties(
@@ -56,7 +56,7 @@ target_link_libraries(
     sky360lib_demo_qhy_camera
         PUBLIC
             "${OpenCV_LIBS}"
-            sky360lib_api
+            sky360lib
 )
 
 set_target_properties(
@@ -95,7 +95,7 @@ target_link_libraries(
     sky360lib_qhy_camera_loop
         PUBLIC
             "${OpenCV_LIBS}"
-            sky360lib_api
+            sky360lib
 )
 
 set_target_properties(
