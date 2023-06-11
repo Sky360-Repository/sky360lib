@@ -9,11 +9,11 @@
 
 #include "ndarray_converter.h"
 
-#include "bgs.hpp"
-#include "connectedBlobDetection.hpp"
-#include "qhy_camera.hpp"
-#include "autoExposure.hpp"
-#include "autoWhiteBalance.hpp"
+#include "../../api/blobs/connectedBlobDetection.hpp"
+#include "../../api/bgs/bgs.hpp"
+#include "../../api//camera/qhy_camera.hpp"
+#include "../../api/utils/autoExposure.hpp"
+#include "../../api/utils/autoWhiteBalance.hpp"
 
 
 namespace py = pybind11;

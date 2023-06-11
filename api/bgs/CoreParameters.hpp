@@ -1,6 +1,6 @@
 #pragma once
 
-#include <CoreBgs.hpp>
+#include "CoreBgs.hpp"
 
 #include <map>
 #include <string>

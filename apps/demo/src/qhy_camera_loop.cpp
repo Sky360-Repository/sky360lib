@@ -5,15 +5,15 @@
 #include <fstream>
 #include <iomanip>
 
-#include "qhy_camera.hpp"
-#include "utils.hpp"
-#include "autoExposure.hpp"
-#include "autoWhiteBalance.hpp"
-#include "profiler.hpp"
-#include "textWriter.hpp"
-#include "bgs.hpp"
-#include "ringbuf.h"
-#include "roi_mask_calculator.hpp"
+#include "../../../api/camera/qhy_camera.hpp"
+#include "../../../api/utils/utils.hpp"
+#include "../../../api/utils/autoExposure.hpp"
+#include "../../../api/utils/autoWhiteBalance.hpp"
+#include "../../../api/utils/profiler.hpp"
+#include "../../../api/utils/textWriter.hpp"
+#include "../../../api/bgs/bgs.hpp"
+#include "../../../api/utils/ringbuf.h"
+#include "../../../api/utils/roi_mask_calculator.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -46,9 +46,6 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
-bool testWhiteBalance = false;
-bool saveImage = false;
-bool saveNextFrame = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -143,44 +140,6 @@ int main(int argc, const char **argv)
                 sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
-            if(saveImage)
-            {
-                if (saveNextFrame) {
-                    saveNextFrame = false;
-                }
-                else{
-                
-                    // Get the current date and time
-                    std::time_t currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-                    std::tm* localTime = std::localtime(&currentTime);
-                    
-                    // Create the filename using the date and time
-                    std::stringstream filenameStream;
-                    filenameStream << "images/frame_" << std::put_time(localTime, "%Y%m%d_%H%M%S") << ".png";
-                    std::string filename = filenameStream.str();
-
-                    cv::Size newSize(frameDebayered.cols / 4, frameDebayered.rows / 4);
-                    cv::Mat resizedImage;
-                    cv::resize(frameDebayered, resizedImage, newSize);
-                    cv::imwrite(filename, resizedImage);
-                    saveImage = false;
-                }
-            }
-            if(testWhiteBalance)
-            {
-
-                auto newGains = autoWhiteBalanceControl.illumination_estimation(frameDebayered, 1, 50);
-                // Set the white balance for each color channel in the camera
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, newGains.red);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, newGains.green);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, newGains.blue);
-
-                // Set the position of trackbars corresponding to each color channel's white balance
-                cv::setTrackbarPos("Red WB:", "", (int)newGains.red);
-                cv::setTrackbarPos("Green WB:", "", (int)newGains.green);
-                cv::setTrackbarPos("Blue WB:", "", (int)newGains.blue);
-                testWhiteBalance = false;
-            }
             if (doAutoWhiteBalance)
             {
                 if(autoExposureControl.is_day())
@@ -203,9 +162,6 @@ int main(int argc, const char **argv)
 
                         // Update the previous gains with the new gains
                         previousGains = newGains;
-
-                        saveImage = true;
-                        saveNextFrame = true;
                     }
                 }
                 else
@@ -435,7 +391,6 @@ void createControlPanel()
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Log data", generalCallback, (void *)(long)'l', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Test WB", generalCallback, (void *)(long)'t', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
 
@@ -571,9 +526,6 @@ void treatKeyboardpress(int key)
     case 'w':
         doAutoWhiteBalance = !doAutoWhiteBalance;
         updateDisplayOverlay = true;
-        break;
-    case 't':
-        testWhiteBalance = true;
         break;
     }
 }

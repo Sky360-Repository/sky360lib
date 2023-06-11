@@ -44,6 +44,31 @@ std::vector<cv::Rect> ConnectedBlobDetection::detect_ret(const cv::Mat &_image)
     return bboxes;
 }
 
+inline bool rects_overlap(const cv::Rect& r1, const cv::Rect& r2)
+{
+    if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
+        (r1.x > (r2.x + r2.width) || r2.x > (r1.x + r1.width)) ||
+        (r1.y > (r2.y + r2.height) || r2.y > (r1.y + r1.height)))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+inline float rects_distance_squared(const cv::Rect& r1, const cv::Rect& r2)
+{
+    if (rects_overlap(r1, r2))
+        return 0;
+
+    // compute distance on x axis
+    const int x_distance = std::max(0, std::max(r1.x, r2.x) - std::min(r1.x + r1.width, r2.x + r2.width));
+    // compute distance on y axis
+    const int y_distance = std::max(0, std::max(r1.y, r2.y) - std::min(r1.y + r1.height, r2.y + r2.height));
+
+    return (x_distance * x_distance) + (y_distance * y_distance);
+}
+
 // Joining bboxes together if they overlap
 static inline void joinBBoxes(std::vector<cv::Rect> &_bboxes, int minDistanceSquared)
 {
@@ -55,7 +80,7 @@ static inline void joinBBoxes(std::vector<cv::Rect> &_bboxes, int minDistanceSqu
         {
             for (size_t j{i + 1}; j < _bboxes.size();)
             {
-                if (sky360lib::rects_distance_squared(_bboxes[i], _bboxes[j]) < minDistanceSquared)
+                if (rects_distance_squared(_bboxes[i], _bboxes[j]) < minDistanceSquared)
                 {
                     bboxOverlap = true;
                     const int xmax = std::max(_bboxes[i].x + _bboxes[i].width, _bboxes[j].x + _bboxes[j].width);

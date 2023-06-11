@@ -123,7 +123,7 @@ if (SKY360_PYTHON_SUPPORT)
     include_directories(${NUMPY_INCLUDE_DIR})
 
     pybind11_add_module(sky360_python ${sky360_python_src} ${sky360_python_inc})
-    target_link_libraries(sky360_python PRIVATE sky360lib_api ${OpenCV_LIBS} ${PYTHON_LIBRARY} pybind11::module)
+    target_link_libraries(sky360_python PRIVATE sky360lib ${OpenCV_LIBS} ${PYTHON_LIBRARY} pybind11::module)
     set_target_properties(sky360_python PROPERTIES SUFFIX "${PYTHON_MODULE_EXTENSION}")
     target_compile_definitions(sky360_python PRIVATE SKY360_PYTHON_SUPPORT=1)
     set_property(TARGET sky360_python PROPERTY OUTPUT_NAME "pysky360")

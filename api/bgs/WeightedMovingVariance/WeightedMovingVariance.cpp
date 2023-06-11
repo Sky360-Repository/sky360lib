@@ -4,6 +4,8 @@
 #include <execution>
 #include <iostream>
 
+static const uint8_t ZERO_UC{0};
+
 using namespace sky360lib::bgs;
 
 WeightedMovingVariance::WeightedMovingVariance(WMVParams _params,

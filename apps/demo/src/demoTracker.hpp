@@ -2,7 +2,7 @@
 
 #include <opencv2/videoio.hpp>
 
-#include "tracker.hpp"
+#include "../../../api/tracking/tracker.hpp"
 #include "demoUtils.hpp"
 
 using namespace sky360lib::tracking;

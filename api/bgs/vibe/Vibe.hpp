@@ -1,9 +1,9 @@
 #pragma once
 
-#include "CoreBgs.hpp"
-#include "CoreParameters.hpp"
+#include "../CoreBgs.hpp"
+#include "../CoreParameters.hpp"
 #include "VibeUtils.hpp"
-#include "pcg32.hpp"
+#include "../../include/pcg32.hpp"
 
 namespace sky360lib::bgs
 {
