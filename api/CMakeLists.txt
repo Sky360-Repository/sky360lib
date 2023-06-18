@@ -87,3 +87,14 @@ install(FILES
 export(EXPORT sky360libTargets
     FILE "${CMAKE_CURRENT_BINARY_DIR}/sky360libTargets.cmake"
 )
+
+# find the Boost libraries
+find_package(Boost REQUIRED COMPONENTS iostreams)
+
+# specify that the library needs to be linked with the Boost libraries
+target_link_libraries(sky360lib
+                    PRIVATE
+                        "${OpenCV_LIBS}"
+                        qhyccd
+                        Boost::iostreams  # Link the Boost IOStreams library
+                        )

@@ -8,6 +8,7 @@
 #include "../../../api/camera/qhy_camera.hpp"
 #include "../../../api/utils/utils.hpp"
 #include "../../../api/utils/autoExposure.hpp"
+#include "../../../api/utils/brightness.hpp"
 #include "../../../api/utils/autoWhiteBalance.hpp"
 #include "../../../api/utils/profiler.hpp"
 #include "../../../api/utils/textWriter.hpp"
@@ -18,6 +19,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+#include "gnuplot-iostream.h"
 
 enum BGSType
 {
@@ -36,8 +38,8 @@ bool isBoxSelected = false;
 cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
-bool doAutoExposure = false;
-bool doAutoWhiteBalance = false;
+bool doAutoExposure = true;
+bool doAutoWhiteBalance = true;
 bool squareResolution = false;
 bool updateDisplayOverlay = false;
 bool logData = false;
@@ -63,9 +65,16 @@ sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
-sky360lib::utils::AutoExposure autoExposureControl;
+// sky360lib::utils::AutoExposure autoExposureControl(0.25, 250, 0.2, 1000); 
+sky360lib::utils::AutoExposure autoExposureControl(0.25, 150, 0.01, 100);// Nice transition / steady / minimal over or under shoot
+sky360lib::utils::BrightnessEstimator brightnessEstimator(60, 60);
 sky360lib::utils::AutoWhiteBalance autoWhiteBalanceControl;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
+
+Gnuplot gp;
+std::vector<double> setPointData;
+std::vector<double> outputData;
+std::vector<double> errorData;
 
 
 /////////////////////////////////////////////////////////////
@@ -142,8 +151,6 @@ int main(int argc, const char **argv)
             }
             if (doAutoWhiteBalance)
             {
-                if(autoExposureControl.is_day())
-                {
                     auto newGains = autoWhiteBalanceControl.illumination_estimation(frameDebayered, 1, 50);
                     // Compare new gains with previous gains
                     if (newGains.red != previousGains.red ||
@@ -162,7 +169,6 @@ int main(int argc, const char **argv)
 
                         // Update the previous gains with the new gains
                         previousGains = newGains;
-                    }
                 }
                 else
                 {
@@ -185,20 +191,29 @@ int main(int argc, const char **argv)
             if (doAutoExposure)
             {
                 profiler.start("AutoExposure");
-                const double gain = (double)qhyCamera.get_camera_params().gain;
-                
-                autoExposureControl.process(frame);
-                auto ae_params = autoExposureControl.getParams();
-                
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, ae_params.exposure);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, ae_params.gain);                    
+                double oldGain = (double)qhyCamera.get_camera_params().gain;
+                double exposure = (double)qhyCamera.get_camera_params().exposure;
+                double msv = brightnessEstimator.estimateCurrentBrightness(frame);
+                double gain = oldGain;
 
-                if (ae_params.gain != gain) 
+                autoExposureControl.update(msv, exposure, gain);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, exposure);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, (int)gain);                    
+
+                if (oldGain != gain) 
                 {
-                    cv::setTrackbarPos("Gain:", "", (int)ae_params.gain);
+                    cv::setTrackbarPos("Gain:", "", (int)gain);
                 }
                 profiler.stop("AutoExposure");
-            }        
+            }   
+
+            // GNU Plot
+            setPointData.push_back(autoExposureControl.get_target_msv());
+            outputData.push_back(autoExposureControl.get_current_msv());
+            gp << "plot '-' with lines title 'Set Point', '-' with lines title 'Output'\n";
+            gp.send1d(setPointData);
+            gp.send1d(outputData);
+
 
             if (isBoxSelected)
             {
@@ -227,8 +242,8 @@ int main(int argc, const char **argv)
                     entropy = sky360lib::utils::Utils::estimate_entropy(frame);
 
                     log_changes("log_camera_params.txt", 
-                        autoExposureControl.get_current_msv(), 
-                        autoExposureControl.get_target_msv(), 
+                        0, 
+                        0, 
                         qhyCamera.get_camera_params().exposure,
                         qhyCamera.get_camera_params().gain, 
                         noise_level, entropy, sharpness, 
@@ -278,7 +293,7 @@ int main(int argc, const char **argv)
             features_enabled += doEqualization ? "Equalization: On | " : "";
             features_enabled += logData ? "Logging: On | " : "";
             features_enabled += qhyCamera.get_camera_params().cool_enabled ? "Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C " : "";
-            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " |" : "";
+            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (true ? "Day" : "Night") + " |" : "";
             features_enabled = !features_enabled.empty() ? features_enabled : "No features activated";
             if (updateDisplayOverlay)
             {
