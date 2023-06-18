@@ -39,7 +39,7 @@ cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = true;
-bool doAutoWhiteBalance = true;
+bool doAutoWhiteBalance = false;
 bool squareResolution = false;
 bool updateDisplayOverlay = false;
 bool logData = false;
@@ -65,9 +65,10 @@ sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
-// sky360lib::utils::AutoExposure autoExposureControl(0.25, 250, 0.2, 1000); 
-sky360lib::utils::AutoExposure autoExposureControl(0.25, 150, 0.01, 100);// Nice transition / steady / minimal over or under shoot
-sky360lib::utils::BrightnessEstimator brightnessEstimator(60, 60);
+// sky360lib::utils::AutoExposure autoExposureControl(0.25, 250, 0.2, 1000); // Bad
+// sky360lib::utils::AutoExposure autoExposureControl(0.25, 150, 0.01, 100); // Nice transition / steady / minimal over or under shoot
+sky360lib::utils::AutoExposure autoExposureControl(0.25, 220, 0.01, 100); 
+sky360lib::utils::BrightnessEstimator brightnessEstimator(75, 75);
 sky360lib::utils::AutoWhiteBalance autoWhiteBalanceControl;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -207,9 +208,18 @@ int main(int argc, const char **argv)
                 profiler.stop("AutoExposure");
             }   
 
+            int windowSize = 1000; 
+
             // GNU Plot
             setPointData.push_back(autoExposureControl.get_target_msv());
             outputData.push_back(autoExposureControl.get_current_msv());
+
+            if(setPointData.size() > windowSize) {
+                setPointData.erase(setPointData.begin());
+                outputData.erase(outputData.begin());
+            }
+
+            gp << "set yrange [0:1]\n"; 
             gp << "plot '-' with lines title 'Set Point', '-' with lines title 'Output'\n";
             gp.send1d(setPointData);
             gp.send1d(outputData);
@@ -242,8 +252,8 @@ int main(int argc, const char **argv)
                     entropy = sky360lib::utils::Utils::estimate_entropy(frame);
 
                     log_changes("log_camera_params.txt", 
-                        0, 
-                        0, 
+                        autoExposureControl.get_current_msv(), 
+                        autoExposureControl.get_target_msv(), 
                         qhyCamera.get_camera_params().exposure,
                         qhyCamera.get_camera_params().gain, 
                         noise_level, entropy, sharpness, 
@@ -293,7 +303,7 @@ int main(int argc, const char **argv)
             features_enabled += doEqualization ? "Equalization: On | " : "";
             features_enabled += logData ? "Logging: On | " : "";
             features_enabled += qhyCamera.get_camera_params().cool_enabled ? "Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C " : "";
-            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (true ? "Day" : "Night") + " |" : "";
+            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " |" : "";
             features_enabled = !features_enabled.empty() ? features_enabled : "No features activated";
             if (updateDisplayOverlay)
             {
