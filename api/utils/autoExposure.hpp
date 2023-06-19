@@ -12,7 +12,9 @@ namespace sky360lib::utils
     public:
         AutoExposure(double targetBrightness, double kp, double ki, double kd)
             : m_target_msv(targetBrightness),
-            m_max_exposure(50000),
+            m_min_target_msv(0.05),
+            m_max_target_msv(0.25),
+            m_max_exposure(60000),
             m_max_gain(25),
             m_min_gain(0),
             m_is_night(false),
@@ -39,7 +41,7 @@ namespace sky360lib::utils
             double error = m_pid_controller.getError();
             double signOfPidOutput = std::signbit(pidOutput) ? -1.0 : 1.0;
 
-            if (std::abs(error) > 0.04)
+            if (std::abs(error) > 0.01)
             {
                 if (error > 0) // Light is decreasing
                 {
@@ -47,16 +49,26 @@ namespace sky360lib::utils
                     {
                         exposure = std::clamp(exposure += pidOutput, m_min_exposure, m_max_exposure);
                     }
+                    else if(m_target_msv > m_min_target_msv)
+                    {
+                        m_target_msv = std::clamp(m_target_msv -= 0.001, m_min_target_msv, m_max_target_msv);
+                        m_pid_controller.setTarget(m_target_msv);
+                    }
                     else
                     {
-                        gain = std::clamp(gain + signOfPidOutput, m_min_gain, m_max_gain);
+                        gain = std::clamp(gain += 1, m_min_gain, m_max_gain);
                     }
                 }
                 else // Light is increasing
                 {
                     if (gain > m_min_gain)
                     {
-                        gain = std::clamp(gain + signOfPidOutput, m_min_gain, m_max_gain);
+                        gain = std::clamp(gain -= 1, m_min_gain, m_max_gain);
+                    }
+                    else if(m_target_msv < m_max_target_msv)
+                    {
+                        m_target_msv = std::clamp(m_target_msv += 0.001, m_min_target_msv, m_max_target_msv);
+                        m_pid_controller.setTarget(m_target_msv);
                     }
                     else
                     {
@@ -70,6 +82,8 @@ namespace sky360lib::utils
 
     private:
         double m_target_msv;
+        double m_min_target_msv;
+        double m_max_target_msv;
         double m_max_exposure;
         double m_min_exposure;
         double m_max_gain;

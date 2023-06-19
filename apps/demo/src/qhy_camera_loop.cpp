@@ -67,7 +67,7 @@ sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
 // sky360lib::utils::AutoExposure autoExposureControl(0.25, 250, 0.2, 1000); // Bad
 // sky360lib::utils::AutoExposure autoExposureControl(0.25, 150, 0.01, 100); // Nice transition / steady / minimal over or under shoot
-sky360lib::utils::AutoExposure autoExposureControl(0.25, 220, 0.01, 100); 
+sky360lib::utils::AutoExposure autoExposureControl(0.25, 180, 0.01, 100); 
 sky360lib::utils::BrightnessEstimator brightnessEstimator(75, 75);
 sky360lib::utils::AutoWhiteBalance autoWhiteBalanceControl;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
@@ -150,43 +150,49 @@ int main(int argc, const char **argv)
                 sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
-            if (doAutoWhiteBalance)
+
+            if(autoExposureControl.is_day())
             {
-                    auto newGains = autoWhiteBalanceControl.illumination_estimation(frameDebayered, 1, 50);
-                    // Compare new gains with previous gains
-                    if (newGains.red != previousGains.red ||
-                        newGains.green != previousGains.green ||
-                        newGains.blue != previousGains.blue)
-                    {
-                        // Set the white balance for each color channel in the camera
-                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, newGains.red);
-                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, newGains.green);
-                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, newGains.blue);
-
-                        // Set the position of trackbars corresponding to each color channel's white balance
-                        cv::setTrackbarPos("Red WB:", "", (int)newGains.red);
-                        cv::setTrackbarPos("Green WB:", "", (int)newGains.green);
-                        cv::setTrackbarPos("Blue WB:", "", (int)newGains.blue);
-
-                        // Update the previous gains with the new gains
-                        previousGains = newGains;
-                }
-                else
+                if (doAutoWhiteBalance)
                 {
-                    auto defaultSet = autoWhiteBalanceControl.getDefaultWhiteBalance();
+                        auto newGains = autoWhiteBalanceControl.illumination_estimation(frameDebayered, 1, 50);
 
-                    // Set the white balance for each color channel in the camera
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, defaultSet.red);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, defaultSet.green);
-                    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, defaultSet.blue);
+                        // Compare new gains with previous gains
+                        if (newGains.red != previousGains.red ||
+                            newGains.green != previousGains.green ||
+                            newGains.blue != previousGains.blue)
+                        {
+                            // Set the white balance for each color channel in the camera
+                            qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, newGains.red);
+                            qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, newGains.green);
+                            qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, newGains.blue);
 
-                    // Set the position of trackbars corresponding to each color channel's white balance
-                    cv::setTrackbarPos("Red WB:", "", (int)defaultSet.red);
-                    cv::setTrackbarPos("Green WB:", "", (int)defaultSet.green);
-                    cv::setTrackbarPos("Blue WB:", "", (int)defaultSet.blue);
+                            // Set the position of trackbars corresponding to each color channel's white balance
+                            cv::setTrackbarPos("Red WB:", "", (int)newGains.red);
+                            cv::setTrackbarPos("Green WB:", "", (int)newGains.green);
+                            cv::setTrackbarPos("Blue WB:", "", (int)newGains.blue);
 
-                    previousGains = defaultSet;
+                            // Update the previous gains with the new gains
+                            previousGains = newGains;
+                    }
+
                 }
+            }
+            else
+            {
+                auto defaultSet = autoWhiteBalanceControl.getDefaultWhiteBalance();
+
+                // Set the white balance for each color channel in the camera
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, defaultSet.red);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, defaultSet.green);
+                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, defaultSet.blue);
+
+                // Set the position of trackbars corresponding to each color channel's white balance
+                cv::setTrackbarPos("Red WB:", "", (int)defaultSet.red);
+                cv::setTrackbarPos("Green WB:", "", (int)defaultSet.green);
+                cv::setTrackbarPos("Blue WB:", "", (int)defaultSet.blue);
+
+                previousGains = defaultSet;
             }
 
             if (doAutoExposure)
@@ -219,7 +225,7 @@ int main(int argc, const char **argv)
                 outputData.erase(outputData.begin());
             }
 
-            gp << "set yrange [0:1]\n"; 
+            gp << "set yrange [0:0.8]\n"; 
             gp << "plot '-' with lines title 'Set Point', '-' with lines title 'Output'\n";
             gp.send1d(setPointData);
             gp.send1d(outputData);
