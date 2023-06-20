@@ -13,6 +13,7 @@
 #include "../../../api/bgs/bgs.hpp"
 #include "../../../api/utils/ringbuf.h"
 #include "../../../api/utils/roi_mask_calculator.hpp"
+#include "../../../api/utils/bin_image.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -45,6 +46,7 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
+bool doBin = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -66,8 +68,9 @@ sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
 sky360lib::utils::AutoExposureControl autoExposureControl;
 sky360lib::utils::AutoWhiteBalance auto_white_balance(50000.0);
-std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
+sky360lib::utils::BinImage bin_image;
 
+std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -135,7 +138,14 @@ int main(int argc, const char **argv)
             profiler.stop("GetImage");
             frameSize = frame.size();
             profiler.start("Debayer");
-            qhyCamera.debayer_image(frame, frameDebayered);
+            if (doBin)
+            {
+                cv::Mat binned_image;
+                bin_image.apply_bin_2x2(frame, binned_image);
+                frameDebayered = binned_image;
+            }
+            else
+                qhyCamera.debayer_image(frame, frameDebayered);
             profiler.stop("Debayer");
             if (doEqualization)
             {
@@ -516,9 +526,14 @@ void treatKeyboardpress(int key)
         }
         break;
     case 'm':
-        auto current_bin = qhyCamera.get_camera_params().bin_mode;
-        auto new_bin = current_bin == sky360lib::camera::QhyCamera::Bin1x1 ? sky360lib::camera::QhyCamera::Bin2x2 : sky360lib::camera::QhyCamera::Bin1x1;
-        qhyCamera.set_bin_mode(new_bin);
+        {
+            auto current_bin = qhyCamera.get_camera_params().bin_mode;
+            auto new_bin = current_bin == sky360lib::camera::QhyCamera::Bin1x1 ? sky360lib::camera::QhyCamera::Bin2x2 : sky360lib::camera::QhyCamera::Bin1x1;
+            qhyCamera.set_bin_mode(new_bin);
+        }
+        break;
+    case 'n':
+        doBin = !doBin;
         break;
     }
 }
