@@ -105,7 +105,7 @@ int main(int argc, const char **argv)
     std::cout << qhyCamera.get_camera_info()->to_string() << std::endl;
     qhyCamera.set_debug_info(false);
 
-    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 20000));
+    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 2000));
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 5.0);
 
     int frame_counter = 0;
@@ -241,7 +241,8 @@ int main(int argc, const char **argv)
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             textWriter.write_text(displayFrame, "Exp: " + sky360lib::utils::Utils::format_double((double)qhyCamera.get_camera_params().exposure / 1000.0, 2) + " ms Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
-            textWriter.write_text(displayFrame, std::to_string(qhyCamera.get_camera_params().roi.width) + "x" + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
+            textWriter.write_text(displayFrame, 
+                std::to_string(qhyCamera.get_camera_params().roi.width) + "x" + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits " + std::to_string(qhyCamera.get_camera_params().bin_mode) + "x" + std::to_string(qhyCamera.get_camera_params().bin_mode) + ")", 2);
             textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
             textWriter.write_text(displayFrame, get_running_time(starting_time), 36, true);
@@ -513,6 +514,11 @@ void treatKeyboardpress(int key)
             std::cout << "Saving screenshot to: " << filename << std::endl;
             cv::imwrite(filename, displayFrame, {cv::IMWRITE_PNG_COMPRESSION, 9});
         }
+        break;
+    case 'm':
+        auto current_bin = qhyCamera.get_camera_params().bin_mode;
+        auto new_bin = current_bin == sky360lib::camera::QhyCamera::Bin1x1 ? sky360lib::camera::QhyCamera::Bin2x2 : sky360lib::camera::QhyCamera::Bin1x1;
+        qhyCamera.set_bin_mode(new_bin);
         break;
     }
 }

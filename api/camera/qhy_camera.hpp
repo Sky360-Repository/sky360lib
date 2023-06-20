@@ -23,6 +23,15 @@ namespace sky360lib::camera
             SingleFrame = 0,
             LiveFrame = 1
         };
+        enum BayerFormat
+        {
+            BayerGB = 1,
+            BayerGR,
+            BayerBG,
+            BayerRG,
+            Mono,
+            Color
+        };
 
         struct ParamLimits
         {
@@ -64,7 +73,7 @@ namespace sky360lib::camera
 
             ChipInfo chip;
 
-            uint32_t bayer_format;
+            BayerFormat bayer_format;
             bool is_color;
 
             bool is_cool;
@@ -114,6 +123,8 @@ namespace sky360lib::camera
             bool cool_enabled;
 
             uint32_t bpp;
+
+            BayerFormat bayer_format;
         };
 
         enum ControlParam
