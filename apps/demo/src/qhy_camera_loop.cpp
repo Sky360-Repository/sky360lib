@@ -35,7 +35,7 @@ bool isBoxSelected = false;
 cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
-bool doAutoExposure = false;
+bool doAutoExposure = true;
 bool doAutoWhiteBalance = false;
 bool squareResolution = false;
 bool updateDisplayOverlay = false;
@@ -56,6 +56,8 @@ double circleRadius{0.0f};
 double cameraCircleMaxFov{0.0};
 baudvine::RingBuf<double, 200> noise_buffer;
 baudvine::RingBuf<double, 200> sharpness_buffer;
+cv::Mat displayFrame;
+std::string home_directory;
 
 cv::VideoWriter videoWriter;
 sky360lib::utils::DataMap profileData;
@@ -85,6 +87,7 @@ void log_changes(const std::string& log_file_name, double msv, double targetMSV,
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 std::string get_running_time(std::chrono::system_clock::time_point input_time);
+std::string generate_filename();
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -92,6 +95,8 @@ int main(int argc, const char **argv)
 {
     // Get the current time
     auto starting_time = std::chrono::system_clock::now();
+
+    home_directory = getenv("HOME");
 
     if (!openQQYCamera())
     {
@@ -217,7 +222,6 @@ int main(int argc, const char **argv)
             }
 
             profiler.start("Display Frame");
-            cv::Mat displayFrame;
             if (bgsType != NoBGS)
             {
                 bgsPtr->apply(frame, displayFrame);
@@ -363,6 +367,7 @@ void createControlPanel()
     cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Screenshot", generalCallback, (void *)(long)'i', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Log data", generalCallback, (void *)(long)'l', cv::QT_PUSH_BUTTON, 1);
@@ -501,6 +506,13 @@ void treatKeyboardpress(int key)
     case 'w':
         doAutoWhiteBalance = !doAutoWhiteBalance;
         updateDisplayOverlay = true;
+        break;
+    case 'i':
+        {
+            std::string filename = home_directory + "/ss_" + generate_filename() + ".png";
+            std::cout << "Saving screenshot to: " << filename << std::endl;
+            cv::imwrite(filename, displayFrame, {cv::IMWRITE_PNG_COMPRESSION, 9});
+        }
         break;
     }
 }
@@ -751,14 +763,19 @@ bool openQQYCamera()
     return true;
 }
 
-bool openVideo(const cv::Size &size, double meanFps)
+std::string generate_filename()
 {
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
 
     std::ostringstream oss;
     oss << std::put_time(&tm, "%Y%m%d%H%M%S");
-    auto name = "vo" + oss.str() + ".mkv";
+    return oss.str();
+}
+
+bool openVideo(const cv::Size &size, double meanFps)
+{
+    auto name = home_directory + "/vo" + generate_filename() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
     return videoWriter.open(name, codec, meanFps, size, true);
 }
