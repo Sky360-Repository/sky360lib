@@ -51,7 +51,7 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
-bool doBin = false;
+bool doSoftwareBin = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -122,8 +122,8 @@ int main(int argc, const char **argv)
     std::cout << qhyCamera.get_camera_info()->to_string() << std::endl;
     qhyCamera.set_debug_info(false);
 
-    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 2000));
-    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 5.0);
+    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 10000));
+    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 0.0);
 
     int frame_counter = 0;
     const int log_interval = 10;
@@ -153,14 +153,17 @@ int main(int argc, const char **argv)
             profiler.stop("GetImage");
             frameSize = frame.size();
             profiler.start("Debayer");
-            if (doBin)
+            if (doSoftwareBin)
             {
                 cv::Mat binned_image;
                 bin_image.apply_bin_2x2(frame, binned_image);
                 frameDebayered = binned_image;
+                frame = binned_image;
             }
             else
+            {
                 qhyCamera.debayer_image(frame, frameDebayered);
+            }
             profiler.stop("Debayer");
             if (doEqualization)
             {
@@ -267,10 +270,10 @@ int main(int argc, const char **argv)
                 sharpness_buffer.push_back(sharpness);
                 profiler.stop("Metrics");
 
-                auto sharpness_graph = sky360lib::utils::Utils::draw_graph("Sharpness", sharpness_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 255.0, 255.0, 0.0), cv::Scalar(0.0, 25.0, 25.0, 0.0));
-                auto noise_graph = sky360lib::utils::Utils::draw_graph("Noise", noise_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 165.0, 255.0, 0.0), cv::Scalar(0.0, 5.0, 25.0, 0.0));
+                auto sharpness_graph = sky360lib::utils::Utils::draw_graph("Sharpness", sharpness_buffer, cv::Size(200, 100), cropFrame.type(), cv::Scalar(0.0, 255.0, 255.0, 0.0), cv::Scalar(0.0, 25.0, 25.0, 0.0));
+                auto noise_graph = sky360lib::utils::Utils::draw_graph("Noise", noise_buffer, cv::Size(200, 100), cropFrame.type(), cv::Scalar(0.0, 165.0, 255.0, 0.0), cv::Scalar(0.0, 5.0, 25.0, 0.0));
                 sky360lib::utils::Utils::overlay_image(cropFrame, sharpness_graph, cv::Point(0, cropFrame.size().height - sharpness_graph.size().height), 0.7);
-                sky360lib::utils::Utils::overlay_image(cropFrame, noise_graph, cv::Point(cropFrame.size().width - sharpness_graph.size().width, cropFrame.size().height - sharpness_graph.size().height), 0.7);
+                sky360lib::utils::Utils::overlay_image(cropFrame, noise_graph, cv::Point(cropFrame.size().width - noise_graph.size().width, cropFrame.size().height - noise_graph.size().height), 0.7);
 
                 cv::imshow("Window Cut", cropFrame);
             }
@@ -313,9 +316,10 @@ int main(int argc, const char **argv)
             {
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
+            int bin_mode = doSoftwareBin ? 2 : qhyCamera.get_camera_params().bin_mode;
             textWriter.write_text(displayFrame, "Exp: " + sky360lib::utils::Utils::format_double((double)qhyCamera.get_camera_params().exposure / 1000.0, 2) + " ms Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
             textWriter.write_text(displayFrame, 
-                std::to_string(qhyCamera.get_camera_params().roi.width) + "x" + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits " + std::to_string(qhyCamera.get_camera_params().bin_mode) + "x" + std::to_string(qhyCamera.get_camera_params().bin_mode) + ")", 2);
+                std::to_string(frame.size().width) + "x" + std::to_string(frame.size().height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits " + std::to_string(bin_mode) + "x" + std::to_string(bin_mode) + ")", 2);
             textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
             textWriter.write_text(displayFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy, 2), 3, true);
@@ -587,18 +591,28 @@ void treatKeyboardpress(int key)
         {
             std::string filename = home_directory + "/ss_" + generate_filename() + ".png";
             std::cout << "Saving screenshot to: " << filename << std::endl;
-            cv::imwrite(filename, displayFrame, {cv::IMWRITE_PNG_COMPRESSION, 9});
+            cv::imwrite(filename, displayFrame, {cv::IMWRITE_PNG_COMPRESSION, 5});
         }
         break;
     case 'm':
         {
+            if (isBoxSelected)
+            {
+                isBoxSelected = false;
+                cv::destroyWindow("Window Cut");
+            }
             auto current_bin = qhyCamera.get_camera_params().bin_mode;
             auto new_bin = current_bin == sky360lib::camera::QhyCamera::Bin1x1 ? sky360lib::camera::QhyCamera::Bin2x2 : sky360lib::camera::QhyCamera::Bin1x1;
             qhyCamera.set_bin_mode(new_bin);
         }
         break;
     case 'n':
-        doBin = !doBin;
+        if (isBoxSelected)
+        {
+            isBoxSelected = false;
+            cv::destroyWindow("Window Cut");
+        }
+        doSoftwareBin = !doSoftwareBin;
         break;
     }
 }
