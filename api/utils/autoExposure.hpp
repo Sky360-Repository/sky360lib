@@ -17,6 +17,7 @@ namespace sky360lib::utils
             m_max_exposure(60000),
             m_max_gain(25),
             m_min_gain(0),
+            m_gain_accumulator(0.0),
             m_is_night(false),
             m_pid_controller(kp, ki, kd, [this] { return m_current_msv; }, [](double){})
         {
@@ -39,45 +40,63 @@ namespace sky360lib::utils
             m_pid_controller.tick();
             double pidOutput = m_pid_controller.getOutput();
             double error = m_pid_controller.getError();
-            double signOfPidOutput = std::signbit(pidOutput) ? -1.0 : 1.0;
 
-            if (std::abs(error) > 0.01)
+            std::cout << "pidOutput: " << pidOutput << ", error: " << error <<std::endl;
+
+            double widerErrorMargin = 0.04;
+            double initialErrorMargin = 0.001;
+            double currentErrorMargin = (std::abs(error) <= initialErrorMargin) ? widerErrorMargin : initialErrorMargin;
+            double gain_weight = 0.23; 
+
+            if (std::abs(error) > currentErrorMargin)
             {
                 if (error > 0) // Light is decreasing
                 {
-                    if (exposure < m_max_exposure)
+                    if (exposure < m_max_exposure) // Adjust exposure first
                     {
                         exposure = std::clamp(exposure += pidOutput, m_min_exposure, m_max_exposure);
                     }
-                    else if(m_target_msv > m_min_target_msv)
+                    else if(m_target_msv > m_min_target_msv) // Then relax target
                     {
                         m_target_msv = std::clamp(m_target_msv -= 0.001, m_min_target_msv, m_max_target_msv);
                         m_pid_controller.setTarget(m_target_msv);
                     }
-                    else
+                    else // Finally adjust gain
                     {
-                        gain = std::clamp(gain += 1, m_min_gain, m_max_gain);
+                        m_gain_accumulator += gain_weight * error; 
+
+                        if (m_gain_accumulator >= 1.0) 
+                        {
+                            gain = std::clamp(gain + 1, m_min_gain, m_max_gain); 
+                            m_gain_accumulator -= 1.0; 
+                        }
                     }
                 }
                 else // Light is increasing
                 {
-                    if (gain > m_min_gain)
+                    if (gain > m_min_gain) // Reduce gain first
                     {
-                        gain = std::clamp(gain -= 1, m_min_gain, m_max_gain);
+                        m_gain_accumulator -= gain_weight * std::abs(error); 
+
+                        if (m_gain_accumulator <= -1.0) 
+                        {
+                            gain = std::clamp(gain - 1, m_min_gain, m_max_gain); 
+                            m_gain_accumulator += 1.0; 
+                        }
                     }
-                    else if(m_target_msv < m_max_target_msv)
+                    else if(m_target_msv < m_max_target_msv) // Increase target
                     {
                         m_target_msv = std::clamp(m_target_msv += 0.001, m_min_target_msv, m_max_target_msv);
                         m_pid_controller.setTarget(m_target_msv);
                     }
-                    else
+                    else // Finally decrease exposure
                     {
                         exposure = std::clamp(exposure += pidOutput, m_min_exposure, m_max_exposure);
                     }
                 }
             }
 
-            m_is_night = (exposure >= m_max_exposure) && (gain > m_min_gain);
+            m_is_night = (exposure >= m_max_exposure) /*&& (gain > m_min_gain)*/;
         }
 
     private:
@@ -89,9 +108,9 @@ namespace sky360lib::utils
         double m_max_gain;
         double m_min_gain;
         double m_current_msv;
+        double m_gain_accumulator;
         bool m_is_night;
         PIDController<double> m_pid_controller;
-        cv::RNG m_random;
     };
     
 }

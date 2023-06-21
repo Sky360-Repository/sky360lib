@@ -24,50 +24,40 @@ namespace sky360lib::utils
 
         // Estimates the global scene illumination using subsampling approach over m x n samples
         // https://ipg.fer.hr/_download/repository/Improving_the_White-patch_method_by_subsampling.pdf
-        WhiteBalanceValues illumination_estimation(cv::Mat& image, int n, int m)
+        WhiteBalanceValues illumination_estimation(cv::Mat& subSampled)
         {
             const double MAX_VALUE_8_BIT = 255.0;
             const double MAX_VALUE_16_BIT = 65535.0;
 
-            int rows = image.rows;
-            int cols = image.cols;
             cv::Scalar result(0.0, 0.0, 0.0);
 
-            if (image.depth() == CV_8U) 
+            if (subSampled.depth() == CV_8U)
             {
-                for (int i = 0; i < m; ++i)
+                for (int i = 0; i < subSampled.rows; ++i)
                 {
                     cv::Scalar max(0.0, 0.0, 0.0);
-                    for (int j = 0; j < n; ++j)
-                    {
-                        int row = random.uniform(0, rows);
-                        int col = random.uniform(0, cols);
-                        cv::Vec3b point = image.at<cv::Vec3b>(row, col); 
+                    cv::Vec3b point = subSampled.at<cv::Vec3b>(i);
 
-                        for (int k = 0; k < 3; ++k)
-                        {
-                            max[k] = std::max(static_cast<double>(max[k]), static_cast<double>(point[k]));
-                        }
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        max[k] = std::max(static_cast<double>(max[k]), static_cast<double>(point[k]));
                     }
+
                     result += max;
                 }
             }
-            else if (image.depth() == CV_16U) 
+            else if (subSampled.depth() == CV_16U)
             {
-                for (int i = 0; i < m; ++i)
+                for (int i = 0; i < subSampled.rows; ++i)
                 {
                     cv::Scalar max(0.0, 0.0, 0.0);
-                    for (int j = 0; j < n; ++j)
-                    {
-                        int row = random.uniform(0, rows);
-                        int col = random.uniform(0, cols);
-                        cv::Vec3w point = image.at<cv::Vec3w>(row, col);
+                    cv::Vec3w point = subSampled.at<cv::Vec3w>(i);
 
-                        for (int k = 0; k < 3; ++k)
-                        {
-                            max[k] = std::max(static_cast<double>(max[k]), static_cast<double>(point[k]));
-                        }
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        max[k] = std::max(static_cast<double>(max[k]), static_cast<double>(point[k]));
                     }
+
                     result += max;
                 }
             }
@@ -78,8 +68,8 @@ namespace sky360lib::utils
 
             cv::Scalar unit_vec(1.0, 1.0, 1.0);
             double error = cv::norm(result - unit_vec);
-            
-            double max_val = image.depth() == CV_8U ? MAX_VALUE_8_BIT : MAX_VALUE_16_BIT;
+
+            double max_val = subSampled.depth() == CV_8U ? MAX_VALUE_8_BIT : MAX_VALUE_16_BIT;
 
             if (error > m_error_threshold) 
             {
@@ -94,6 +84,8 @@ namespace sky360lib::utils
 
             return m_current_wb;
         }
+
+
 
         WhiteBalanceValues getDefaultWhiteBalance() const
         {

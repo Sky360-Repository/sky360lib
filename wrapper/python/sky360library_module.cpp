@@ -13,7 +13,7 @@
 #include "../../api/bgs/bgs.hpp"
 #include "../../api//camera/qhy_camera.hpp"
 #include "../../api/utils/autoExposure.hpp"
-#include "../../api/utils/brightness.hpp"
+#include "../../api/utils/brightnessEstimator.hpp"
 #include "../../api/utils/autoWhiteBalance.hpp"
 
 

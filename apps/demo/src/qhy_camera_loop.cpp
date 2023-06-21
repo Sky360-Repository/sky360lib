@@ -8,7 +8,9 @@
 #include "../../../api/camera/qhy_camera.hpp"
 #include "../../../api/utils/utils.hpp"
 #include "../../../api/utils/autoExposure.hpp"
-#include "../../../api/utils/brightness.hpp"
+#include "../../../api/utils/brightnessEstimator.hpp"
+#include "../../../api/utils/entropyEstimator.hpp"
+#include "../../../api/utils/subSampler.hpp"
 #include "../../../api/utils/autoWhiteBalance.hpp"
 #include "../../../api/utils/profiler.hpp"
 #include "../../../api/utils/textWriter.hpp"
@@ -39,7 +41,7 @@ cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = true;
-bool doAutoWhiteBalance = false;
+bool doAutoWhiteBalance = true;
 bool squareResolution = false;
 bool updateDisplayOverlay = false;
 bool logData = false;
@@ -68,7 +70,9 @@ sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
 // sky360lib::utils::AutoExposure autoExposureControl(0.25, 250, 0.2, 1000); // Bad
 // sky360lib::utils::AutoExposure autoExposureControl(0.25, 150, 0.01, 100); // Nice transition / steady / minimal over or under shoot
 sky360lib::utils::AutoExposure autoExposureControl(0.25, 180, 0.01, 100); 
-sky360lib::utils::BrightnessEstimator brightnessEstimator(75, 75);
+sky360lib::utils::BrightnessEstimator brightnessEstimator;
+sky360lib::utils::EntropyEstimator entropyEstimator;
+sky360lib::utils::SubSampler subSampler(50, 50);
 sky360lib::utils::AutoWhiteBalance autoWhiteBalanceControl;
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -151,29 +155,32 @@ int main(int argc, const char **argv)
                 profiler.stop("Equalization");
             }
 
+            cv::Mat subSampledDebayer = subSampler.subSample(frameDebayered);
+            cv::Mat subSampledGray = subSampler.subSample(frame);
+
             if(autoExposureControl.is_day())
             {
                 if (doAutoWhiteBalance)
                 {
-                        auto newGains = autoWhiteBalanceControl.illumination_estimation(frameDebayered, 1, 50);
+                    auto newGains = autoWhiteBalanceControl.illumination_estimation(subSampledDebayer);
 
-                        // Compare new gains with previous gains
-                        if (newGains.red != previousGains.red ||
-                            newGains.green != previousGains.green ||
-                            newGains.blue != previousGains.blue)
-                        {
-                            // Set the white balance for each color channel in the camera
-                            qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, newGains.red);
-                            qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, newGains.green);
-                            qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, newGains.blue);
+                    // Compare new gains with previous gains
+                    if (newGains.red != previousGains.red ||
+                        newGains.green != previousGains.green ||
+                        newGains.blue != previousGains.blue)
+                    {
+                        // Set the white balance for each color channel in the camera
+                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, newGains.red);
+                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, newGains.green);
+                        qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, newGains.blue);
 
-                            // Set the position of trackbars corresponding to each color channel's white balance
-                            cv::setTrackbarPos("Red WB:", "", (int)newGains.red);
-                            cv::setTrackbarPos("Green WB:", "", (int)newGains.green);
-                            cv::setTrackbarPos("Blue WB:", "", (int)newGains.blue);
+                        // Set the position of trackbars corresponding to each color channel's white balance
+                        cv::setTrackbarPos("Red WB:", "", (int)newGains.red);
+                        cv::setTrackbarPos("Green WB:", "", (int)newGains.green);
+                        cv::setTrackbarPos("Blue WB:", "", (int)newGains.blue);
 
-                            // Update the previous gains with the new gains
-                            previousGains = newGains;
+                        // Update the previous gains with the new gains
+                        previousGains = newGains;
                     }
 
                 }
@@ -195,12 +202,16 @@ int main(int argc, const char **argv)
                 previousGains = defaultSet;
             }
 
+            // Estimate entropy
+            entropy = entropyEstimator.estimate_entropy(subSampledGray);
+
             if (doAutoExposure)
             {
                 profiler.start("AutoExposure");
                 double oldGain = (double)qhyCamera.get_camera_params().gain;
                 double exposure = (double)qhyCamera.get_camera_params().exposure;
-                double msv = brightnessEstimator.estimateCurrentBrightness(frame);
+
+                double msv = brightnessEstimator.estimateCurrentBrightness(subSampledGray);
                 double gain = oldGain;
 
                 autoExposureControl.update(msv, exposure, gain);
@@ -224,7 +235,7 @@ int main(int argc, const char **argv)
                 setPointData.erase(setPointData.begin());
                 outputData.erase(outputData.begin());
             }
-
+            gp << "set term qt\n";
             gp << "set yrange [0:0.8]\n"; 
             gp << "plot '-' with lines title 'Set Point', '-' with lines title 'Output'\n";
             gp.send1d(setPointData);
@@ -255,8 +266,6 @@ int main(int argc, const char **argv)
                 profiler.start("Log Data");
                 if (frame_counter % log_interval == 0)
                 {
-                    entropy = sky360lib::utils::Utils::estimate_entropy(frame);
-
                     log_changes("log_camera_params.txt", 
                         autoExposureControl.get_current_msv(), 
                         autoExposureControl.get_target_msv(), 
@@ -295,6 +304,7 @@ int main(int argc, const char **argv)
             textWriter.write_text(displayFrame, std::to_string(qhyCamera.get_camera_params().roi.width) + "x" + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
             textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
+            textWriter.write_text(displayFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy, 2), 3, true);
             textWriter.write_text(displayFrame, get_running_time(starting_time), 36, true);
             if (qhyCamera.get_camera_info()->is_cool)
             {
