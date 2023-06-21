@@ -85,6 +85,7 @@ namespace sky360lib::camera
 
             ParamLimits gain_limits;
             ParamLimits offset_limits;
+            ParamLimits gamma_limits;
             ParamLimits usb_traffic_limits;
             ParamLimits red_wb_limits;
             ParamLimits green_wb_limits;

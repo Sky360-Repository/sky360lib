@@ -46,6 +46,7 @@ namespace sky360lib::camera
               << std::endl;
         toStr << "Gain Limits: Min: " << gain_limits.min << ", Max: " << gain_limits.max << ", Step: " << gain_limits.step << std::endl;
         toStr << "Offset Limits: Min: " << offset_limits.min << ", Max: " << offset_limits.max << ", Step: " << offset_limits.step << std::endl;
+        toStr << "Gamma Limits: Min: " << gamma_limits.min << ", Max: " << gamma_limits.max << ", Step: " << gamma_limits.step << std::endl;
         toStr << "Usb Traffic Limits: Min: " << usb_traffic_limits.min << ", Max: " << usb_traffic_limits.max << ", Step: " << usb_traffic_limits.step << std::endl;
         toStr << "Temperature Limits: Min: " << temperature_limits.min << ", Max: " << temperature_limits.max << ", Step: " << temperature_limits.step << std::endl;
         return toStr.str();
@@ -216,6 +217,7 @@ namespace sky360lib::camera
         GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBG, &_ci.green_wb_limits.min, &_ci.green_wb_limits.max, &_ci.green_wb_limits.step);
         GetQHYCCDParamMinMaxStep(camHandle, CONTROL_WBB, &_ci.blue_wb_limits.min, &_ci.blue_wb_limits.max, &_ci.blue_wb_limits.step);
         GetQHYCCDParamMinMaxStep(camHandle, CONTROL_COOLER, &_ci.temperature_limits.min, &_ci.temperature_limits.max, &_ci.temperature_limits.step);
+        GetQHYCCDParamMinMaxStep(camHandle, CONTROL_GAMMA, &_ci.gamma_limits.min, &_ci.gamma_limits.max, &_ci.gamma_limits.step);
 
         rc = CloseQHYCCD(camHandle);
         if (rc != QHYCCD_SUCCESS)

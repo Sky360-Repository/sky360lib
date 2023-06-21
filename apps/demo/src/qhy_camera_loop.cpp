@@ -354,6 +354,9 @@ void createControlPanel()
     cv::createButton("8 bits", TransferbitsCallback, (void *)(long)8, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("16 bits", TransferbitsCallback, (void *)(long)16, cv::QT_PUSH_BUTTON, 1);
 
+    int maxGamma = (int)qhyCamera.get_camera_info()->gamma_limits.max * 10;
+    cv::createTrackbar("Gamma:", "", nullptr, maxGamma, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::Gamma);
+    cv::setTrackbarPos("Gamma:", "", (int)qhyCamera.get_camera_params().gamma * 10);
     int maxRedWB = (int)qhyCamera.get_camera_info()->red_wb_limits.max;
     cv::createTrackbar("Red WB:", "", nullptr, maxRedWB, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::RedWB);
     cv::setTrackbarPos("Red WB:", "", (int)qhyCamera.get_camera_params().red_white_balance);
@@ -558,6 +561,11 @@ void changeTrackbars(int value, void *paramP)
     if (param == -1)
     {
         autoExposureControl.set_target_msv((double)value / 100.0);
+        return;
+    }
+    else if ((sky360lib::camera::QhyCamera::ControlParam)param == sky360lib::camera::QhyCamera::ControlParam::Gamma)
+    {
+        qhyCamera.set_control((sky360lib::camera::QhyCamera::ControlParam)param, (double)value / 10.0);
         return;
     }
     qhyCamera.set_control((sky360lib::camera::QhyCamera::ControlParam)param, (double)value);
