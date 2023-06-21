@@ -40,7 +40,6 @@ namespace sky360lib::blobs
     {
     public:
         /// Detects the number of available threads to use
-        /// Will set the number fo threads to the number of avaible threads - 1
         static const size_t DETECT_NUMBER_OF_THREADS{0};
 
         ConnectedBlobDetection(const ConnectedBlobDetectionParams &_params = ConnectedBlobDetectionParams(),

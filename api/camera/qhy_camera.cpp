@@ -8,16 +8,20 @@ namespace sky360lib::camera
     {
         switch (bayer_format)
         {
-        case BAYER_GB:
-            return "BAYER_GB";
-        case BAYER_GR:
-            return "BAYER_GR";
-        case BAYER_BG:
-            return "BAYER_BG";
-        case BAYER_RG:
-            return "BAYER_RG";
+        case BayerGB:
+            return "BayerGB";
+        case BayerGR:
+            return "BayerGR";
+        case BayerBG:
+            return "BayerBG";
+        case BayerRG:
+            return "BayerRG";
+        case Mono:
+            return "Mono";
+        case Color:
+            return "Color";
         }
-        return "MONO";
+        return "Unknown";
     }
 
     std::string QhyCamera::CameraInfo::to_string() const
@@ -195,8 +199,8 @@ namespace sky360lib::camera
             return false;
         }
 
-        _ci.bayer_format = IsQHYCCDControlAvailable(camHandle, CAM_COLOR);
-        _ci.is_color = (_ci.bayer_format == BAYER_GB || _ci.bayer_format == BAYER_GR || _ci.bayer_format == BAYER_BG || _ci.bayer_format == BAYER_RG);
+        _ci.bayer_format = BayerFormat(IsQHYCCDControlAvailable(camHandle, CAM_COLOR));
+        _ci.is_color = (_ci.bayer_format == BayerGB || _ci.bayer_format == BayerGR || _ci.bayer_format == BayerBG || _ci.bayer_format == BayerRG);
 
         _ci.is_cool = IsQHYCCDControlAvailable(camHandle, CONTROL_COOLER) == QHYCCD_SUCCESS;
 
@@ -362,6 +366,7 @@ namespace sky360lib::camera
         }
         alloc_buffer_memory();
         m_params.apply_debayer = _enable;
+        m_params.bayer_format = m_params.bin_mode != Bin1x1 ? Mono : (m_params.apply_debayer ? Color : m_current_info->bayer_format);
 
         return true;
     }
@@ -374,8 +379,11 @@ namespace sky360lib::camera
             std::cerr << "SetQHYCCDBinMode failure, error: " << rc << std::endl;
             return false;
         }
-        alloc_buffer_memory();
+        uint32_t width = m_current_info->chip.max_image_width / (uint32_t)_mode;
+        uint32_t height = m_current_info->chip.max_image_height / (uint32_t)_mode;
         m_params.bin_mode = _mode;
+        m_params.bayer_format = m_params.bin_mode != Bin1x1 ? Mono : (m_params.apply_debayer ? Color : m_current_info->bayer_format);
+        set_resolution(0, 0, width, height);
 
         return true;
     }
@@ -572,12 +580,14 @@ namespace sky360lib::camera
             return false;
         }
 
-        int channels = m_current_info->is_color && m_params.apply_debayer ? 3 : 1;
+        // int channels = (m_current_info->is_color && m_params.apply_debayer) ? 3 : 1;
+        int channels = m_params.bayer_format == Color ? 3 : 1;
         int type = m_params.bpp == 16 ? CV_MAKETYPE(CV_16U, channels) : CV_MAKETYPE(CV_8U, channels);
 
         const cv::Mat imgQHY(m_params.roi.height, m_params.roi.width, type, (int8_t *)m_img_data.get());
 
-        if (m_current_info->is_color && !m_params.apply_debayer && _debayer)
+        // if (_debayer && m_current_info->is_color && !m_params.apply_debayer)
+        if (_debayer && m_params.bayer_format != Color && m_params.bayer_format != Mono)
         {
             debayer_image(imgQHY, _frame);
         }
@@ -596,25 +606,26 @@ namespace sky360lib::camera
         return returnFrame;
     }
 
-    static inline int convert_bayer_pattern(uint32_t _bayerFormat)
+    static inline int convert_bayer_pattern(QhyCamera::BayerFormat _bayerFormat)
     {
         switch (_bayerFormat)
         {
-        case BAYER_GB:
+        case QhyCamera::BayerGB:
             return cv::COLOR_BayerGR2BGR; //!< equivalent to GBRG Bayer pattern
-        case BAYER_GR:
+        case QhyCamera::BayerGR:
             return cv::COLOR_BayerGB2BGR; //!< equivalent to GRBG Bayer pattern
-        case BAYER_BG:
+        case QhyCamera::BayerBG:
             return cv::COLOR_BayerRG2BGR; //!< equivalent to BGGR Bayer pattern
-        case BAYER_RG:
+        case QhyCamera::BayerRG:
             return cv::COLOR_BayerBG2BGR; //!< equivalent to RGGB Bayer pattern
+        default:
+            return cv::COLOR_BayerGR2BGR;
         }
-        return cv::COLOR_BayerGR2BGR;
     }
 
     void QhyCamera::debayer_image(const cv::Mat &_image_in, cv::Mat &_image_out) const
     {
-        if (_image_in.channels() == 1)
+        if (_image_in.channels() == 1 && m_params.bayer_format != Mono)
         {
             cv::cvtColor(_image_in, _image_out, convert_bayer_pattern(m_current_info->bayer_format));
         }

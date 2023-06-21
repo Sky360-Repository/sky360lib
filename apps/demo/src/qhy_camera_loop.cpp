@@ -7,16 +7,17 @@
 
 #include "../../../api/camera/qhy_camera.hpp"
 #include "../../../api/utils/utils.hpp"
-#include "../../../api/utils/autoExposure.hpp"
-#include "../../../api/utils/brightnessEstimator.hpp"
-#include "../../../api/utils/entropyEstimator.hpp"
-#include "../../../api/utils/subSampler.hpp"
-#include "../../../api/utils/autoWhiteBalance.hpp"
+#include "../../../api/utils/auto_exposure.hpp"
+#include "../../../api/utils/brightness_estimator.hpp"
+#include "../../../api/utils/entropy_estimator.hpp"
+#include "../../../api/utils/sub_sampler.hpp"
+#include "../../../api/utils/auto_white_balance.hpp"
 #include "../../../api/utils/profiler.hpp"
 #include "../../../api/utils/textWriter.hpp"
 #include "../../../api/bgs/bgs.hpp"
 #include "../../../api/utils/ringbuf.h"
 #include "../../../api/utils/roi_mask_calculator.hpp"
+#include "../../../api/utils/bin_image.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -41,7 +42,7 @@ cv::Size frameSize;
 double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = true;
-bool doAutoWhiteBalance = true;
+bool doAutoWhiteBalance = false;
 bool squareResolution = false;
 bool updateDisplayOverlay = false;
 bool logData = false;
@@ -50,6 +51,7 @@ bool pauseCapture = false;
 bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
+bool doBin = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -61,19 +63,21 @@ double circleRadius{0.0f};
 double cameraCircleMaxFov{0.0};
 baudvine::RingBuf<double, 200> noise_buffer;
 baudvine::RingBuf<double, 200> sharpness_buffer;
+cv::Mat displayFrame;
+std::string home_directory;
 
 cv::VideoWriter videoWriter;
 sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
-// sky360lib::utils::AutoExposure autoExposureControl(0.25, 250, 0.2, 1000); // Bad
-// sky360lib::utils::AutoExposure autoExposureControl(0.25, 150, 0.01, 100); // Nice transition / steady / minimal over or under shoot
 sky360lib::utils::AutoExposure autoExposureControl(0.25, 180, 0.01, 100); 
 sky360lib::utils::BrightnessEstimator brightnessEstimator;
 sky360lib::utils::EntropyEstimator entropyEstimator;
 sky360lib::utils::SubSampler subSampler(50, 50);
 sky360lib::utils::AutoWhiteBalance autoWhiteBalanceControl;
+sky360lib::utils::BinImage bin_image;
+
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
 Gnuplot gp;
@@ -100,6 +104,7 @@ void log_changes(const std::string& log_file_name, double msv, double targetMSV,
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 std::string get_running_time(std::chrono::system_clock::time_point input_time);
+std::string generate_filename();
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -108,6 +113,8 @@ int main(int argc, const char **argv)
     // Get the current time
     auto starting_time = std::chrono::system_clock::now();
 
+    home_directory = getenv("HOME");
+
     if (!openQQYCamera())
     {
         return -1;
@@ -115,7 +122,7 @@ int main(int argc, const char **argv)
     std::cout << qhyCamera.get_camera_info()->to_string() << std::endl;
     qhyCamera.set_debug_info(false);
 
-    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 20000));
+    qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 2000));
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 5.0);
 
     int frame_counter = 0;
@@ -146,7 +153,14 @@ int main(int argc, const char **argv)
             profiler.stop("GetImage");
             frameSize = frame.size();
             profiler.start("Debayer");
-            qhyCamera.debayer_image(frame, frameDebayered);
+            if (doBin)
+            {
+                cv::Mat binned_image;
+                bin_image.apply_bin_2x2(frame, binned_image);
+                frameDebayered = binned_image;
+            }
+            else
+                qhyCamera.debayer_image(frame, frameDebayered);
             profiler.stop("Debayer");
             if (doEqualization)
             {
@@ -235,11 +249,11 @@ int main(int argc, const char **argv)
                 setPointData.erase(setPointData.begin());
                 outputData.erase(outputData.begin());
             }
-            gp << "set term qt\n";
-            gp << "set yrange [0:0.8]\n"; 
-            gp << "plot '-' with lines title 'Set Point', '-' with lines title 'Output'\n";
-            gp.send1d(setPointData);
-            gp.send1d(outputData);
+            // gp << "set term qt\n";
+            // gp << "set yrange [0:0.8]\n"; 
+            // gp << "plot '-' with lines title 'Set Point', '-' with lines title 'Output'\n";
+            // gp.send1d(setPointData);
+            // gp.send1d(outputData);
 
 
             if (isBoxSelected)
@@ -281,7 +295,6 @@ int main(int argc, const char **argv)
             }
 
             profiler.start("Display Frame");
-            cv::Mat displayFrame;
             if (bgsType != NoBGS)
             {
                 bgsPtr->apply(frame, displayFrame);
@@ -301,7 +314,8 @@ int main(int argc, const char **argv)
                 drawFOV(displayFrame, cameraCircleMaxFov, cv::Point(frameDebayered.size().width / 2, frameDebayered.size().height / 2), frameDebayered.size().width / 2);
             }
             textWriter.write_text(displayFrame, "Exp: " + sky360lib::utils::Utils::format_double((double)qhyCamera.get_camera_params().exposure / 1000.0, 2) + " ms Gain: " + std::to_string(qhyCamera.get_camera_params().gain), 1);
-            textWriter.write_text(displayFrame, std::to_string(qhyCamera.get_camera_params().roi.width) + "x" + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits)", 2);
+            textWriter.write_text(displayFrame, 
+                std::to_string(qhyCamera.get_camera_params().roi.width) + "x" + std::to_string(qhyCamera.get_camera_params().roi.height) + " (" + std::to_string(qhyCamera.get_camera_params().bpp) + " bits " + std::to_string(qhyCamera.get_camera_params().bin_mode) + "x" + std::to_string(qhyCamera.get_camera_params().bin_mode) + ")", 2);
             textWriter.write_text(displayFrame, "Camera FPS: " + sky360lib::utils::Utils::format_double(profileData["GetImage"].fps(), 2), 1, true);
             textWriter.write_text(displayFrame, "Frame FPS: " + sky360lib::utils::Utils::format_double(profileData["Frame"].fps(), 2), 2, true);
             textWriter.write_text(displayFrame, "Entropy: " + sky360lib::utils::Utils::format_double(entropy, 2), 3, true);
@@ -429,6 +443,7 @@ void createControlPanel()
     cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Screenshot", generalCallback, (void *)(long)'i', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Log data", generalCallback, (void *)(long)'l', cv::QT_PUSH_BUTTON, 1);
@@ -567,6 +582,23 @@ void treatKeyboardpress(int key)
     case 'w':
         doAutoWhiteBalance = !doAutoWhiteBalance;
         updateDisplayOverlay = true;
+        break;
+    case 'i':
+        {
+            std::string filename = home_directory + "/ss_" + generate_filename() + ".png";
+            std::cout << "Saving screenshot to: " << filename << std::endl;
+            cv::imwrite(filename, displayFrame, {cv::IMWRITE_PNG_COMPRESSION, 9});
+        }
+        break;
+    case 'm':
+        {
+            auto current_bin = qhyCamera.get_camera_params().bin_mode;
+            auto new_bin = current_bin == sky360lib::camera::QhyCamera::Bin1x1 ? sky360lib::camera::QhyCamera::Bin2x2 : sky360lib::camera::QhyCamera::Bin1x1;
+            qhyCamera.set_bin_mode(new_bin);
+        }
+        break;
+    case 'n':
+        doBin = !doBin;
         break;
     }
 }
@@ -817,14 +849,19 @@ bool openQQYCamera()
     return true;
 }
 
-bool openVideo(const cv::Size &size, double meanFps)
+std::string generate_filename()
 {
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
 
     std::ostringstream oss;
     oss << std::put_time(&tm, "%Y%m%d%H%M%S");
-    auto name = "vo" + oss.str() + ".mkv";
+    return oss.str();
+}
+
+bool openVideo(const cv::Size &size, double meanFps)
+{
+    auto name = home_directory + "/vo" + generate_filename() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
     return videoWriter.open(name, codec, meanFps, size, true);
 }

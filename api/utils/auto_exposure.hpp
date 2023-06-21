@@ -15,6 +15,7 @@ namespace sky360lib::utils
             m_min_target_msv(0.05),
             m_max_target_msv(0.25),
             m_max_exposure(60000),
+            m_min_exposure(100), 
             m_max_gain(25),
             m_min_gain(0),
             m_gain_accumulator(0.0),

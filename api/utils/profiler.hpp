@@ -79,25 +79,34 @@ namespace sky360lib::utils
             return m_profiler_data;
         }
 
-        void report() const
+        inline TimePoint get_start_time() const
         {
-            auto stop_time = Clock::now();
-            for (const auto &entry : m_profiler_data)
-            {
-                report_individual(entry.second, stop_time);
-            }
+            return start_time;
         }
 
-        void report_individual(const ProfilerData& data, TimePoint stop_time = Clock::now()) const
+        std::string report() const
         {
+            auto stop_time = Clock::now();
+            std::string report;
+            for (const auto &entry : m_profiler_data)
+            {
+                report += report_individual(entry.second, stop_time);
+            }
+            return report;
+        }
+
+        std::string report_individual(const ProfilerData& data, TimePoint stop_time = Clock::now()) const
+        {
+            std::ostringstream oss;
             auto totalDuration = stop_time - start_time;
-            std::cout << "Region: " << data.name
-                        << ", Average Time (ns): " << data.avg_time_in_ns()
-                        << ", Average Time (s): " << data.avg_time_in_s()
-                        << ", Count: " << data.count
-                        << ", FPS: " << data.fps()
-                        << ", %: " << (data.duration / totalDuration) * 100.0
-                        << std::endl;
+            oss << "Region: " << data.name
+                << ", Average Time (ns): " << data.avg_time_in_ns()
+                << ", Average Time (s): " << data.avg_time_in_s()
+                << ", Count: " << data.count
+                << ", FPS: " << data.fps()
+                << ", %: " << (data.duration / totalDuration) * 100.0
+                << std::endl;
+            return oss.str();
         }
 
     private:
