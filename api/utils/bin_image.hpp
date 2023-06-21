@@ -115,7 +115,7 @@ namespace sky360lib::utils
                 p_data_out = p_current_line;
                 for (int x = 0; x < width; ++x, ++p_data_out)
                 {
-                    *p_data_out = std::min(p_data_in[0] + p_data_in[1], 255);
+                    *p_data_out = std::min(*p_data_out + p_data_in[0] + p_data_in[1], 255);
                     p_data_in += 2;
                 }
             }

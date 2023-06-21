@@ -315,7 +315,7 @@ namespace sky360lib::camera
             //set_stream_mode(SingleFrame);
             set_control(UsbTraffic, 3, true);
             set_control(UsbSpeed, 0, true);
-            set_control(Gain, 30, true);
+            set_control(Gain, 0, true);
             set_control(Offset, 0, true);
             set_resolution(0, 0, m_current_info->chip.max_image_width, m_current_info->chip.max_image_height);
             set_control(TransferBits, 8, true);

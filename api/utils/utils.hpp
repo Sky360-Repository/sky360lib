@@ -17,23 +17,33 @@ namespace sky360lib::utils
     public:
         static void equalize_image(const cv::Mat &image_in, cv::Mat &image_out, double clip_limit)
         {
-            cv::Mat lab_image;
+            if (image_in.channels() > 1)
+            {
+                cv::Mat lab_image;
 
-            cv::cvtColor(image_in, lab_image, cv::COLOR_BGR2YCrCb);
+                cv::cvtColor(image_in, lab_image, cv::COLOR_BGR2YCrCb);
 
-            std::vector<cv::Mat> lab_channels(3);
-            cv::split(lab_image, lab_channels);
+                std::vector<cv::Mat> lab_channels(3);
+                cv::split(lab_image, lab_channels);
 
-            cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
-            clahe->setClipLimit(clip_limit);
-            clahe->setTilesGridSize(cv::Size(6, 6));
-            cv::Mat equalized_l;
-            clahe->apply(lab_channels[0], equalized_l);
+                cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+                clahe->setClipLimit(clip_limit);
+                clahe->setTilesGridSize(cv::Size(6, 6));
+                cv::Mat equalized_l;
+                clahe->apply(lab_channels[0], equalized_l);
 
-            lab_channels[0] = equalized_l;
-            cv::merge(lab_channels, lab_image);
+                lab_channels[0] = equalized_l;
+                cv::merge(lab_channels, lab_image);
 
-            cv::cvtColor(lab_image, image_out, cv::COLOR_YCrCb2BGR);
+                cv::cvtColor(lab_image, image_out, cv::COLOR_YCrCb2BGR);
+            }
+            else
+            {
+                cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+                clahe->setClipLimit(clip_limit);
+                clahe->setTilesGridSize(cv::Size(6, 6));
+                clahe->apply(image_in, image_out);                
+            }
         }
 
         // https://stackoverflow.com/questions/6123443/calculating-image-acutance/6129542#6129542
