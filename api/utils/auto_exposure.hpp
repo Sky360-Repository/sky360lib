@@ -23,6 +23,7 @@ namespace sky360lib::utils
             m_pid_controller(kp, ki, kd, [this] { return m_current_msv; }, [](double){})
         {
             m_pid_controller.setTarget(m_target_msv);
+            m_pid_controller.setMaxIntegralCumulation(3000);
         }
 
         double get_target_msv() const { return m_target_msv; }
@@ -42,12 +43,12 @@ namespace sky360lib::utils
             double pidOutput = m_pid_controller.getOutput();
             double error = m_pid_controller.getError();
 
-            std::cout << "pidOutput: " << pidOutput << ", error: " << error <<std::endl;
+            // std::cout << "pidOutput: " << pidOutput << ", error: " << error << "max: " << m_pid_controller.getMaxIntegralCumulation() << std::endl;
 
             double widerErrorMargin = 0.04;
             double initialErrorMargin = 0.001;
             double currentErrorMargin = (std::abs(error) <= initialErrorMargin) ? widerErrorMargin : initialErrorMargin;
-            double gain_weight = 0.23; 
+            double gain_weight = 0.3; 
 
             if (std::abs(error) > currentErrorMargin)
             {
@@ -85,7 +86,7 @@ namespace sky360lib::utils
                             m_gain_accumulator += 1.0; 
                         }
                     }
-                    else if(m_target_msv < m_max_target_msv) // Increase target
+                    if(m_target_msv < m_max_target_msv) // Increase target
                     {
                         m_target_msv = std::clamp(m_target_msv += 0.001, m_min_target_msv, m_max_target_msv);
                         m_pid_controller.setTarget(m_target_msv);

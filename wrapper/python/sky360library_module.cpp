@@ -153,12 +153,14 @@ PYBIND11_MODULE(pysky360, m)
         .value("Channels", QhyCamera::ControlParam::Channels)
         .export_values();
 
-    // py::class_<AutoExposure>(m, "AutoExposure")
-    //     .def(py::init<>())
-    //     .def("updateExposureAndGain", &AutoExposure::updateExposureAndGain)
-        // .def("set_target_msv", &AutoExposure::set_target_msv)
-        // .def("process", &AutoExposure::process)
-        // ;
+    py::class_<AutoExposure>(m, "AutoExposure")
+        .def(py::init<double, double, double, double>())
+        .def("update", &AutoExposure::update)
+        .def("set_target_msv", &AutoExposure::set_target_msv)
+        .def("get_target_msv", &AutoExposure::get_target_msv)
+        .def("get_current_msv", &AutoExposure::get_current_msv)
+        .def("is_day", &AutoExposure::is_day);
+
 
     py::class_<AutoWhiteBalance>(m, "AutoWhiteBalance")
         .def(py::init<>())

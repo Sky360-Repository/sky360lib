@@ -22,7 +22,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
-#include "gnuplot-iostream.h"
+// #include "gnuplot-iostream.h"
 
 enum BGSType
 {
@@ -71,20 +71,19 @@ sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
-sky360lib::utils::AutoExposure autoExposureControl(0.25, 180, 0.01, 100); 
+sky360lib::utils::AutoExposure autoExposureControl(0.25, 180, 0.01, 100); // Tuned
 sky360lib::utils::BrightnessEstimator brightnessEstimator;
 sky360lib::utils::EntropyEstimator entropyEstimator;
 sky360lib::utils::SubSampler subSampler(50, 50);
-sky360lib::utils::AutoWhiteBalance autoWhiteBalanceControl;
+sky360lib::utils::AutoWhiteBalance autoWhiteBalance;
 sky360lib::utils::BinImage bin_image;
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
-Gnuplot gp;
-std::vector<double> setPointData;
-std::vector<double> outputData;
-std::vector<double> errorData;
-
+// Gnuplot gp;
+// std::vector<double> setPointData;
+// std::vector<double> outputData;
+// std::vector<double> errorData;
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
@@ -172,14 +171,14 @@ int main(int argc, const char **argv)
                 profiler.stop("Equalization");
             }
 
-            cv::Mat subSampledDebayer = subSampler.subSample(frameDebayered);
+            cv::Mat subSampledColor = subSampler.subSample(frameDebayered);
             cv::Mat subSampledGray = subSampler.subSample(frame);
 
             if(autoExposureControl.is_day())
             {
                 if (doAutoWhiteBalance)
                 {
-                    auto newGains = autoWhiteBalanceControl.illumination_estimation(subSampledDebayer);
+                    auto newGains = autoWhiteBalance.illumination_estimation(subSampledColor);
 
                     // Compare new gains with previous gains
                     if (newGains.red != previousGains.red ||
@@ -201,22 +200,6 @@ int main(int argc, const char **argv)
                     }
 
                 }
-            }
-            else
-            {
-                auto defaultSet = autoWhiteBalanceControl.getDefaultWhiteBalance();
-
-                // Set the white balance for each color channel in the camera
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::RedWB, defaultSet.red);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::GreenWB, defaultSet.green);
-                qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::BlueWB, defaultSet.blue);
-
-                // Set the position of trackbars corresponding to each color channel's white balance
-                cv::setTrackbarPos("Red WB:", "", (int)defaultSet.red);
-                cv::setTrackbarPos("Green WB:", "", (int)defaultSet.green);
-                cv::setTrackbarPos("Blue WB:", "", (int)defaultSet.blue);
-
-                previousGains = defaultSet;
             }
 
             // Estimate entropy
@@ -242,17 +225,17 @@ int main(int argc, const char **argv)
                 profiler.stop("AutoExposure");
             }   
 
-            int windowSize = 1000; 
+            // int windowSize = 1000; 
 
             // GNU Plot
-            setPointData.push_back(autoExposureControl.get_target_msv());
-            outputData.push_back(autoExposureControl.get_current_msv());
+            // setPointData.push_back(autoExposureControl.get_target_msv());
+            // outputData.push_back(autoExposureControl.get_current_msv());
 
-            if(setPointData.size() > windowSize) {
-                setPointData.erase(setPointData.begin());
-                outputData.erase(outputData.begin());
-            }
-            // gp << "set term qt\n";
+            // if(setPointData.size() > windowSize) {
+            //     setPointData.erase(setPointData.begin());
+            //     outputData.erase(outputData.begin());
+            // }
+
             // gp << "set yrange [0:0.8]\n"; 
             // gp << "plot '-' with lines title 'Set Point', '-' with lines title 'Output'\n";
             // gp.send1d(setPointData);
