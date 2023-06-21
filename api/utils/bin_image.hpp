@@ -33,9 +33,16 @@ namespace sky360lib::utils
                 prepare_parallel(_image_in);
                 m_initialized = true;
             }
-            if (_image_out.empty())
+            if (_image_out.empty() || _image_out.elemSize1() != _image_in.elemSize1())
             {
-                _image_out.create(_image_in.size().height / 2, _image_in.size().width / 2, CV_8UC1);
+                if (_image_in.elemSize1() == 1)
+                {
+                    _image_out.create(_image_in.size().height / 2, _image_in.size().width / 2, CV_8UC1);
+                }
+                else
+                {
+                    _image_out.create(_image_in.size().height / 2, _image_in.size().width / 2, CV_16UC1);
+                }
             }
 
             if (m_num_processes_parallel == 1)
@@ -81,11 +88,18 @@ namespace sky360lib::utils
                 m_process_seq.end(),
                 [&](int np)
                 {
-                    const cv::Mat imgSplit(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _image_in.type(),
+                    const cv::Mat img_in_split(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _image_in.type(),
                                            _image_in.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_pixel));
-                    cv::Mat maskPartial(m_img_sizes_parallel[np]->height / 2, m_img_sizes_parallel[np]->width / 2, _image_out.type(),
-                                        _image_out.data + m_img_sizes_parallel[np]->original_pixel_pos / 4);
-                    process(imgSplit, maskPartial, np);
+                    cv::Mat img_out_split(m_img_sizes_parallel[np]->height / 2, m_img_sizes_parallel[np]->width / 2, _image_out.type(),
+                                        _image_out.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->bytes_per_pixel) / 4);
+                    if (m_img_sizes_parallel[np]->bytes_per_pixel == 1)
+                    {
+                        process(img_in_split, img_out_split, np);
+                    }
+                    else
+                    {
+                        process16(img_in_split, img_out_split, np);
+                    }
                 });
         }
 
@@ -99,11 +113,11 @@ namespace sky360lib::utils
         void process(const cv::Mat &_image_in, cv::Mat &_image_out, int _numProcess)
         {
             (void)_numProcess;
-            const int width = _image_out.size().width;
-            const int height = _image_out.size().height;
+            const int width{_image_out.size().width};
+            const int height{_image_out.size().height};
 
-            uint8_t* p_data_in = _image_in.data;
-            uint8_t* p_data_out = _image_out.data;
+            uint8_t* p_data_in{_image_in.data};
+            uint8_t* p_data_out{_image_out.data};
             for (int y = 0; y < height; ++y)
             {
                 uint8_t* p_current_line = p_data_out;
@@ -116,6 +130,31 @@ namespace sky360lib::utils
                 for (int x = 0; x < width; ++x, ++p_data_out)
                 {
                     *p_data_out = std::min(*p_data_out + p_data_in[0] + p_data_in[1], 255);
+                    p_data_in += 2;
+                }
+            }
+        }
+
+        void process16(const cv::Mat &_image_in, cv::Mat &_image_out, int _numProcess)
+        {
+            (void)_numProcess;
+            const int width{_image_out.size().width};
+            const int height{_image_out.size().height};
+
+            uint16_t* p_data_in{(uint16_t *)_image_in.data};
+            uint16_t* p_data_out{(uint16_t *)_image_out.data};
+            for (int y = 0; y < height; ++y)
+            {
+                uint16_t* p_current_line = p_data_out;
+                for (int x = 0; x < width; ++x, ++p_data_out)
+                {
+                    *p_data_out = std::min(p_data_in[0] + p_data_in[1], 65535);
+                    p_data_in += 2;
+                }
+                p_data_out = p_current_line;
+                for (int x = 0; x < width; ++x, ++p_data_out)
+                {
+                    *p_data_out = std::min(*p_data_out + p_data_in[0] + p_data_in[1], 65535);
                     p_data_in += 2;
                 }
             }
