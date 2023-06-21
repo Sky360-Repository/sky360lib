@@ -214,9 +214,13 @@ namespace sky360lib::utils
         template<typename Container>
         static cv::Mat draw_graph(const std::string& name, const Container &data, const cv::Size &graphSize, int type, cv::Scalar lineColor, cv::Scalar rectColor, int thickness = 1)
         {
+            cv::Mat graph(graphSize, type);
+            if (graph.channels() == 1)
+            {
+                lineColor = cv::Scalar{255, 255, 255, 0};
+            }
             const TextWriter text_writter(cv::Scalar{255, 255, 255, 0}, 9, 2.5); 
             const TextWriter text_writter_name(lineColor, 6, 3.5); 
-            cv::Mat graph(graphSize, type);
 
             cv::rectangle(graph, cv::Rect(0, 0, graphSize.width, graphSize.height), rectColor, cv::FILLED);
 

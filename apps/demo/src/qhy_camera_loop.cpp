@@ -205,10 +205,10 @@ int main(int argc, const char **argv)
                 sharpness_buffer.push_back(sharpness);
                 profiler.stop("Metrics");
 
-                auto sharpness_graph = sky360lib::utils::Utils::draw_graph("Sharpness", sharpness_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 255.0, 255.0, 0.0), cv::Scalar(0.0, 25.0, 25.0, 0.0));
-                auto noise_graph = sky360lib::utils::Utils::draw_graph("Noise", noise_buffer, cv::Size(200, 100), CV_8UC3, cv::Scalar(0.0, 165.0, 255.0, 0.0), cv::Scalar(0.0, 5.0, 25.0, 0.0));
+                auto sharpness_graph = sky360lib::utils::Utils::draw_graph("Sharpness", sharpness_buffer, cv::Size(200, 100), cropFrame.type(), cv::Scalar(0.0, 255.0, 255.0, 0.0), cv::Scalar(0.0, 25.0, 25.0, 0.0));
+                auto noise_graph = sky360lib::utils::Utils::draw_graph("Noise", noise_buffer, cv::Size(200, 100), cropFrame.type(), cv::Scalar(0.0, 165.0, 255.0, 0.0), cv::Scalar(0.0, 5.0, 25.0, 0.0));
                 sky360lib::utils::Utils::overlay_image(cropFrame, sharpness_graph, cv::Point(0, cropFrame.size().height - sharpness_graph.size().height), 0.7);
-                sky360lib::utils::Utils::overlay_image(cropFrame, noise_graph, cv::Point(cropFrame.size().width - sharpness_graph.size().width, cropFrame.size().height - sharpness_graph.size().height), 0.7);
+                sky360lib::utils::Utils::overlay_image(cropFrame, noise_graph, cv::Point(cropFrame.size().width - noise_graph.size().width, cropFrame.size().height - noise_graph.size().height), 0.7);
 
                 cv::imshow("Window Cut", cropFrame);
             }
@@ -531,12 +531,22 @@ void treatKeyboardpress(int key)
         break;
     case 'm':
         {
+            if (isBoxSelected)
+            {
+                isBoxSelected = false;
+                cv::destroyWindow("Window Cut");
+            }
             auto current_bin = qhyCamera.get_camera_params().bin_mode;
             auto new_bin = current_bin == sky360lib::camera::QhyCamera::Bin1x1 ? sky360lib::camera::QhyCamera::Bin2x2 : sky360lib::camera::QhyCamera::Bin1x1;
             qhyCamera.set_bin_mode(new_bin);
         }
         break;
     case 'n':
+        if (isBoxSelected)
+        {
+            isBoxSelected = false;
+            cv::destroyWindow("Window Cut");
+        }
         doSoftwareBin = !doSoftwareBin;
         break;
     }
