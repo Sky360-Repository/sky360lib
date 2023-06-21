@@ -86,7 +86,7 @@ namespace sky360lib::utils
                             m_gain_accumulator += 1.0; 
                         }
                     }
-                    if(m_target_msv < m_max_target_msv) // Increase target
+                    else if(m_target_msv < m_max_target_msv) // Increase target
                     {
                         m_target_msv = std::clamp(m_target_msv += 0.001, m_min_target_msv, m_max_target_msv);
                         m_pid_controller.setTarget(m_target_msv);
