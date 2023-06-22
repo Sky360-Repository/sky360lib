@@ -14,6 +14,7 @@
 #include "../../../api/utils/ringbuf.h"
 #include "../../../api/utils/roi_mask_calculator.hpp"
 #include "../../../api/utils/bin_image.hpp"
+#include "../../../api/utils/image_stacker.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -47,6 +48,7 @@ bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
 bool doSoftwareBin = false;
+bool doStacking = true;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -69,6 +71,7 @@ sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
 sky360lib::utils::AutoExposureControl autoExposureControl;
 sky360lib::utils::AutoWhiteBalance auto_white_balance(50000.0);
 sky360lib::utils::BinImage bin_image;
+sky360lib::utils::ImageStacker image_stacker;
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -137,6 +140,12 @@ int main(int argc, const char **argv)
             qhyCamera.get_frame(frame, false);
             profiler.stop("GetImage");
             frameSize = frame.size();
+            if (doStacking)
+            {
+                cv::Mat stacked_image;
+                image_stacker.stack(frame, stacked_image);
+                frame = stacked_image;
+            }
             profiler.start("Debayer");
             if (doSoftwareBin)
             {
@@ -551,6 +560,9 @@ void treatKeyboardpress(int key)
             cv::destroyWindow("Window Cut");
         }
         doSoftwareBin = !doSoftwareBin;
+        break;
+    case 'z':
+        doStacking = !doStacking;
         break;
     }
 }
