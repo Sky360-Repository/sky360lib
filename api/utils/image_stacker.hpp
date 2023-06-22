@@ -27,6 +27,17 @@ namespace sky360lib::utils
             }
         }
 
+        void set_weight(double _weight)
+        {
+            m_weight = _weight;
+            m_stacked_image.release();
+        }
+
+        double get_weight() const
+        {
+            return m_weight;
+        }
+
         void stack(const cv::Mat &_image_in, cv::Mat &_image_out)
         {
             if (m_stacked_image.empty())

@@ -48,7 +48,7 @@ bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
 bool doSoftwareBin = false;
-bool doStacking = true;
+bool doStacking = false;
 BGSType bgsType{NoBGS};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -282,7 +282,9 @@ int main(int argc, const char **argv)
             features_enabled += doEqualization ? "Equalization: On | " : "";
             features_enabled += logData ? "Logging: On | " : "";
             features_enabled += qhyCamera.get_camera_params().cool_enabled ? "Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C " : "";
-            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " |" : "";
+            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " | " : "";
+            features_enabled += doStacking ? "Stacking: On | " : "";
+            features_enabled += bgsType != NoBGS ? ("BGS: " + getBGSName(bgsType) + " | ") : "";
             features_enabled = !features_enabled.empty() ? features_enabled : "No features activated";
             if (updateDisplayOverlay)
             {
@@ -366,6 +368,8 @@ void createControlPanel()
     int maxGamma = (int)qhyCamera.get_camera_info()->gamma_limits.max * 10;
     cv::createTrackbar("Gamma:", "", nullptr, maxGamma, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::Gamma);
     cv::setTrackbarPos("Gamma:", "", (int)qhyCamera.get_camera_params().gamma * 10);
+    cv::createButton("Screenshot", generalCallback, (void *)(long)'i', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     int maxRedWB = (int)qhyCamera.get_camera_info()->red_wb_limits.max;
     cv::createTrackbar("Red WB:", "", nullptr, maxRedWB, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::RedWB);
     cv::setTrackbarPos("Red WB:", "", (int)qhyCamera.get_camera_params().red_white_balance);
@@ -391,12 +395,15 @@ void createControlPanel()
     cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
     cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
 
+    cv::createButton("Stacking", generalCallback, (void *)(long)'z', cv::QT_PUSH_BUTTON, 1);
+    cv::createTrackbar("Stacking:", "", nullptr, 100, changeTrackbars, (void *)(long)-2);
+    cv::setTrackbarPos("Stacking:", "", (int)(image_stacker.get_weight() * 100.0));
+
     cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Binning", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Screenshot", generalCallback, (void *)(long)'i', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Log data", generalCallback, (void *)(long)'l', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
@@ -573,6 +580,11 @@ void changeTrackbars(int value, void *paramP)
     if (param == -1)
     {
         autoExposureControl.set_target_msv((double)value / 100.0);
+        return;
+    }
+    else if (param == -2)
+    {
+        image_stacker.set_weight((double)value / 100.0);
         return;
     }
     else if ((sky360lib::camera::QhyCamera::ControlParam)param == sky360lib::camera::QhyCamera::ControlParam::Gamma)
