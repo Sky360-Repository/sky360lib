@@ -79,7 +79,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 // Function Definitions
 inline void drawBoxes(const cv::Mat &frame);
 bool openQQYCamera();
-bool openVideo(const cv::Size &size, double meanFps);
+bool openVideo(double meanFps);
 void createControlPanel();
 void treatKeyboardpress(int key);
 void changeTrackbars(int value, void *paramP);
@@ -139,7 +139,6 @@ int main(int argc, const char **argv)
             profiler.start("GetImage");
             qhyCamera.get_frame(frame, false);
             profiler.stop("GetImage");
-            frameSize = frame.size();
             if (doStacking)
             {
                 cv::Mat stacked_image;
@@ -158,6 +157,7 @@ int main(int argc, const char **argv)
             {
                 qhyCamera.debayer_image(frame, frameDebayered);
             }
+            frameSize = frameDebayered.size();
             profiler.stop("Debayer");
             if (doEqualization)
             {
@@ -253,7 +253,6 @@ int main(int argc, const char **argv)
                 displayFrame = frameDebayered;
             }
 
-            drawBoxes(displayFrame);
             if (!squareResolution)
             {
                 drawFOV(displayFrame, 220.0, circleCenter, circleRadius);
@@ -302,7 +301,9 @@ int main(int argc, const char **argv)
             //     cv::imshow("Live Video", result);
             // }
             // else
-                cv::imshow("Live Video", displayFrame);
+                cv::Mat live_frame = displayFrame;
+                drawBoxes(live_frame);
+                cv::imshow("Live Video", live_frame);
             profiler.stop("Display Frame");
             if (showHistogram)
             {
@@ -314,7 +315,7 @@ int main(int argc, const char **argv)
             if (isVideoOpen)
             {
                 profiler.start("Save Video");
-                videoWriter.write(frameDebayered);
+                videoWriter.write(displayFrame);
                 profiler.stop("Save Video");
             }
         }
@@ -436,7 +437,7 @@ void treatKeyboardpress(int key)
         if (!isVideoOpen)
         {
             std::cout << "Start recording" << std::endl;
-            isVideoOpen = openVideo(frameSize, profileData["Frame"].fps());
+            isVideoOpen = openVideo(profileData["Frame"].fps());
         }
         else
         {
@@ -840,11 +841,11 @@ std::string generate_filename()
     return oss.str();
 }
 
-bool openVideo(const cv::Size &size, double meanFps)
+bool openVideo(double meanFps)
 {
     auto name = home_directory + "/vo" + generate_filename() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
-    return videoWriter.open(name, codec, meanFps, size, true);
+    return videoWriter.open(name, codec, meanFps, displayFrame.size(), displayFrame.channels() == 3);
 }
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
