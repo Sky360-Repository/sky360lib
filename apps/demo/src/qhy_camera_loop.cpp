@@ -74,7 +74,7 @@ sky360lib::utils::AutoExposureControl autoExposureControl;
 sky360lib::utils::AutoWhiteBalance auto_white_balance(50000.0);
 sky360lib::utils::BinImage bin_image;
 sky360lib::utils::ImageStacker image_stacker;
-sky360lib::blobs::ConnectedBlobDetection blob_detection(sky360lib::blobs::ConnectedBlobDetectionParams(7, 49, 40));
+sky360lib::blobs::ConnectedBlobDetection blob_detection(sky360lib::blobs::ConnectedBlobDetectionParams(7, 49, 40, 100));
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 

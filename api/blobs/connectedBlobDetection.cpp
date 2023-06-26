@@ -61,9 +61,7 @@ namespace sky360lib::blobs
         if (rects_overlap(r1, r2))
             return 0;
 
-        // compute distance on x axis
         const int x_distance = std::max(0, std::max(r1.x, r2.x) - std::min(r1.x + r1.width, r2.x + r2.width));
-        // compute distance on y axis
         const int y_distance = std::max(0, std::max(r1.y, r2.y) - std::min(r1.y + r1.height, r2.y + r2.height));
 
         return (x_distance * x_distance) + (y_distance * y_distance);
@@ -166,9 +164,9 @@ namespace sky360lib::blobs
         // CCL_SPAGHETTI = 2, //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
         const int numLabels = cv::connectedComponents(_image, m_labels, 8, CV_32S, cv::CCL_SPAGHETTI) - 1;
 
-        _bboxes.resize(numLabels);
-        if (numLabels > 0)
+        if (numLabels > 0 && numLabels <= m_params.max_blobs)
         {
+            _bboxes.resize(numLabels);
             std::for_each(
                 std::execution::par,
                 m_process_seq.begin(),
