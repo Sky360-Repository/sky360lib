@@ -293,7 +293,7 @@ int main(int argc, const char **argv)
             features_enabled += qhyCamera.get_camera_params().cool_enabled ? "Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C " : "";
             features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " | " : "";
             features_enabled += doStacking ? "Stacking: On | " : "";
-            features_enabled += bgsType != NoBGS ? ("BGS: " + getBGSName(bgsType) + " | ") : "";
+            features_enabled += doBlobDetection ? ("Blob: on (" + getBGSName(bgsType) + ") | ") : "";
             features_enabled = !features_enabled.empty() ? features_enabled : "No features activated";
             if (updateDisplayOverlay)
             {
@@ -399,9 +399,11 @@ void createControlPanel()
     cv::setTrackbarMax("Temperature Control:", "", (int)temperature_limits.max);
     cv::setTrackbarPos("Temperature Control:", "", (int)qhyCamera.get_camera_params().target_temp);
 
-    cv::createButton("Auto-Exposure on/off", generalCallback, (void *)(long)'a', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Auto-Exposure", generalCallback, (void *)(long)'a', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("- 10%", exposureCallback, (void *)(long)-4, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("+ 10%", exposureCallback, (void *)(long)-3, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Auto White-Balance", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Change Binning", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
 
     cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
     cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
@@ -410,8 +412,8 @@ void createControlPanel()
     cv::createTrackbar("Stacking:", "", nullptr, 100, changeTrackbars, (void *)(long)-2);
     cv::setTrackbarPos("Stacking:", "", (int)(image_stacker.get_weight() * 100.0));
 
-    cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Binning", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Blob Detection", generalCallback, (void *)(long)'b', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Change BGS", generalCallback, (void *)(long)'g', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
@@ -866,7 +868,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
     switch (_type)
     {
     case BGSType::Vibe:
-        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 24, 1, 2));
+        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 20, 1, 2));
     case BGSType::WMV:
         return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
     default:
