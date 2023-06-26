@@ -67,6 +67,7 @@ namespace sky360lib::blobs
         std::vector<size_t> m_process_seq;
         std::vector<std::unique_ptr<ImgSize>> m_img_sizes_parallel;
         std::vector<std::vector<cv::Rect>> m_bboxes_parallel;
+        std::unique_ptr<ImgSize> m_original_img_size;
 
         void prepare_parallel(const cv::Mat &_image);
         static void apply_detect_bboxes(const cv::Mat &_labels, std::vector<cv::Rect> &_bboxes);

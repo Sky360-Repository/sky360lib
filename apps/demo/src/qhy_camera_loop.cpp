@@ -11,6 +11,7 @@
 #include "../../../api/utils/profiler.hpp"
 #include "../../../api/utils/textWriter.hpp"
 #include "../../../api/bgs/bgs.hpp"
+#include "../../../api/blobs/connectedBlobDetection.hpp"
 #include "../../../api/utils/ringbuf.h"
 #include "../../../api/utils/roi_mask_calculator.hpp"
 #include "../../../api/utils/bin_image.hpp"
@@ -49,7 +50,8 @@ bool settingCircle = false;
 bool circleSet = false;
 bool doSoftwareBin = false;
 bool doStacking = false;
-BGSType bgsType{NoBGS};
+bool doBlobDetection = false;
+BGSType bgsType{WMV};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
 cv::Rect tempFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -72,6 +74,7 @@ sky360lib::utils::AutoExposureControl autoExposureControl;
 sky360lib::utils::AutoWhiteBalance auto_white_balance(50000.0);
 sky360lib::utils::BinImage bin_image;
 sky360lib::utils::ImageStacker image_stacker;
+sky360lib::blobs::ConnectedBlobDetection blob_detection;
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -94,6 +97,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 std::string get_running_time(std::chrono::system_clock::time_point input_time);
 std::string generate_filename();
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -113,6 +117,8 @@ int main(int argc, const char **argv)
 
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 10000));
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 0.0);
+
+    bgsPtr = createBGS(bgsType);
 
     int frame_counter = 0;
     const int auto_exposure_frame_interval = 3; 
@@ -243,16 +249,20 @@ int main(int argc, const char **argv)
                 profiler.stop("Log Data");
             }
 
-            profiler.start("Display Frame");
-            if (bgsType != NoBGS)
+            displayFrame = frameDebayered;
+            
+            profiler.start("BGS/Blob");
+            if (doBlobDetection)
             {
-                bgsPtr->apply(frame, displayFrame);
+                cv::Mat bgs_mask;
+                bgsPtr->apply(frame, bgs_mask);
+                std::vector<cv::Rect> bboxes;
+                blob_detection.detect(bgs_mask, bboxes);
+                drawBboxes(bboxes, displayFrame);
             }
-            else
-            {
-                displayFrame = frameDebayered;
-            }
+            profiler.stop("BGS/Blob");
 
+            profiler.start("Display Frame");
             if (!squareResolution)
             {
                 drawFOV(displayFrame, 220.0, circleCenter, circleRadius);
@@ -474,10 +484,13 @@ void treatKeyboardpress(int key)
     case '2':
         qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 16);
         break;
-    case 'b':
-        bgsType = bgsType == BGSType::WMV ? BGSType::Vibe : (bgsType == BGSType::Vibe ? BGSType::NoBGS : BGSType::WMV);
+    case 'g':
+        bgsType = bgsType == BGSType::WMV ? BGSType::Vibe : BGSType::WMV;
         bgsPtr = createBGS(bgsType);
         std::cout << "Setting BGS to: " << std::to_string(bgsType) << std::endl;
+        break;
+    case 'b':
+        doBlobDetection = !doBlobDetection;
         break;
     case 's':
         squareResolution = !squareResolution;
@@ -893,4 +906,20 @@ std::string get_running_time(std::chrono::system_clock::time_point input_time)
        << std::setw(2) << std::setfill('0') << s.count();
 
     return ss.str();
+}
+
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
+{
+    auto color = frame.channels() == 1 ? cv::Scalar(255, 255, 255) : cv::Scalar(255, 0, 255);
+    for (auto bb : bboxes)
+    {
+        if (frame.elemSize1() == 1)
+        {
+            cv::rectangle(frame, bb, color, 2);
+        }
+        else
+        {
+            cv::rectangle(frame, bb, cv::Scalar(color[0] * 255, color[1] * 255, color[2] * 255), 2);
+        }
+    }
 }

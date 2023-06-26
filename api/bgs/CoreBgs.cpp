@@ -24,10 +24,11 @@ void CoreBgs::restart()
 
 void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
 {
-    if (!m_initialized)
+    if (!m_initialized || *m_original_img_size != ImgSize(_image))
     {
         prepare_parallel(_image);
         initialize(_image);
+        _fgmask.create(_image.size(), CV_8UC1);
         m_initialized = true;
     }
     if (_fgmask.empty())
@@ -37,12 +38,10 @@ void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
 
     if (m_num_processes_parallel == 1)
     {
-        //std::cout << "CoreBgs runing in the same thread" << std::endl;
         process(_image, _fgmask, 0);
     }
     else
     {
-        //std::cout << "CoreBgs runing in " << m_numProcessesParallel << " threads" << std::endl;
         apply_parallel(_image, _fgmask);
     }
 }
@@ -56,6 +55,10 @@ cv::Mat CoreBgs::apply_ret(const cv::Mat &_image)
 
 void CoreBgs::prepare_parallel(const cv::Mat &_image)
 {
+    m_original_img_size = ImgSize::create(_image.size().width, _image.size().height,
+                                                  _image.channels(),
+                                                  _image.elemSize1(),
+                                                  0);
     m_img_sizes_parallel.resize(m_num_processes_parallel);
     m_process_seq.resize(m_num_processes_parallel);
     size_t y{0};
