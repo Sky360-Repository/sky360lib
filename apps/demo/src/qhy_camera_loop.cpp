@@ -74,7 +74,7 @@ sky360lib::utils::AutoExposureControl autoExposureControl;
 sky360lib::utils::AutoWhiteBalance auto_white_balance(50000.0);
 sky360lib::utils::BinImage bin_image;
 sky360lib::utils::ImageStacker image_stacker;
-sky360lib::blobs::ConnectedBlobDetection blob_detection;
+sky360lib::blobs::ConnectedBlobDetection blob_detection(sky360lib::blobs::ConnectedBlobDetectionParams(7, 49, 40));
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -868,9 +868,9 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
     switch (_type)
     {
     case BGSType::Vibe:
-        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 20, 1, 2));
+        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 20, 2, 4));
     case BGSType::WMV:
-        return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
+        return std::make_unique<sky360lib::bgs::WeightedMovingVariance>(sky360lib::bgs::WMVParams(true, true, 25.0f, 0.5f, 0.3f, 0.2f));
     default:
         return nullptr;
     }
@@ -910,18 +910,26 @@ std::string get_running_time(std::chrono::system_clock::time_point input_time)
     return ss.str();
 }
 
-inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &_image)
 {
-    auto color = frame.channels() == 1 ? cv::Scalar(255, 255, 255) : cv::Scalar(255, 0, 255);
+    auto color = _image.channels() == 1 ? cv::Scalar(255, 255, 255) : cv::Scalar(255, 0, 255);
     for (auto bb : bboxes)
     {
-        if (frame.elemSize1() == 1)
+        cv::Point center = (bb.br() + bb.tl()) / 2;
+        int newWidth = cvRound((double)bb.width * 1.3);
+        int newHeight = cvRound((double)bb.height * 1.3);
+
+        // Create the new rectangle
+        cv::Rect newRect(std::min(std::max(center.x - newWidth / 2, 0), _image.size().width - newWidth), 
+                        std::min(std::max(center.y - newHeight / 2, 0), _image.size().height - newHeight), 
+                        newWidth, newHeight);
+        if (_image.elemSize1() == 1)
         {
-            cv::rectangle(frame, bb, color, 2);
+            cv::rectangle(_image, newRect, color, 2);
         }
         else
         {
-            cv::rectangle(frame, bb, cv::Scalar(color[0] * 255, color[1] * 255, color[2] * 255), 2);
+            cv::rectangle(_image, newRect, cv::Scalar(color[0] * 255, color[1] * 255, color[2] * 255), 2);
         }
     }
 }
