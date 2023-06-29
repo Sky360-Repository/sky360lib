@@ -90,7 +90,7 @@ namespace sky360lib::utils
             std::string report;
             for (const auto &entry : m_profiler_data)
             {
-                report += report_individual(entry.second, stop_time);
+                report += "\n" + report_individual(entry.second, stop_time);
             }
             return report;
         }
@@ -104,8 +104,7 @@ namespace sky360lib::utils
                 << ", Average Time (s): " << data.avg_time_in_s()
                 << ", Count: " << data.count
                 << ", FPS: " << data.fps()
-                << ", %: " << (data.duration / totalDuration) * 100.0
-                << std::endl;
+                << ", %: " << (data.duration / totalDuration) * 100.0;
             return oss.str();
         }
 

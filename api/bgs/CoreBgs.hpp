@@ -40,5 +40,6 @@ namespace sky360lib::bgs
         bool m_initialized;
         std::vector<size_t> m_process_seq;
         std::vector<std::unique_ptr<ImgSize>> m_img_sizes_parallel;
+        std::unique_ptr<ImgSize> m_original_img_size;
     };
 }

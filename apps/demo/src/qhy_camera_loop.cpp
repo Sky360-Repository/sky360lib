@@ -15,9 +15,11 @@
 #include "../../../api/utils/profiler.hpp"
 #include "../../../api/utils/textWriter.hpp"
 #include "../../../api/bgs/bgs.hpp"
+#include "../../../api/blobs/connectedBlobDetection.hpp"
 #include "../../../api/utils/ringbuf.h"
 #include "../../../api/utils/roi_mask_calculator.hpp"
 #include "../../../api/utils/bin_image.hpp"
+#include "../../../api/utils/image_stacker.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -52,7 +54,9 @@ bool showHistogram = false;
 bool settingCircle = false;
 bool circleSet = false;
 bool doSoftwareBin = false;
-BGSType bgsType{NoBGS};
+bool doStacking = false;
+bool doBlobDetection = false;
+BGSType bgsType{WMV};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
 cv::Rect tempFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -77,6 +81,8 @@ sky360lib::utils::EntropyEstimator entropyEstimator;
 sky360lib::utils::SubSampler subSampler(50, 50);
 sky360lib::utils::AutoWhiteBalance autoWhiteBalance;
 sky360lib::utils::BinImage bin_image;
+sky360lib::utils::ImageStacker image_stacker;
+sky360lib::blobs::ConnectedBlobDetection blob_detection(sky360lib::blobs::ConnectedBlobDetectionParams(7, 49, 40, 100));
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 
@@ -89,7 +95,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 // Function Definitions
 inline void drawBoxes(const cv::Mat &frame);
 bool openQQYCamera();
-bool openVideo(const cv::Size &size, double meanFps);
+bool openVideo(double meanFps);
 void createControlPanel();
 void treatKeyboardpress(int key);
 void changeTrackbars(int value, void *paramP);
@@ -104,6 +110,7 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 std::string getBGSName(BGSType _type);
 std::string get_running_time(std::chrono::system_clock::time_point input_time);
 std::string generate_filename();
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame);
 
 /////////////////////////////////////////////////////////////
 // Main entry point for demo
@@ -123,6 +130,8 @@ int main(int argc, const char **argv)
 
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Exposure, (argc > 1 ? atoi(argv[1]) : 10000));
     qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::Gain, 0.0);
+
+    bgsPtr = createBGS(bgsType);
 
     int frame_counter = 0;
     const int log_interval = 10;
@@ -150,7 +159,12 @@ int main(int argc, const char **argv)
             profiler.start("GetImage");
             qhyCamera.get_frame(frame, false);
             profiler.stop("GetImage");
-            frameSize = frame.size();
+            if (doStacking)
+            {
+                cv::Mat stacked_image;
+                image_stacker.stack(frame, stacked_image);
+                frame = stacked_image;
+            }
             profiler.start("Debayer");
             if (doSoftwareBin)
             {
@@ -163,6 +177,7 @@ int main(int argc, const char **argv)
             {
                 qhyCamera.debayer_image(frame, frameDebayered);
             }
+            frameSize = frameDebayered.size();
             profiler.stop("Debayer");
             if (doEqualization)
             {
@@ -280,17 +295,20 @@ int main(int argc, const char **argv)
                 profiler.stop("Log Data");
             }
 
-            profiler.start("Display Frame");
-            if (bgsType != NoBGS)
+            displayFrame = frameDebayered;
+            
+            profiler.start("BGS/Blob");
+            if (doBlobDetection)
             {
-                bgsPtr->apply(frame, displayFrame);
+                cv::Mat bgs_mask;
+                bgsPtr->apply(frame, bgs_mask);
+                std::vector<cv::Rect> bboxes;
+                blob_detection.detect(bgs_mask, bboxes);
+                drawBboxes(bboxes, displayFrame);
             }
-            else
-            {
-                displayFrame = frameDebayered;
-            }
+            profiler.stop("BGS/Blob");
 
-            drawBoxes(displayFrame);
+            profiler.start("Display Frame");
             if (!squareResolution)
             {
                 drawFOV(displayFrame, 220.0, circleCenter, circleRadius);
@@ -320,7 +338,9 @@ int main(int argc, const char **argv)
             features_enabled += doEqualization ? "Equalization: On | " : "";
             features_enabled += logData ? "Logging: On | " : "";
             features_enabled += qhyCamera.get_camera_params().cool_enabled ? "Cooling: " + sky360lib::utils::Utils::format_double(qhyCamera.get_camera_params().target_temp) +  " C " : "";
-            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " |" : "";
+            features_enabled += doAutoExposure ? std::string("Auto Exp: ") + (autoExposureControl.is_day() ? "Day" : "Night") + " | " : "";
+            features_enabled += doStacking ? "Stacking: On | " : "";
+            features_enabled += doBlobDetection ? ("Blob: on (" + getBGSName(bgsType) + ") | ") : "";
             features_enabled = !features_enabled.empty() ? features_enabled : "No features activated";
             if (updateDisplayOverlay)
             {
@@ -338,7 +358,9 @@ int main(int argc, const char **argv)
             //     cv::imshow("Live Video", result);
             // }
             // else
-                cv::imshow("Live Video", displayFrame);
+                cv::Mat live_frame = displayFrame;
+                drawBoxes(live_frame);
+                cv::imshow("Live Video", live_frame);
             profiler.stop("Display Frame");
             if (showHistogram)
             {
@@ -350,7 +372,7 @@ int main(int argc, const char **argv)
             if (isVideoOpen)
             {
                 profiler.start("Save Video");
-                videoWriter.write(frameDebayered);
+                videoWriter.write(displayFrame);
                 profiler.stop("Save Video");
             }
         }
@@ -402,6 +424,11 @@ void createControlPanel()
     cv::createButton("8 bits", TransferbitsCallback, (void *)(long)8, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("16 bits", TransferbitsCallback, (void *)(long)16, cv::QT_PUSH_BUTTON, 1);
 
+    int maxGamma = (int)qhyCamera.get_camera_info()->gamma_limits.max * 10;
+    cv::createTrackbar("Gamma:", "", nullptr, maxGamma, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::Gamma);
+    cv::setTrackbarPos("Gamma:", "", (int)qhyCamera.get_camera_params().gamma * 10);
+    cv::createButton("Screenshot", generalCallback, (void *)(long)'i', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     int maxRedWB = (int)qhyCamera.get_camera_info()->red_wb_limits.max;
     cv::createTrackbar("Red WB:", "", nullptr, maxRedWB, changeTrackbars, (void *)(long)sky360lib::camera::QhyCamera::ControlParam::RedWB);
     cv::setTrackbarPos("Red WB:", "", (int)qhyCamera.get_camera_params().red_white_balance);
@@ -420,19 +447,24 @@ void createControlPanel()
     cv::setTrackbarMax("Temperature Control:", "", (int)temperature_limits.max);
     cv::setTrackbarPos("Temperature Control:", "", (int)qhyCamera.get_camera_params().target_temp);
 
-    cv::createButton("Auto-Exposure on/off", generalCallback, (void *)(long)'a', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Auto-Exposure", generalCallback, (void *)(long)'a', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("- 10%", exposureCallback, (void *)(long)-4, cv::QT_PUSH_BUTTON, 1);
     cv::createButton("+ 10%", exposureCallback, (void *)(long)-3, cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Auto White-Balance", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Change Binning", generalCallback, (void *)(long)'n', cv::QT_PUSH_BUTTON, 1);
 
     cv::createTrackbar("Auto-Exposure MSV:", "", nullptr, 100.0, changeTrackbars, (void *)(long)-1);
     cv::setTrackbarPos("Auto-Exposure MSV:", "", (int)(autoExposureControl.get_target_msv() * 100.0));
 
-    cv::createButton("Auto WB", generalCallback, (void *)(long)'w', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Stacking", generalCallback, (void *)(long)'z', cv::QT_PUSH_BUTTON, 1);
+    cv::createTrackbar("Stacking:", "", nullptr, 100, changeTrackbars, (void *)(long)-2);
+    cv::setTrackbarPos("Stacking:", "", (int)(image_stacker.get_weight() * 100.0));
+
+    cv::createButton("Blob Detection", generalCallback, (void *)(long)'b', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Change BGS", generalCallback, (void *)(long)'g', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Screenshot", generalCallback, (void *)(long)'i', cv::QT_PUSH_BUTTON, 1);
-    cv::createButton("Video Rec.", generalCallback, (void *)(long)'v', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Log data", generalCallback, (void *)(long)'l', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Exit Program", generalCallback, (void *)(long)27, cv::QT_PUSH_BUTTON, 1);
 }
@@ -465,7 +497,7 @@ void treatKeyboardpress(int key)
         if (!isVideoOpen)
         {
             std::cout << "Start recording" << std::endl;
-            isVideoOpen = openVideo(frameSize, profileData["Frame"].fps());
+            isVideoOpen = openVideo(profileData["Frame"].fps());
         }
         else
         {
@@ -502,10 +534,13 @@ void treatKeyboardpress(int key)
     case '2':
         qhyCamera.set_control(sky360lib::camera::QhyCamera::ControlParam::TransferBits, 16);
         break;
-    case 'b':
-        bgsType = bgsType == BGSType::WMV ? BGSType::Vibe : (bgsType == BGSType::Vibe ? BGSType::NoBGS : BGSType::WMV);
+    case 'g':
+        bgsType = bgsType == BGSType::WMV ? BGSType::Vibe : BGSType::WMV;
         bgsPtr = createBGS(bgsType);
         std::cout << "Setting BGS to: " << std::to_string(bgsType) << std::endl;
+        break;
+    case 'b':
+        doBlobDetection = !doBlobDetection;
         break;
     case 's':
         squareResolution = !squareResolution;
@@ -597,6 +632,9 @@ void treatKeyboardpress(int key)
         }
         doSoftwareBin = !doSoftwareBin;
         break;
+    case 'z':
+        doStacking = !doStacking;
+        break;
     }
 }
 
@@ -606,6 +644,16 @@ void changeTrackbars(int value, void *paramP)
     if (param == -1)
     {
         autoExposureControl.set_target_msv((double)value / 100.0);
+        return;
+    }
+    else if (param == -2)
+    {
+        image_stacker.set_weight((double)value / 100.0);
+        return;
+    }
+    else if ((sky360lib::camera::QhyCamera::ControlParam)param == sky360lib::camera::QhyCamera::ControlParam::Gamma)
+    {
+        qhyCamera.set_control((sky360lib::camera::QhyCamera::ControlParam)param, (double)value / 10.0);
         return;
     }
     qhyCamera.set_control((sky360lib::camera::QhyCamera::ControlParam)param, (double)value);
@@ -856,11 +904,11 @@ std::string generate_filename()
     return oss.str();
 }
 
-bool openVideo(const cv::Size &size, double meanFps)
+bool openVideo(double meanFps)
 {
     auto name = home_directory + "/vo" + generate_filename() + ".mkv";
     int codec = cv::VideoWriter::fourcc('X', '2', '6', '4');
-    return videoWriter.open(name, codec, meanFps, size, true);
+    return videoWriter.open(name, codec, meanFps, displayFrame.size(), displayFrame.channels() == 3);
 }
 
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
@@ -868,9 +916,9 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type)
     switch (_type)
     {
     case BGSType::Vibe:
-        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 24, 1, 2));
+        return std::make_unique<sky360lib::bgs::Vibe>(sky360lib::bgs::VibeParams(50, 20, 2, 4));
     case BGSType::WMV:
-        return std::make_unique<sky360lib::bgs::WeightedMovingVariance>();
+        return std::make_unique<sky360lib::bgs::WeightedMovingVariance>(sky360lib::bgs::WMVParams(true, true, 25.0f, 0.5f, 0.3f, 0.2f));
     default:
         return nullptr;
     }
@@ -908,4 +956,28 @@ std::string get_running_time(std::chrono::system_clock::time_point input_time)
        << std::setw(2) << std::setfill('0') << s.count();
 
     return ss.str();
+}
+
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &_image)
+{
+    auto color = _image.channels() == 1 ? cv::Scalar(255, 255, 255) : cv::Scalar(255, 0, 255);
+    for (auto bb : bboxes)
+    {
+        cv::Point center = (bb.br() + bb.tl()) / 2;
+        int newWidth = cvRound((double)bb.width * 1.3);
+        int newHeight = cvRound((double)bb.height * 1.3);
+
+        // Create the new rectangle
+        cv::Rect newRect(std::min(std::max(center.x - newWidth / 2, 0), _image.size().width - newWidth), 
+                        std::min(std::max(center.y - newHeight / 2, 0), _image.size().height - newHeight), 
+                        newWidth, newHeight);
+        if (_image.elemSize1() == 1)
+        {
+            cv::rectangle(_image, newRect, color, 2);
+        }
+        else
+        {
+            cv::rectangle(_image, newRect, cv::Scalar(color[0] * 255, color[1] * 255, color[2] * 255), 2);
+        }
+    }
 }

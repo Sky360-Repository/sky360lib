@@ -35,14 +35,7 @@ namespace sky360lib::utils
             }
             if (_image_out.empty() || _image_out.elemSize1() != _image_in.elemSize1())
             {
-                if (_image_in.elemSize1() == 1)
-                {
-                    _image_out.create(_image_in.size().height / 2, _image_in.size().width / 2, CV_8UC1);
-                }
-                else
-                {
-                    _image_out.create(_image_in.size().height / 2, _image_in.size().width / 2, CV_16UC1);
-                }
+                _image_out.create(_image_in.size().height / 2, _image_in.size().width / 2, _image_in.elemSize1() == 1 ? CV_8UC1 : CV_16UC1);
             }
 
             if (m_num_processes_parallel == 1)

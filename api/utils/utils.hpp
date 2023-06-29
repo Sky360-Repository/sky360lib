@@ -42,7 +42,7 @@ namespace sky360lib::utils
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
                 clahe->setClipLimit(clip_limit);
                 clahe->setTilesGridSize(cv::Size(6, 6));
-                clahe->apply(image_in, image_out);                
+                clahe->apply(image_in, image_out);
             }
         }
 
@@ -160,67 +160,87 @@ namespace sky360lib::utils
             return entropy_value;
         }
 
-        static cv::Mat create_histogram(const cv::Mat &img, int hist_w = 512, int hist_h = 400)
+        static cv::Mat create_histogram(const cv::Mat &img, int hist_w = 512, int hist_ht = 400)
         {
             const int hist_size = 256;
             const float range[] = {0, img.elemSize1() == 1 ? 255.0f : 65535.0f};
             const float *hist_range = {range};
             const bool uniform = true;
             const bool accumulate = false;
+            int hist_h = hist_ht - 30;
 
             std::vector<cv::Mat> bgr_planes;
             cv::split(img, bgr_planes);
 
             cv::Mat b_hist, g_hist, r_hist;
             cv::calcHist(&bgr_planes[0], 1, 0, cv::Mat(), b_hist, 1, &hist_size, &hist_range, uniform, accumulate);
-            cv::calcHist(&bgr_planes[1], 1, 0, cv::Mat(), g_hist, 1, &hist_size, &hist_range, uniform, accumulate);
-            cv::calcHist(&bgr_planes[2], 1, 0, cv::Mat(), r_hist, 1, &hist_size, &hist_range, uniform, accumulate);
+
+            if (img.channels() > 1)
+            {
+                cv::calcHist(&bgr_planes[1], 1, 0, cv::Mat(), g_hist, 1, &hist_size, &hist_range, uniform, accumulate);
+                cv::calcHist(&bgr_planes[2], 1, 0, cv::Mat(), r_hist, 1, &hist_size, &hist_range, uniform, accumulate);
+            }
 
             int bin_w = cvRound(static_cast<double>(hist_w) / hist_size);
-            cv::Mat hist_img(hist_h, hist_w, CV_8UC3, cv::Scalar(0, 0, 0));
+            cv::Mat hist_img(hist_ht, hist_w, CV_8UC3, cv::Scalar(0, 0, 0));
 
             cv::normalize(b_hist, b_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
-            cv::normalize(g_hist, g_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
-            cv::normalize(r_hist, r_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
+
+            for (int i = 0; i <= hist_w; i += hist_w / 10)
+            {
+                std::ostringstream str;
+                str << std::fixed << std::setprecision(1) << static_cast<float>(i) / hist_w;
+                cv::putText(hist_img, str.str(), cv::Point(i, hist_ht - 10), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1, 8);
+            }
 
             for (int i = 1; i < hist_size; ++i)
             {
                 cv::line(hist_img,
                          cv::Point(bin_w * (i - 1), hist_h - cvRound(b_hist.at<float>(i - 1))),
                          cv::Point(bin_w * i, hist_h - cvRound(b_hist.at<float>(i))),
-                         cv::Scalar(255, 0, 0),
-                         2,
-                         8,
-                         0);
-                cv::line(hist_img,
-                         cv::Point(bin_w * (i - 1), hist_h - cvRound(g_hist.at<float>(i - 1))),
-                         cv::Point(bin_w * i, hist_h - cvRound(g_hist.at<float>(i))),
-                         cv::Scalar(0, 255, 0),
-                         2,
-                         8,
-                         0);
-                cv::line(hist_img,
-                         cv::Point(bin_w * (i - 1), hist_h - cvRound(r_hist.at<float>(i - 1))),
-                         cv::Point(bin_w * i, hist_h - cvRound(r_hist.at<float>(i))),
-                         cv::Scalar(0, 0, 255),
+                         img.channels() == 1 ? cv::Scalar(255, 255, 255) : cv::Scalar(255, 0, 0),
                          2,
                          8,
                          0);
             }
 
+            if (img.channels() > 1)
+            {
+                cv::normalize(g_hist, g_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
+                cv::normalize(r_hist, r_hist, 0, hist_img.rows, cv::NORM_MINMAX, -1, cv::Mat());
+
+                for (int i = 1; i < hist_size; ++i)
+                {
+                    cv::line(hist_img,
+                             cv::Point(bin_w * (i - 1), hist_h - cvRound(g_hist.at<float>(i - 1))),
+                             cv::Point(bin_w * i, hist_h - cvRound(g_hist.at<float>(i))),
+                             cv::Scalar(0, 255, 0),
+                             2,
+                             8,
+                             0);
+                    cv::line(hist_img,
+                             cv::Point(bin_w * (i - 1), hist_h - cvRound(r_hist.at<float>(i - 1))),
+                             cv::Point(bin_w * i, hist_h - cvRound(r_hist.at<float>(i))),
+                             cv::Scalar(0, 0, 255),
+                             2,
+                             8,
+                             0);
+                }
+            }
+
             return hist_img;
         }
 
-        template<typename Container>
-        static cv::Mat draw_graph(const std::string& name, const Container &data, const cv::Size &graphSize, int type, cv::Scalar lineColor, cv::Scalar rectColor, int thickness = 1)
+        template <typename Container>
+        static cv::Mat draw_graph(const std::string &name, const Container &data, const cv::Size &graphSize, int type, cv::Scalar lineColor, cv::Scalar rectColor, int thickness = 1)
         {
             cv::Mat graph(graphSize, type);
             if (graph.channels() == 1)
             {
                 lineColor = cv::Scalar{255, 255, 255, 0};
             }
-            const TextWriter text_writter(cv::Scalar{255, 255, 255, 0}, 9, 2.5); 
-            const TextWriter text_writter_name(lineColor, 6, 3.5); 
+            const TextWriter text_writter(cv::Scalar{255, 255, 255, 0}, 9, 2.5);
+            const TextWriter text_writter_name(lineColor, 6, 3.5);
 
             cv::rectangle(graph, cv::Rect(0, 0, graphSize.width, graphSize.height), rectColor, cv::FILLED);
 

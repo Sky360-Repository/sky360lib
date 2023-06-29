@@ -10,15 +10,16 @@ namespace sky360lib::blobs
     {
         static const int DEFAULT_SIZE_THRESHOLD = 5;
         static const int DEFAULT_AREA_THRESHOLD = 25;
-        static const int DEFAULT_MIN_DISTANCE = 5;
+        static const int DEFAULT_MIN_DISTANCE = 25;
+        static const int DEFAULT_MAX_BLOBS = 100;
 
         ConnectedBlobDetectionParams()
-            : ConnectedBlobDetectionParams(DEFAULT_SIZE_THRESHOLD, DEFAULT_AREA_THRESHOLD, DEFAULT_MIN_DISTANCE)
+            : ConnectedBlobDetectionParams(DEFAULT_SIZE_THRESHOLD, DEFAULT_AREA_THRESHOLD, DEFAULT_MIN_DISTANCE, DEFAULT_MAX_BLOBS)
         {
         }
 
-        ConnectedBlobDetectionParams(int _sizeThreshold, int _areaThreshold, int _minDistance)
-            : size_threshold{_sizeThreshold}, area_threshold{_areaThreshold}, min_mistance{_minDistance}, min_distance_squared{_minDistance * _minDistance}
+        ConnectedBlobDetectionParams(int _sizeThreshold, int _areaThreshold, int _minDistance, int _maxBlobs)
+            : size_threshold{_sizeThreshold}, area_threshold{_areaThreshold}, min_mistance{_minDistance}, min_distance_squared{_minDistance * _minDistance}, max_blobs{_maxBlobs}
         {
         }
 
@@ -34,6 +35,7 @@ namespace sky360lib::blobs
         int area_threshold;
         int min_mistance;
         int min_distance_squared;
+        int max_blobs;
     };
 
     class ConnectedBlobDetection final
@@ -67,6 +69,7 @@ namespace sky360lib::blobs
         std::vector<size_t> m_process_seq;
         std::vector<std::unique_ptr<ImgSize>> m_img_sizes_parallel;
         std::vector<std::vector<cv::Rect>> m_bboxes_parallel;
+        std::unique_ptr<ImgSize> m_original_img_size;
 
         void prepare_parallel(const cv::Mat &_image);
         static void apply_detect_bboxes(const cv::Mat &_labels, std::vector<cv::Rect> &_bboxes);
