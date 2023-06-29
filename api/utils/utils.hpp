@@ -15,7 +15,7 @@ namespace sky360lib::utils
     class Utils
     {
     public:
-        static void equalize_image(const cv::Mat &image_in, cv::Mat &image_out, double clip_limit)
+        static cv::Mat equalize_image(const cv::Mat &image_in, cv::Mat &image_out, double clip_limit)
         {
             if (image_in.channels() > 1)
             {
@@ -36,6 +36,8 @@ namespace sky360lib::utils
                 cv::merge(lab_channels, lab_image);
 
                 cv::cvtColor(lab_image, image_out, cv::COLOR_YCrCb2BGR);
+
+                return equalized_l;
             }
             else
             {
@@ -43,6 +45,7 @@ namespace sky360lib::utils
                 clahe->setClipLimit(clip_limit);
                 clahe->setTilesGridSize(cv::Size(6, 6));
                 clahe->apply(image_in, image_out);
+                return image_out;
             }
         }
 

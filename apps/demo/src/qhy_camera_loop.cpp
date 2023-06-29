@@ -56,6 +56,7 @@ bool circleSet = false;
 bool doSoftwareBin = false;
 bool doStacking = false;
 bool doBlobDetection = false;
+bool display_bgs = false;
 BGSType bgsType{WMV};
 
 cv::Rect fullFrameBox{0, 0, DEFAULT_BOX_SIZE, DEFAULT_BOX_SIZE};
@@ -138,7 +139,7 @@ int main(int argc, const char **argv)
 
     createControlPanel();
 
-    cv::Mat frame, processedFrame, saveFrame, frameDebayered;
+    cv::Mat frame, frameDebayered, bgs_mask;
 
     qhyCamera.get_frame(frame, false);
     frameSize = frame.size();
@@ -182,7 +183,7 @@ int main(int argc, const char **argv)
             if (doEqualization)
             {
                 profiler.start("Equalization");
-                sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
+                frame = sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
                 profiler.stop("Equalization");
             }
 
@@ -300,11 +301,15 @@ int main(int argc, const char **argv)
             profiler.start("BGS/Blob");
             if (doBlobDetection)
             {
-                cv::Mat bgs_mask;
                 bgsPtr->apply(frame, bgs_mask);
                 std::vector<cv::Rect> bboxes;
                 blob_detection.detect(bgs_mask, bboxes);
                 drawBboxes(bboxes, displayFrame);
+                if (display_bgs)
+                {
+                    cv::imshow("BGS", bgs_mask);
+                    cv::setWindowProperty("BGS", cv::WND_PROP_AUTOSIZE, cv::WINDOW_NORMAL);
+                }
             }
             profiler.stop("BGS/Blob");
 
@@ -329,8 +334,6 @@ int main(int argc, const char **argv)
             {
                 textWriter.write_text(displayFrame, sky360lib::utils::Utils::format_double(qhyCamera.get_current_temp()) + "c", 36);
             }
-            // textWriter.write_text(displayFrame, "BGS: " + getBGSName(bgsType), 5);
-            // textWriter.write_text(displayFrame, "MSV: Target " + sky360lib::utils::Utils::format_double(autoExposureControl.get_target_msv()) + ", Current: " + sky360lib::utils::Utils::format_double(autoExposureControl.get_current_msv()), 6, true);
 
             std::string features_enabled;
             features_enabled += doAutoWhiteBalance ? "Auto WB: On | " : "";
@@ -349,6 +352,12 @@ int main(int argc, const char **argv)
             }
             cv::displayStatusBar("Live Video", features_enabled, 0);
 
+            if (isVideoOpen)
+            {
+                profiler.start("Save Video");
+                videoWriter.write(displayFrame);
+                profiler.stop("Save Video");
+            }
             // if (circleSet)
             // {
             //     auto roi_mask = sky360lib::utils::RoiMaskCalculator::calc_roi_mask(displayFrame, circleInit, circleEnd, 180.0, 220.0);
@@ -358,9 +367,8 @@ int main(int argc, const char **argv)
             //     cv::imshow("Live Video", result);
             // }
             // else
-                cv::Mat live_frame = displayFrame;
-                drawBoxes(live_frame);
-                cv::imshow("Live Video", live_frame);
+                drawBoxes(displayFrame);
+                cv::imshow("Live Video", displayFrame);
             profiler.stop("Display Frame");
             if (showHistogram)
             {
@@ -368,12 +376,6 @@ int main(int argc, const char **argv)
                 cv::Mat hist = sky360lib::utils::Utils::create_histogram(frameDebayered);
                 cv::imshow("Histogram", hist);
                 profiler.stop("Display Histogram");
-            }
-            if (isVideoOpen)
-            {
-                profiler.start("Save Video");
-                videoWriter.write(displayFrame);
-                profiler.stop("Save Video");
             }
         }
 
@@ -462,6 +464,7 @@ void createControlPanel()
 
     cv::createButton("Blob Detection", generalCallback, (void *)(long)'b', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Change BGS", generalCallback, (void *)(long)'g', cv::QT_PUSH_BUTTON, 1);
+    cv::createButton("Display BGS", generalCallback, (void *)(long)'x', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Hist Eq.", generalCallback, (void *)(long)'e', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Histogram", generalCallback, (void *)(long)'h', cv::QT_PUSH_BUTTON, 1);
     cv::createButton("Square Res.", generalCallback, (void *)(long)'s', cv::QT_PUSH_BUTTON, 1);
@@ -537,7 +540,6 @@ void treatKeyboardpress(int key)
     case 'g':
         bgsType = bgsType == BGSType::WMV ? BGSType::Vibe : BGSType::WMV;
         bgsPtr = createBGS(bgsType);
-        std::cout << "Setting BGS to: " << std::to_string(bgsType) << std::endl;
         break;
     case 'b':
         doBlobDetection = !doBlobDetection;
@@ -634,6 +636,16 @@ void treatKeyboardpress(int key)
         break;
     case 'z':
         doStacking = !doStacking;
+        break;
+    case 'x':
+        if (doBlobDetection)
+        {
+            if (display_bgs)
+            {
+                cv::destroyWindow("BGS");
+            }
+            display_bgs = !display_bgs;
+        }
         break;
     }
 }
