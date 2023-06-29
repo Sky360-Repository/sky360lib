@@ -12,8 +12,9 @@
 #include "../../api/blobs/connectedBlobDetection.hpp"
 #include "../../api/bgs/bgs.hpp"
 #include "../../api//camera/qhy_camera.hpp"
-#include "../../api/utils/autoExposureControl.hpp"
-#include "../../api/utils/autoWhiteBalance.hpp"
+#include "../../api/utils/auto_exposure.hpp"
+#include "../../api/utils/brightness_estimator.hpp"
+#include "../../api/utils/auto_white_balance.hpp"
 
 
 namespace py = pybind11;
@@ -152,42 +153,25 @@ PYBIND11_MODULE(pysky360, m)
         .value("Channels", QhyCamera::ControlParam::Channels)
         .export_values();
 
-    py::class_<AutoExposureControl>(m, "AutoExposureControl")
-        .def(py::init<>())
-        .def("get_target_msv", &AutoExposureControl::get_target_msv)
-        .def("set_target_msv", &AutoExposureControl::set_target_msv)
-        .def("get_min_exposure", &AutoExposureControl::get_min_exposure)
-        .def("set_min_exposure", &AutoExposureControl::set_min_exposure)
-        .def("get_max_exposure", &AutoExposureControl::get_max_exposure)
-        .def("set_max_exposure", &AutoExposureControl::set_max_exposure)
-        .def("get_min_gain", &AutoExposureControl::get_min_gain)
-        .def("set_min_gain", &AutoExposureControl::set_min_gain)
-        .def("get_max_gain", &AutoExposureControl::get_max_gain)
-        .def("set_max_gain", &AutoExposureControl::set_max_gain)
-        .def("get_max_exposure_step", &AutoExposureControl::get_max_exposure_step)
-        .def("set_max_exposure_step", &AutoExposureControl::set_max_exposure_step)
-        .def("is_day", &AutoExposureControl::is_day)
-        .def("get_current_msv", &AutoExposureControl::get_current_msv)
-        .def("calculate_exposure_gain", &AutoExposureControl::calculate_exposure_gain)
-        ;
+    py::class_<AutoExposure>(m, "AutoExposure")
+        .def(py::init<double, double, double, double>())
+        .def("update", &AutoExposure::update)
+        .def("set_target_msv", &AutoExposure::set_target_msv)
+        .def("get_target_msv", &AutoExposure::get_target_msv)
+        .def("get_current_msv", &AutoExposure::get_current_msv)
+        .def("is_day", &AutoExposure::is_day);
 
-    py::class_<AutoExposureControl::ExposureAdjustment>(m, "AutoExposureControl.ExposureAdjustment")
-        .def(py::init<>())
-        .def_readonly("exposure", &AutoExposureControl::ExposureAdjustment::exposure)
-        .def_readonly("gain", &AutoExposureControl::ExposureAdjustment::gain)
-        ;
 
     py::class_<AutoWhiteBalance>(m, "AutoWhiteBalance")
-        .def(py::init<double>())
-        .def("grayWorld", &AutoWhiteBalance::gray_world)
+        .def(py::init<>())
+        .def("illumination_estimation", &AutoWhiteBalance::illumination_estimation)
         ;
 
-    py::class_<AutoWhiteBalance::WhiteBalanceValues>(m, "AutoWhiteBalance.WhiteBalanceValues")
+    py::class_<WhiteBalanceValues>(m, "WhiteBalanceValues")
         .def(py::init<>())
-        .def_readonly("red", &AutoWhiteBalance::WhiteBalanceValues::red)
-        .def_readonly("green", &AutoWhiteBalance::WhiteBalanceValues::green)
-        .def_readonly("blue", &AutoWhiteBalance::WhiteBalanceValues::blue)
-        .def_readonly("apply", &AutoWhiteBalance::WhiteBalanceValues::apply)
+        .def_readonly("red", &WhiteBalanceValues::red)
+        .def_readonly("green", &WhiteBalanceValues::green)
+        .def_readonly("blue", &WhiteBalanceValues::blue)
         ;
 
 }
