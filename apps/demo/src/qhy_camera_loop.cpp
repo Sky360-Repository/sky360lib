@@ -41,6 +41,8 @@ const int DEFAULT_BOX_SIZE{500};
 bool isVideoOpen = false;
 bool isBoxSelected = false;
 cv::Size frameSize;
+cv::Size eq_grid_size_color(6, 6);
+cv::Size eq_grid_size_mono(4, 4);
 double clipLimit = 4.0;
 bool doEqualization = false;
 bool doAutoExposure = true;
@@ -184,7 +186,7 @@ int main(int argc, const char **argv)
             if (doEqualization)
             {
                 profiler.start("Equalization");
-                frame = sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit);
+                frame = sky360lib::utils::Utils::equalize_image(frameDebayered, frameDebayered, clipLimit, doSoftwareBin ? eq_grid_size_mono : eq_grid_size_color);
                 profiler.stop("Equalization");
             }
 

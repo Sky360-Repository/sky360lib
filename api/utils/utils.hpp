@@ -15,7 +15,7 @@ namespace sky360lib::utils
     class Utils
     {
     public:
-        static cv::Mat equalize_image(const cv::Mat &image_in, cv::Mat &image_out, double clip_limit)
+        static cv::Mat equalize_image(const cv::Mat &image_in, cv::Mat &image_out, double clip_limit, const cv::Size& grid_size)
         {
             if (image_in.channels() > 1)
             {
@@ -28,7 +28,7 @@ namespace sky360lib::utils
 
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
                 clahe->setClipLimit(clip_limit);
-                clahe->setTilesGridSize(cv::Size(6, 6));
+                clahe->setTilesGridSize(grid_size);
                 cv::Mat equalized_l;
                 clahe->apply(lab_channels[0], equalized_l);
 
@@ -43,7 +43,7 @@ namespace sky360lib::utils
             {
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
                 clahe->setClipLimit(clip_limit);
-                clahe->setTilesGridSize(cv::Size(6, 6));
+                clahe->setTilesGridSize(grid_size);
                 clahe->apply(image_in, image_out);
                 return image_out;
             }
@@ -235,38 +235,46 @@ namespace sky360lib::utils
         }
 
         template <typename Container>
-        static cv::Mat draw_graph(const std::string &name, const Container &data, const cv::Size &graphSize, int type, cv::Scalar lineColor, cv::Scalar rectColor, int thickness = 1)
+        static cv::Mat draw_graph(const std::string &_name, const Container &_data, const cv::Size &_graphSize, int _type, const cv::Scalar& _lineColor, const cv::Scalar& _rectColor, int thickness = 1)
         {
-            cv::Mat graph(graphSize, type);
+            cv::Mat graph(_graphSize, _type);
+            cv::Scalar lineColor{_lineColor};
+            cv::Scalar rectColor{_rectColor};
             if (graph.channels() == 1)
             {
                 lineColor = cv::Scalar{255, 255, 255, 0};
+                rectColor = cv::Scalar{128, 128, 128, 0};
+            }
+            if (graph.elemSize1() > 1)
+            {
+                lineColor = cv::Scalar{lineColor[0] * 255, lineColor[1] * 255, lineColor[2] * 255, lineColor[3] * 255};
+                rectColor = cv::Scalar{rectColor[0] * 255, rectColor[1] * 255, rectColor[2] * 255, rectColor[3] * 255};
             }
             const TextWriter text_writter(cv::Scalar{255, 255, 255, 0}, 9, 2.5);
             const TextWriter text_writter_name(lineColor, 6, 3.5);
 
-            cv::rectangle(graph, cv::Rect(0, 0, graphSize.width, graphSize.height), rectColor, cv::FILLED);
+            cv::rectangle(graph, cv::Rect(0, 0, _graphSize.width, _graphSize.height), rectColor, cv::FILLED);
 
-            const double minVal = *std::min_element(data.begin(), data.end());
-            const double maxVal = *std::max_element(data.begin(), data.end());
+            const double minVal = *std::min_element(_data.begin(), _data.end());
+            const double maxVal = *std::max_element(_data.begin(), _data.end());
             const double min_graph = minVal * 0.85;
             const double max_graph = maxVal * 1.15;
-            const double normalization_mult = 1.0 / (max_graph - min_graph) * graphSize.height;
-            const double scalingFactor = static_cast<double>(graphSize.width) / static_cast<double>(data.size());
+            const double normalization_mult = 1.0 / (max_graph - min_graph) * _graphSize.height;
+            const double scalingFactor = static_cast<double>(_graphSize.width) / static_cast<double>(_data.size());
 
-            for (size_t i = 1; i < data.size(); ++i)
+            for (size_t i = 1; i < _data.size(); ++i)
             {
-                const double val0{(data[i - 1] - min_graph) * normalization_mult};
-                const double val1{(data[i] - min_graph) * normalization_mult};
-                const cv::Point point0((i - 1) * scalingFactor, graphSize.height - val0);
-                const cv::Point point1(i * scalingFactor, graphSize.height - val1);
+                const double val0{(_data[i - 1] - min_graph) * normalization_mult};
+                const double val1{(_data[i] - min_graph) * normalization_mult};
+                const cv::Point point0((i - 1) * scalingFactor, _graphSize.height - val0);
+                const cv::Point point1(i * scalingFactor, _graphSize.height - val1);
                 cv::line(graph, point0, point1, lineColor, thickness);
             }
 
-            text_writter_name.write_text(graph, name, 1, false);
+            text_writter_name.write_text(graph, _name, 1, false);
             text_writter.write_text(graph, format_double(maxVal, 3), 1, true);
             text_writter.write_text(graph, format_double(minVal, 3), 8, true);
-            text_writter_name.write_text(graph, format_double(data.back(), 3), 6, false);
+            text_writter_name.write_text(graph, format_double(_data.back(), 3), 6, false);
 
             return graph;
         }
