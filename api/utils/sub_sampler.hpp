@@ -13,8 +13,8 @@ namespace sky360lib::utils
 
         cv::Mat subSample(const cv::Mat& image)
         {
-            int rows = image.rows;
-            int cols = image.cols;
+            const int rows = image.rows;
+            const int cols = image.cols;
 
             cv::Mat subSampled(rows / m_m, cols / m_n, image.type());
 
@@ -24,8 +24,8 @@ namespace sky360lib::utils
                 {
                     for (int j = 0; j < subSampled.cols; ++j)
                     {
-                        int row = i * m_m;
-                        int col = j * m_n;
+                        const int row = i * m_m;
+                        const int col = j * m_n;
                         subSampled.at<uchar>(i, j) = image.at<uchar>(row, col);
                     }
                 }
@@ -36,8 +36,8 @@ namespace sky360lib::utils
                 {
                     for (int j = 0; j < subSampled.cols; ++j)
                     {
-                        int row = i * m_m;
-                        int col = j * m_n;
+                        const int row = i * m_m;
+                        const int col = j * m_n;
                         subSampled.at<cv::Vec3b>(i, j) = image.at<cv::Vec3b>(row, col);
                     }
                 }

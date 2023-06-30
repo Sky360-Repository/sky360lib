@@ -13,7 +13,7 @@ namespace sky360lib::utils
             const int hist_size = 256;
 
             // Compute the histograms:
-            const float range[] = {0, hist_size};
+            const float range[] = {0, subSampled.elemSize1() == 1 ? 255.0f : 65535.0f};
             const float* hist_range = {range};
             cv::calcHist(&subSampled, 1, 0, cv::Mat(), hist, 1, &hist_size, &hist_range, true, false);
 

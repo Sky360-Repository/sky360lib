@@ -10,7 +10,7 @@ namespace sky360lib::utils
     public:
         BrightnessEstimator(){}
 
-        double estimateCurrentBrightness(cv::Mat& samples_mat)
+        double estimateCurrentBrightness(const cv::Mat& samples_mat)
         {
             cv::Scalar result = cv::mean(samples_mat); 
             return result[0] * (samples_mat.elemSize1() == 1 ? MULT_8_BITS : MULT_16_BITS);
