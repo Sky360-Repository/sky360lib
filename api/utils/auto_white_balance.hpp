@@ -18,7 +18,7 @@ namespace sky360lib::utils
         AutoWhiteBalance()
             : m_default_wb({165.0, 128.0, 240.0})
             , m_current_wb(m_default_wb)
-            , m_error_threshold(0.23)
+            , m_error_threshold(0.15)
         {
         }
 

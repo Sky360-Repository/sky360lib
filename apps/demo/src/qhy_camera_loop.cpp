@@ -76,7 +76,8 @@ sky360lib::utils::DataMap profileData;
 sky360lib::utils::Profiler profiler;
 sky360lib::camera::QhyCamera qhyCamera;
 sky360lib::utils::TextWriter textWriter(cv::Scalar{190, 190, 190, 0}, 36, 2.0);
-sky360lib::utils::AutoExposure autoExposureControl(0.25, 180, 0.01, 100); // Tuned
+// sky360lib::utils::AutoExposure autoExposureControl(0.25, 180, 0.01, 100); // Tuned
+sky360lib::utils::AutoExposure autoExposureControl(0.25, 4000, 0.01, 100); // Experimental
 sky360lib::utils::BrightnessEstimator brightnessEstimator;
 sky360lib::utils::EntropyEstimator entropyEstimator;
 sky360lib::utils::SubSampler subSampler(50, 50);

@@ -23,7 +23,7 @@ namespace sky360lib::utils
             m_pid_controller(kp, ki, kd, [this] { return m_current_msv; }, [](double){})
         {
             m_pid_controller.setTarget(m_target_msv);
-            m_pid_controller.setMaxIntegralCumulation(3000);
+            m_pid_controller.setMaxIntegralCumulation(500);
         }
 
         double get_target_msv() const { return m_target_msv; }
