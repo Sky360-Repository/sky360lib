@@ -11,6 +11,20 @@ namespace sky360lib::utils
         SubSampler(int n, int m)
             : m_n(n), m_m(m) {}
 
+        template <typename T>
+        void subSampleImpl(const cv::Mat& input, cv::Mat& output)
+        {
+            for (int i = 0; i < output.rows; ++i)
+            {
+                for (int j = 0; j < output.cols; ++j)
+                {
+                    const int row = i * m_m;
+                    const int col = j * m_n;
+                    output.at<T>(i, j) = input.at<T>(row, col);
+                }
+            }
+        }
+
         cv::Mat subSample(const cv::Mat& image)
         {
             const int rows = image.rows;
@@ -20,31 +34,41 @@ namespace sky360lib::utils
 
             if (image.channels() == 1) // Grayscale image
             {
-                for (int i = 0; i < subSampled.rows; ++i)
+                switch (image.depth())
                 {
-                    for (int j = 0; j < subSampled.cols; ++j)
-                    {
-                        const int row = i * m_m;
-                        const int col = j * m_n;
-                        subSampled.at<uchar>(i, j) = image.at<uchar>(row, col);
-                    }
+                case CV_8U:
+                    subSampleImpl<uchar>(image, subSampled);
+                    break;
+
+                case CV_16U:
+                    subSampleImpl<ushort>(image, subSampled);
+                    break;
+
+                default:
+                    // Handle unsupported image type/error condition
+                    break;
                 }
             }
             else if (image.channels() == 3) // Color image
             {
-                for (int i = 0; i < subSampled.rows; ++i)
+                switch (image.depth())
                 {
-                    for (int j = 0; j < subSampled.cols; ++j)
-                    {
-                        const int row = i * m_m;
-                        const int col = j * m_n;
-                        subSampled.at<cv::Vec3b>(i, j) = image.at<cv::Vec3b>(row, col);
-                    }
+                case CV_8U:
+                    subSampleImpl<cv::Vec3b>(image, subSampled);
+                    break;
+
+                case CV_16U:
+                    subSampleImpl<cv::Vec3w>(image, subSampled);
+                    break;
+
+                default:
+                    // Handle unsupported image type/error condition
+                    break;
                 }
             }
             else
             {
-                // Handle unsupported image type/error condition
+                // Handle other number of channels
             }
 
             return subSampled;
