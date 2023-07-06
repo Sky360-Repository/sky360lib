@@ -89,12 +89,12 @@ export(EXPORT sky360libTargets
 )
 
 # find the Boost libraries
-find_package(Boost REQUIRED COMPONENTS iostreams)
+# find_package(Boost REQUIRED COMPONENTS iostreams)
 
 # specify that the library needs to be linked with the Boost libraries
 target_link_libraries(sky360lib
                     PRIVATE
                         "${OpenCV_LIBS}"
                         qhyccd
-                        Boost::iostreams  # Link the Boost IOStreams library
+                        # Boost::iostreams  # Link the Boost IOStreams library
                         )  
