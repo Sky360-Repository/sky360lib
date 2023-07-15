@@ -11,9 +11,6 @@
 #include "./../../api/bgs/bgs.hpp"
 #include "./../../api/blobs/connectedBlobDetection.hpp"
 
-#include "demoUtils.hpp"
-#include "demoVideoTracker.hpp"
-
 /////////////////////////////////////////////////////////////
 // Default parameters
 int blur_radius{3};
@@ -35,15 +32,10 @@ std::unique_ptr<sky360lib::bgs::CoreBgs> bgsPtr{nullptr};
 sky360lib::blobs::ConnectedBlobDetection blobDetector;
 
 /////////////////////////////////////////////////////////////
-// Video Tracker
-DemoVideoTracker videoTracker;
-
-/////////////////////////////////////////////////////////////
 // Function Definitions
 std::unique_ptr<sky360lib::bgs::CoreBgs> createBGS(BGSType _type);
 inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
 inline void appyBGS(const cv::Mat &input, cv::Mat &output);
-inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline void drawBboxes(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
 inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
@@ -136,7 +128,6 @@ int main(int argc, const char **argv)
             appyPreProcess(frame16, processedFrame);
             appyBGS(processedFrame, bgsMask);
             findBlobs(bgsMask, bboxes);
-            //applyTracker(blobs, processedFrame);
             auto endProcessedTime = std::chrono::high_resolution_clock::now();
             drawBboxes(bboxes, bgsMask);
             drawBboxes(bboxes, frame);
@@ -228,11 +219,6 @@ inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
 inline void appyBGS(const cv::Mat &input, cv::Mat &output)
 {
     bgsPtr->apply(input, output);
-}
-
-inline void applyTracker(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame)
-{
-    videoTracker.create_trackers_from_keypoints(keypoints, frame);
 }
 
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes)

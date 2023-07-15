@@ -190,13 +190,11 @@ int main(int argc, const char **argv)
                 profiler.stop("Equalization");
             }
 
-            cv::Mat subSampledColor = subSampler.subSample(frameDebayered);
-            cv::Mat subSampledGray = subSampler.subSample(frame);
-
             if(autoExposureControl.is_day())
             {
                 if (doAutoWhiteBalance)
                 {
+                    cv::Mat subSampledColor = subSampler.subSample(frameDebayered);
                     auto newGains = autoWhiteBalance.illumination_estimation(subSampledColor);
 
                     // Compare new gains with previous gains
@@ -222,6 +220,7 @@ int main(int argc, const char **argv)
             }
 
             // Estimate entropy
+            cv::Mat subSampledGray = subSampler.subSample(frame);
             entropy = entropyEstimator.estimate_entropy(subSampledGray);
 
             if (doAutoExposure)

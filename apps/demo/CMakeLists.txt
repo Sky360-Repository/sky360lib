@@ -2,78 +2,38 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 # sky360lib_video
 add_executable(
-    sky360lib_demo
+    sky360lib_demo_video
         "src/demo_main.cpp"
-        "src/demoTracker.hpp"
 )
 
 target_include_directories(
-    sky360lib_demo
+    sky360lib_demo_video
         PUBLIC
             "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>"
 )
 
 target_link_libraries(
-    sky360lib_demo
+    sky360lib_demo_video
         PUBLIC
             "${OpenCV_LIBS}"
             sky360lib
 )
 
 set_target_properties(
-    sky360lib_demo
+    sky360lib_demo_video
         PROPERTIES
             FOLDER "apps"
 )
 
 install(
-    TARGETS sky360lib_demo
+    TARGETS sky360lib_demo_video
     RUNTIME DESTINATION "bin"
     COMPONENT "apps"
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(  # for <execution> stdlib
-    sky360lib_demo
-            PRIVATE
-                TBB::tbb
-    )
-endif ()
-
-# sky360lib_demo_qhy_camera
-add_executable(
-    sky360lib_demo_qhy_camera
-        "src/demo_qhy_camera.cpp"
-)
-
-target_include_directories(
-    sky360lib_demo_qhy_camera
-        PUBLIC
-            "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>"
-)
-
-target_link_libraries(
-    sky360lib_demo_qhy_camera
-        PUBLIC
-            "${OpenCV_LIBS}"
-            sky360lib
-)
-
-set_target_properties(
-    sky360lib_demo_qhy_camera
-        PROPERTIES
-            FOLDER "apps"
-)
-
-install(
-    TARGETS sky360lib_demo_qhy_camera
-    RUNTIME DESTINATION "bin"
-    COMPONENT "apps"
-)
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(  # for <execution> stdlib
-    sky360lib_demo_qhy_camera
+    sky360lib_demo_video
             PRIVATE
                 TBB::tbb
     )

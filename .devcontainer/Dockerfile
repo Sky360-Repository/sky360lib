@@ -7,11 +7,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
         libtbb-dev \
         python3-dev \
         python3-numpy \
+        python3-pip \
         wget \
         git \
         libusb-1.0-0-dev \
-    && wget --no-check-certificate -O get-pip.py https://bootstrap.pypa.io/get-pip.py && \
-    python3 get-pip.py && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apt-get autoclean && apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp

@@ -200,9 +200,10 @@ namespace sky360lib::camera
         bool check_force(ControlParam _control_param, double _value, bool _force);
         void change_internal_param(ControlParam _control_param, double _value);
         bool check_apply_direct_change(ControlParam _control_param);
-        void apply_open_after_change(ControlParam _control_param, bool _wasOpen);
+        void apply_after_change(ControlParam _control_param, bool _wasOpen);
         bool get_frame();
         bool begin_exposing();
+        bool end_exposing();
         bool set_control_low_level(ControlParam _controlParam, double _value);
         bool fill_camera_info(const std::string& _camId, CameraInfo &_ci);
         bool scan_cameras();

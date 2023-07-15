@@ -473,7 +473,8 @@ namespace sky360lib::camera
                 if (apply_direct_change)
                 {
                     auto changed = set_control_low_level(_control_param, _value);
-                    if (!changed) {
+                    if (!changed) 
+                    {
                         std::cerr << "Control could not change: " << _control_param << std::endl;
                         return false;
                     }
@@ -481,7 +482,7 @@ namespace sky360lib::camera
 
                 change_internal_param(_control_param, _value);
 
-                apply_open_after_change(_control_param, apply_direct_change);
+                apply_after_change(_control_param, apply_direct_change);
             }
         } 
         else if (m_is_debug_info)
@@ -559,7 +560,7 @@ namespace sky360lib::camera
         return true;
     }
 
-    void QhyCamera::apply_open_after_change(ControlParam _control_param, bool _apply_direct_change)
+    void QhyCamera::apply_after_change(ControlParam _control_param, bool _apply_direct_change)
     {
         if (!_apply_direct_change)
         {
@@ -751,6 +752,23 @@ namespace sky360lib::camera
             }
         }
         m_is_exposing = true;
+        return m_is_exposing;
+    }
+
+    bool QhyCamera::end_exposing()
+    {
+        if (m_is_exposing)
+        {
+            if (m_params.stream_mode == SingleFrame)
+            {
+                CancelQHYCCDExposingAndReadout(m_cam_handle);
+            }
+            else
+            {
+                StopQHYCCDLive(m_cam_handle);
+            }
+            m_is_exposing = false;
+        }
         return m_is_exposing;
     }
 }
