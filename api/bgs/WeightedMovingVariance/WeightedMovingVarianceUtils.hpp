@@ -33,7 +33,8 @@ namespace sky360lib::bgs
             : CoreParameters()
             , weight{_enableWeight ? _weight1 : ONE_THIRD, 
                 _enableWeight ? _weight2 : ONE_THIRD, 
-                _enableWeight ? _weight3 : ONE_THIRD}
+                _enableWeight ? _weight3 : ONE_THIRD,
+                0.0f}
         {
             set_enable_threshold(_enableThreshold);
             set_enable_weight(_enableWeight);
@@ -100,7 +101,7 @@ namespace sky360lib::bgs
         bool enable_threshold;
         float threshold;
         float threshold16;
-        float weight[3];
+        float weight[4];
         float threshold_squared;
         float threshold_squared16;
     };

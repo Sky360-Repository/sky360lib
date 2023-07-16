@@ -300,12 +300,15 @@ int main(int argc, const char **argv)
 
             displayFrame = frameDebayered;
             
-            profiler.start("BGS/Blob");
             if (doBlobDetection)
             {
+                profiler.start("BGS");
                 bgsPtr->apply(frame, bgs_mask);
+                profiler.stop("BGS");
                 std::vector<cv::Rect> bboxes;
+                profiler.start("Blob");
                 blob_detection.detect(bgs_mask, bboxes);
+                profiler.stop("Blob");
                 drawBboxes(bboxes, displayFrame);
                 if (display_bgs)
                 {
@@ -313,8 +316,7 @@ int main(int argc, const char **argv)
                     cv::setWindowProperty("BGS", cv::WND_PROP_AUTOSIZE, cv::WINDOW_NORMAL);
                 }
             }
-            profiler.stop("BGS/Blob");
-
+    
             profiler.start("Display Frame");
             if (!squareResolution)
             {
@@ -389,6 +391,7 @@ int main(int argc, const char **argv)
         if (profiler.get_data("Frame").duration_in_seconds() > 1.0)
         {
             profileData = profiler.get_data();
+            std::cout << "BGS: " << sky360lib::utils::Utils::format_double(profileData["BGS"].fps(), 2) << std::endl;
             profiler.reset();
         }
     }

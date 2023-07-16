@@ -137,6 +137,23 @@ inline void calc_weighted_variance_mono_threshold(const T *const _i1, const T *c
 }
 
 template<class T>
+inline void calc_weighted_variance_mono_threshold_unfold(const T *const _i1, const T *const _i2, const T *const _i3,
+                                                        uint8_t *const _o, uint32_t _total_pixels, 
+                                                        const float* _weight, const float _threshold_squared)
+{
+    for (uint32_t i{0}; i < _total_pixels; i += 2)
+    {
+        const float dI[]{(float)_i1[i], (float)_i2[i], (float)_i3[i], 0.0f, (float)_i1[i + 1], (float)_i2[i + 1], (float)_i3[i + 1], 0.0f};
+        const float mean[]{(dI[0] * _weight[0]) + (dI[1] * _weight[1]) + (dI[2] * _weight[2]) + (dI[3] * _weight[3]), (dI[4] * _weight[0]) + (dI[5] * _weight[1]) + (dI[6] * _weight[2]) + (dI[7] * _weight[3])};
+        const float value[]{dI[0] - mean[0], dI[1] - mean[0], dI[2] - mean[0], dI[3] - mean[0], dI[4] - mean[1], dI[5] - mean[1], dI[6] - mean[1], dI[7] - mean[1]};
+        const float result[]{((value[0] * value[0]) * _weight[0]) + ((value[1] * value[1]) * _weight[1]) + ((value[2] * value[2]) * _weight[2]) + ((value[3] * value[3]) * _weight[3]),
+                            ((value[4] * value[4]) * _weight[0]) + ((value[5] * value[5]) * _weight[1]) + ((value[6] * value[6]) * _weight[2]) + ((value[7] * value[7]) * _weight[3])};
+        _o[i] = result[0] > _threshold_squared ? UCHAR_MAX : ZERO_UC;
+        _o[i + 1] = result[1] > _threshold_squared ? UCHAR_MAX : ZERO_UC;
+    }
+}
+
+template<class T>
 inline void calc_weighted_variance_color(const T *const _i1, const T *const _i2, const T *const _i3,
                                       uint8_t *const _o, uint32_t _total_pixels, 
                                       const float* _weight)
